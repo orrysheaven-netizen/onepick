@@ -7,7 +7,7 @@ import { HomePickRow } from '@/components/home-pick-row';
 import { RecentItemCard } from '@/components/recent-item-card';
 import { HomeHeader } from '@/components/home-header';
 import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
-import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickLayout, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
@@ -255,7 +255,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
-  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickLayout.homeFeedGutter, paddingBottom: OnePickSpace.xxl },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md, padding: OnePickSpace.lg, marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },

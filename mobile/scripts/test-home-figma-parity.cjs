@@ -7,11 +7,26 @@ const path = require('node:path');
 const src = (file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
 const icon = (file) => fs.readFileSync(path.join(__dirname, '../public/icons', file), 'utf8');
 
+const tokens = src('constants/onepick.ts');
+assert.match(tokens, /textSecondary: '#55596A'/, 'Semantic text\/secondary matches the approved 10-07 Figma value');
+assert.match(tokens, /gutter: 16,/, 'Global layout\/gutter stays 16');
+assert.match(tokens, /homeFeedGutter: 20,/, 'Home Feed gets a dedicated 20px gutter');
+assert.match(tokens, /storeBranch: \{ fontFamily: BodyFont, fontSize: 14, lineHeight: 21, fontWeight: '500' \}/);
+assert.match(tokens, /nickname: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '500' \}/);
+assert.match(tokens, /review: \{ fontFamily: BodyFont, fontSize: 15, lineHeight: 22, fontWeight: '400' \}/);
+assert.match(tokens, /meta: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '400' \}/);
+
 const row = src('components/home-pick-row.tsx');
 assert.match(row, /<Avatar name=\{pick\.username\} size=\{32\}/, 'Feed Card 303:430: 32px profile image');
 assert.match(row, /photo: \{ width: 80, height: 80, borderRadius: OnePickRadius\.md/, 'Feed Card: 80px photo, radius 12');
 assert.match(row, /channel === 'offline' \? <StoreBadge \/>/, 'Feed Card: offline Picks use the Store Badge 752:4350');
 assert.match(row, /flag: \{ position: 'absolute', top: 16, right: 0 \}/, 'Feed Card: flag at card top 16, right edge');
+assert.match(row, /numberOfLines=\{2\} ellipsizeMode="tail" style=\{styles\.title\}/, 'Feed Card title is auto-height up to two lines');
+assert.match(row, /numberOfLines=\{2\} ellipsizeMode="tail" style=\{styles\.review\}/, 'Feed Card review is auto-height up to two lines');
+assert.match(row, /username: \{ \.\.\.OnePickFeedType\.nickname, color: OnePick\.textSecondary/, 'Feed Card nickname uses 13\/20 Medium + secondary');
+assert.match(row, /provider: \{ \.\.\.OnePickFeedType\.storeBranch, color: OnePick\.textPrimary \}/, 'Feed Card store\/branch uses 14\/21 Medium');
+assert.match(row, /menu: \{ \.\.\.OnePickType\.title, color: OnePick\.textPrimary \}/, 'Feed Card menu keeps Title 20\/28 Bold');
+assert.match(row, /review: \{ \.\.\.OnePickFeedType\.review, color: OnePick\.textPrimary \}/, 'Feed Card review uses 15\/22 Regular');
 
 const badge = src('components/store-badge.tsx');
 assert.match(badge, /width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: OnePick\.borderStrong/, 'Store Badge: 28px white circle, 1px border/strong');
@@ -28,6 +43,10 @@ assert.match(home, /rankingHeader: \{ height: 28,[^}]*marginBottom: OnePickSpace
 assert.match(home, /sectionDivider: \{ height: 1, backgroundColor: '#E5E5EB', marginVertical: 24 \}/, 'Divider 681:4049');
 assert.match(home, /feedTitle: \{ \.\.\.OnePickType\.headline, color/, 'Section Header 303:422: Headline 16');
 assert.match(home, /moreText: \{ \.\.\.OnePickType\.caption, color: OnePick\.textSecondary \}/, 'Section Header: 더보기 Caption 12');
+assert.match(home, /content: \{[^}]*paddingHorizontal: OnePickLayout\.homeFeedGutter/, 'Home feed surface uses the dedicated 20px gutter');
+assert.match(home, /fixedHeader: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, 'Header\/overlay surface keeps the global 16px gutter');
+const fullFeed = src('app/feed.tsx');
+assert.match(fullFeed, /content: \{[^}]*paddingHorizontal: OnePickLayout\.homeFeedGutter/, 'Full people feed uses the same 20px feed gutter');
 
 const header = src('components/home-header.tsx');
 assert.match(header, /themeText: \{ \.\.\.OnePickType\.title,/, 'Theme Selector 303:418: Title 20');

@@ -4,7 +4,7 @@ import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickPhoto } from '@/components/pick-photo';
 import { StoreBadge } from '@/components/store-badge';
 import { Avatar } from '@/components/ui';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeedType, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -40,7 +40,7 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
         <Pressable accessibilityRole="button" accessibilityLabel={`@${pick.username} 프로필 보기`} onPress={onOpenProfile}
           style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
           <Avatar name={pick.username} size={32} tone="subtle" />
-          <Text numberOfLines={1} style={styles.username}>@{pick.username}</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>@{pick.username}</Text>
         </Pressable>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
@@ -48,13 +48,13 @@ export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onO
         <View style={styles.titleRow}>
           {channel === 'offline' ? <StoreBadge />
             : channelLabel ? <View style={styles.badge}><Text style={styles.badgeText}>{channelLabel}</Text></View> : null}
-          <Text numberOfLines={1} style={styles.title}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.title}>
             {providerName ? <Text style={styles.provider} {...(onOpenProvider ? { accessibilityRole: 'link' as const,
               onPress: (event: { stopPropagation?: () => void }) => { event?.stopPropagation?.(); onOpenProvider(); } } : {})}>{providerName} </Text> : null}
             <Text style={providerName ? styles.menu : styles.provider}>{menuName}</Text>
           </Text>
         </View>
-        {pick.oneLineReview ? <Text numberOfLines={2} style={styles.review}>{`“${pick.oneLineReview}”`}</Text> : null}
+        {pick.oneLineReview ? <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{`“${pick.oneLineReview}”`}</Text> : null}
       </Pressable>
     </View>
     {/* Figma Current Pick / 원픽 깃발: 24px, card top 16, right edge. */}
@@ -69,14 +69,14 @@ const styles = StyleSheet.create({
   flag: { position: 'absolute', top: 16, right: 0 },
   personRow: { flexDirection: 'row', alignItems: 'center' },
   person: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm, minWidth: 0, flexShrink: 1, minHeight: 32 },
-  username: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1 },
+  username: { ...OnePickFeedType.nickname, color: OnePick.textSecondary, flexShrink: 1 },
   body: { gap: OnePickSpace.xs },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
   badgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },
   title: { flex: 1, minWidth: 0, color: OnePick.textPrimary },
-  provider: { ...OnePickType.headline, color: OnePick.textPrimary },
-  menu: { ...OnePickType.body, fontSize: 16, color: OnePick.textPrimary },
-  review: { ...OnePickType.body, color: OnePick.textPrimary },
+  provider: { ...OnePickFeedType.storeBranch, color: OnePick.textPrimary },
+  menu: { ...OnePickType.title, color: OnePick.textPrimary },
+  review: { ...OnePickFeedType.review, color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });
