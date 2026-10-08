@@ -75,6 +75,34 @@ using (
   and owner_id=(select auth.uid()::text)
 );
 
+-- Serialize DELETE with profile selection. A previously listed cleanup
+-- candidate may have become current on another device before Storage removes it.
+create or replace function private.can_delete_profile_image(
+  p_bucket text, p_name text, p_owner text
+)
+returns boolean
+language plpgsql volatile security definer
+set search_path = ''
+as $delete_guard$
+declare v_user uuid := auth.uid();
+begin
+  if v_user is null or p_bucket is distinct from 'profile-images'
+     or p_owner is distinct from v_user::text
+     or p_name is null or p_name not like v_user::text || '/%'
+     or current_setting('transaction_isolation') <> 'read committed' then
+    return false;
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('onepick:profile-images:' || v_user::text, 0)
+  );
+  return not exists (
+    select 1 from public.profiles p where p.id=v_user and p.profile_image_url=p_name
+  );
+end;
+$delete_guard$;
+revoke all on function private.can_delete_profile_image(text,text,text) from public, anon;
+grant execute on function private.can_delete_profile_image(text,text,text) to authenticated;
+
 -- Old photos are removed by their owner after a replacement; the current one
 -- cannot be deleted while the profile still points at it.
 drop policy if exists profile_images_unused_delete on storage.objects;
@@ -82,11 +110,7 @@ create policy profile_images_unused_delete
 on storage.objects for delete to authenticated
 using (
   bucket_id='profile-images'
-  and owner_id=(select auth.uid()::text)
-  and not exists (
-    select 1 from public.profiles p
-    where p.id=(select auth.uid()) and p.profile_image_url=storage.objects.name
-  )
+  and private.can_delete_profile_image(bucket_id,name,owner_id)
 );
 
 alter table public.profiles
@@ -112,6 +136,12 @@ declare
   v_path text := nullif(btrim(coalesce(p_path, '')), '');
 begin
   if v_user is null then raise exception 'AUTH_REQUIRED' using errcode='P0001'; end if;
+  if current_setting('transaction_isolation') <> 'read committed' then
+    raise exception 'PROFILE_IMAGE_RETRY' using errcode='40001';
+  end if;
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('onepick:profile-images:' || v_user::text, 0)
+  );
   if v_path is not null then
     if v_path !~ ('^' || v_user::text || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$') then
       raise exception 'PROFILE_IMAGE_INVALID' using errcode='P0001';

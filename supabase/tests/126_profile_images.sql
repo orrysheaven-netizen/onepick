@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(8);
 
 select is(
   (select row(public, file_size_limit, allowed_mime_types)::text from storage.buckets where id = 'profile-images'),
@@ -213,6 +213,12 @@ begin
   delete from storage.objects where bucket_id='profile-images' and name=mine;
   get diagnostics affected = row_count;
   assert affected=0, 'current profile photo cannot be deleted';
+  -- A cleanup list was read while mine was current; another device selects old.
+  perform public.set_profile_image(old);
+  delete from storage.objects where bucket_id='profile-images' and name=old;
+  get diagnostics affected = row_count;
+  assert affected=0, 'a listed cleanup candidate that becomes current is protected';
+  perform public.set_profile_image(mine);
   delete from storage.objects where bucket_id='profile-images' and name=old;
   get diagnostics affected = row_count;
   assert affected=1, 'unused owned photo can be removed';
@@ -238,6 +244,13 @@ begin
 end;
 $flow$;
 $test$, 'storage listing/deletion is owner-scoped and suspended uploads are denied');
+
+select ok(
+  not has_function_privilege('anon','private.can_delete_profile_image(text,text,text)','EXECUTE')
+  and (select provolatile='v' from pg_proc
+       where oid='private.can_delete_profile_image(text,text,text)'::regprocedure),
+  'delete guard is authenticated-only and refreshes its snapshot after locking'
+);
 
 select * from finish();
 rollback;
