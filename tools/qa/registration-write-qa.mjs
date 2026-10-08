@@ -144,7 +144,9 @@ async function main() {
     phase = 'detail-title';
     await page.getByText(STORE, { exact: false }).first().waitFor({ state: 'visible', timeout: 30_000 });
     phase = 'detail-review';
-    await page.getByText(REVIEW, { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
+    // ItemReviewCard wraps the complete review in curly quotation marks.
+    await page.getByRole('button', { name: `${STORE} 한줄평 대화 보기`, exact: true })
+      .getByText(`“${REVIEW}”`, { exact: true }).waitFor({ state: 'visible', timeout: 30_000 });
     phase = 'photo-display';
     await page.getByRole('img', { name: STORE, exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
     await page.waitForFunction(label => [...document.querySelectorAll('[aria-label]')].some(el => {
