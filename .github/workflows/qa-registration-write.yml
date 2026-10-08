@@ -1,0 +1,48 @@
+name: One-time Registration QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_registration:
+        description: 'Create ONE synthetic QA pick and photo in production (retained pending review)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-qa
+  cancel-in-progress: false
+
+jobs:
+  registration:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_registration == true && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: daily-qa
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+      - name: Install pinned QA dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check registration guard offline
+        run: node --test registration-write-contract.test.mjs
+      - name: Register one synthetic QA pick through the app
+        env:
+          CONFIRM_QA_REGISTRATION: ${{ inputs.confirm_registration }}
+          ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
+          ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+        run: node registration-write-qa.mjs
