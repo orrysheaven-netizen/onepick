@@ -56,7 +56,7 @@ begin
   -- even when a public item has the same normalized name. #836 does not call
   -- this RPC; only the MFA admin review/merge flow may consume store requests.
   insert into public.items(category_id,name,normalized_name,status,image_path,thumbnail_path)
-    select closed_store,name,normalized_name,'active',image_path,thumbnail_path from public.items where id=b_item;
+    select closed_store,name,normalized_name,'active',bob::text||'/b.jpg',bob::text||'/b-t.jpg' from public.items where id=b_item;
   perform set_config('request.jwt.claim.sub',bob::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
