@@ -13,7 +13,17 @@ export function useProfileImage(profileUserId: string, currentUrl: string | null
       previous?.profile?.id === saved.userId
         ? { ...previous, profile: { ...previous.profile, profileImageUrl: saved.profileImageUrl } }
         : previous);
-    await client.invalidateQueries();
+    // Refresh domains that embed a profile; leave catalogs, settings, auth and
+    // unrelated admin queries untouched.
+    const profileDomains: readonly string[] = [
+      queryKeys.profiles.all[0], queryKeys.home.all[0], queryKeys.explore.all[0],
+      queryKeys.follows.all[0], queryKeys.comments.all[0], queryKeys.items.all[0],
+      queryKeys.picks.all[0], queryKeys.providers.all[0],
+    ];
+    await client.invalidateQueries({
+      predicate: ({ queryKey }) => profileDomains.includes(String(queryKey[0]))
+        || (queryKey[0] === 'notifications' && queryKey[2] === 'list'),
+    });
   };
   const change = useMutation({ mutationFn: () => profileImageService.chooseAndSave(profileUserId, currentUrl), onSuccess });
   const clear = useMutation({ mutationFn: () => profileImageService.clear(profileUserId, currentUrl), onSuccess });
