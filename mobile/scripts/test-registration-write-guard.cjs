@@ -1,3 +1,4 @@
+// Gate deps: tools/qa/registration-write-contract.mjs tools/qa/registration-write-qa.mjs
 // run-tests.cjs discovers every test-*.cjs, so required Mobile CI exercises the
 // same offline safety tests as the manual registration workflow. No credentials.
 const path = require('node:path');
