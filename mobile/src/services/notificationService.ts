@@ -1,3 +1,4 @@
+import { profileImagePublicUrl } from '@/lib/profile/profileImage';
 import { supabase } from '@/lib/supabase/client';
 import type { AppSupabaseClient } from '@/lib/supabase/client';
 import { mapSupabaseError } from '@/errors/mapSupabaseError';
@@ -27,7 +28,7 @@ function normalizeGroup(row: unknown): AppNotificationGroup | null {
       ? {
           user_id: value.actor.user_id,
           username: value.actor.username,
-          profile_image_url: typeof value.actor.profile_image_url === 'string' ? value.actor.profile_image_url : null,
+          profile_image_url: profileImagePublicUrl(value.actor.profile_image_url),
         }
       : null,
     target: {
