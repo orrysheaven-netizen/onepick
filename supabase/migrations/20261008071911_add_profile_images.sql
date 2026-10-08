@@ -36,6 +36,7 @@ begin
      or p_name is null
      or p_name !~ ('^' || v_user::text || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$')
      or current_setting('transaction_isolation') <> 'read committed'
+     or private.is_user_suspended(v_user)
      or not exists (select 1 from public.profiles where id=v_user) then
     return false;
   end if;
@@ -129,7 +130,8 @@ begin
 end;
 $$;
 
-revoke all on function public.set_profile_image(text) from public, anon;
+-- Profile edits require a signed-in actor; service-role maintenance uses its own path.
+revoke all on function public.set_profile_image(text) from public, anon, service_role;
 grant execute on function public.set_profile_image(text) to authenticated;
 
 comment on function public.set_profile_image(text) is

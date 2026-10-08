@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(6);
+select plan(7);
 
 select is(
   (select row(public, file_size_limit, allowed_mime_types)::text from storage.buckets where id = 'profile-images'),
@@ -82,7 +82,6 @@ end;
 $flow$;
 $test$, 'set_profile_image accepts only the caller''s own uploaded JPEG path and can clear it');
 
-
 select ok(
   not has_function_privilege('anon', 'private.can_upload_profile_image(text,text,text)', 'EXECUTE')
   and (select provolatile = 'v' from pg_proc
@@ -109,6 +108,8 @@ begin
 
   foreach candidate in array array[
     me::text || '/not-a-uuid.jpg',
+    me::text || '/AAAAAAAA-0000-4000-8000-000000000001.jpg',
+    me::text || '/00000000-0000-4000-8000-000000000001.JPG',
     me::text || '/nested/00000000-0000-4000-8000-000000000001.jpg',
     me::text || '/00000000-0000-4000-8000-000000000001.png',
     other::text || '/00000000-0000-4000-8000-000000000001.jpg'
@@ -176,6 +177,67 @@ begin
 end;
 $flow$;
 $test$, 'profile upload RLS enforces UUID ownership and the retained-object cap');
+
+
+-- Fixture-only SQL deletion: production removes backing objects with Storage API.
+select set_config('storage.allow_delete_query','true',true);
+select lives_ok($test$
+do $flow$
+#variable_conflict use_variable
+declare
+  me uuid := 'f1220000-0000-4000-8000-000000000005';
+  other uuid := 'f1220000-0000-4000-8000-000000000006';
+  mine text := me::text || '/00000000-0000-4000-8000-000000000001.jpg';
+  old text := me::text || '/00000000-0000-4000-8000-000000000002.jpg';
+  theirs text := other::text || '/00000000-0000-4000-8000-000000000001.jpg';
+  affected integer;
+  failed boolean;
+begin
+  insert into auth.users(id,aud,role,created_at,updated_at)
+    select id,'authenticated','authenticated',now(),now() from unnest(array[me,other]) id;
+  insert into public.profiles(id,username,onboarding_completed)
+    values (me,'pi_policy',true),(other,'pi_policy_other',true);
+  insert into storage.objects(bucket_id,name,owner_id) values
+    ('profile-images',mine,me::text),('profile-images',old,me::text),
+    ('profile-images',theirs,other::text);
+
+  perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
+  perform set_config('request.jwt.claim.sub',me::text,true);
+  set local role authenticated;
+  perform public.set_profile_image(mine);
+  assert (select count(*) from storage.objects where bucket_id='profile-images' and name=theirs)=0,
+    'another user cannot list the object';
+  delete from storage.objects where bucket_id='profile-images' and name=theirs;
+  get diagnostics affected = row_count;
+  assert affected=0, 'another user cannot delete the object';
+  delete from storage.objects where bucket_id='profile-images' and name=mine;
+  get diagnostics affected = row_count;
+  assert affected=0, 'current profile photo cannot be deleted';
+  delete from storage.objects where bucket_id='profile-images' and name=old;
+  get diagnostics affected = row_count;
+  assert affected=1, 'unused owned photo can be removed';
+  perform public.set_profile_image(null);
+  delete from storage.objects where bucket_id='profile-images' and name=mine;
+  get diagnostics affected = row_count;
+  assert affected=1, 'cleared profile photo can be removed';
+  reset role;
+
+  insert into private.user_moderation(user_id,reason,suspended_at)
+    values(me,'Profile photo security fixture',now());
+  set local role authenticated;
+  assert not private.can_upload_profile_image('profile-images',mine,me::text),
+    'suspended caller is rejected by upload helper';
+  failed := false;
+  begin
+    insert into storage.objects(bucket_id,name,owner_id)
+      values ('profile-images',mine,me::text);
+  exception when insufficient_privilege then failed := true;
+  end;
+  assert failed, 'suspended caller cannot upload through Storage RLS';
+  reset role;
+end;
+$flow$;
+$test$, 'storage listing/deletion is owner-scoped and suspended uploads are denied');
 
 select * from finish();
 rollback;
