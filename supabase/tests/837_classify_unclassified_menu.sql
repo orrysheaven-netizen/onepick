@@ -9,6 +9,7 @@ declare
   admin uuid := gen_random_uuid(); alice uuid := gen_random_uuid(); bob uuid := gen_random_uuid();
   grp uuid := gen_random_uuid(); waffle uuid := gen_random_uuid(); closed_store uuid := gen_random_uuid();
   pending_id uuid; res jsonb; a_item uuid; a_pick uuid; b_item uuid; c_item uuid; a_place uuid;
+  b_pick uuid;
   v_item public.items%rowtype; v_pick public.picks%rowtype; raised boolean; n integer;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
@@ -47,7 +48,7 @@ begin
   set local role authenticated;
   res := public.register_unclassified_menu_pick('와플','밥도 와플',p_place_name => '분류와플집', p_map_url => 'https://naver.me/ccr1',
     p_image_path => bob::text||'/a.jpg', p_thumbnail_path => bob::text||'/a-t.jpg');
-  b_item := (res->>'item_id')::uuid;
+  b_item := (res->>'item_id')::uuid; b_pick := (res->>'pick_id')::uuid;
   reset role;
   assert not exists(select 1 from public.places where name='분류와플집'), 'No store is materialized before approval';
 
@@ -129,7 +130,16 @@ begin
   exception when others then raised := sqlerrm = 'PICK_CONFLICT'; end;
   assert raised, 'Another request cannot replace the member current Pick';
 
-  v_item := public.admin_review_pending_item(b_item,'rejected',null,'이미 등록된 메뉴예요');
+  v_item := public.admin_merge_pending_item(b_item,a_item);
+  assert v_item.status='merged', 'Unclassified duplicate merges into the approved menu';
+  reset role;
+  assert not exists(select 1 from private.user_place_requests where item_id=b_item), 'Merge consumes private store request';
+  assert (select item_id=a_item and category_id=waffle and status='active' and one_line_review='밥도 와플'
+    from public.picks where id=b_pick), 'Merge preserves the existing Pick and review across the staging category';
+  assert (select image_path=bob::text||'/a.jpg' from public.items where id=b_item), 'Submitted photo is retained';
+  assert (select count(*) from public.places where map_url='https://naver.me/ccr1')=1, 'Merge creates no duplicate store';
+  set local role authenticated;
+  v_item := public.admin_review_pending_item(c_item,'rejected',null,'이미 등록된 메뉴예요');
   assert v_item.status='rejected', 'Rejecting a request works as before';
   reset role;
 

@@ -96,8 +96,13 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(
     'user-place:' || v_request.normalized_name || ':' || new.target_url, 0));
   if exists (select 1 from private.user_place_requests r
-    where r.item_id <> new.item_id and r.normalized_name = v_request.normalized_name and r.map_url = new.target_url)
-    or exists (select 1 from public.places p where p.place_provider = 'user'
+    join public.items i on i.id = r.item_id
+    where i.category_id = (select category_id from public.items where id = new.item_id)
+      and r.item_id <> new.item_id and r.normalized_name = v_request.normalized_name and r.map_url = new.target_url)
+    or exists (select 1 from public.places p
+      join public.item_places ip on ip.place_id = p.id
+      where ip.category_id = (select category_id from public.items where id = new.item_id)
+      and p.place_provider = 'user'
       and lower(regexp_replace(btrim(p.name), '[[:space:]]+', '', 'g')) = v_request.normalized_name
       and p.map_url = new.target_url) then
     raise exception 'PLACE_ALREADY_REGISTERED' using errcode = 'P0001';
@@ -111,12 +116,23 @@ create trigger item_channels_sync_user_place_request
 before update of target_url on public.item_channels
 for each row execute function private.sync_user_place_request_link();
 
--- A direct status update/merge must not bypass materialization through the
--- approved review RPC. Rejection keeps the request available for correction.
+-- Activation must materialize the request. A merge resolves it against an
+-- existing item instead: retain the existing MFA admin merge/RLS contract and
+-- let the existing review trigger move the needs_review Pick. No store is made.
 create function private.guard_user_place_request_status()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if new.status in ('active', 'discontinued', 'merged') and exists (
+  if new.status = 'merged' and exists (
+    select 1 from private.user_place_requests where item_id = new.id
+  ) then
+    if not private.is_admin_mfa() then
+      raise exception 'ADMIN_REQUIRED' using errcode = '42501';
+    end if;
+    -- admin_merge_pending_item validates/locks both items before this update.
+    -- Cleanup and existing Pick transfer roll back together on any failure.
+    delete from private.user_place_requests where item_id = new.id;
+  end if;
+  if new.status in ('active', 'discontinued') and exists (
     select 1 from private.user_place_requests where item_id = new.id
   ) then
     raise exception 'USER_PLACE_REVIEW_REQUIRED' using errcode = 'P0001';
