@@ -90,24 +90,49 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await page.getByRole('textbox', { name: '매장명 검색', exact: true }).waitFor({ state: 'visible', timeout });
       assert.equal(await page.getByText('상호명을 검색해주세요.', { exact: true }).count(), 1);
     });
-    const menu = (label, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><button onclick="window.selected=true">${label}</button><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
-    await t.test('menu supports plain/group names, default AI path, and trial-only Next', async () => {
-      for (const label of ['도가니탕', '국물 › 도가니탕', 'AI 추천 도가니탕']) {
-        await set(menu(label));
-        await api.checkMenuSelection(page, '도가니탕', timeout);
-        assert.equal(await page.evaluate(() => window.selected), true);
+    const successCopy = '메뉴를 확인했어요. 다음으로 넘어가주세요.';
+    const menu = (copy, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><div id="classification">${copy}</div><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
+    await t.test('automatic menu classification needs no category click and never submits', async () => {
+      for (const name of ['도가니탕', '메뉴(특)+']) {
+        await set(menu(successCopy));
+        await api.checkMenuSelection(page, name, timeout);
+        assert.equal(await page.getByRole('textbox', { name: '메뉴 이름' }).inputValue(), name);
         assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
       }
-      await set(menu('국물 › 메뉴(특)+'));
-      await api.checkMenuSelection(page, '메뉴(특)+', timeout, false);
-      await set(menu('AI 추천 도가니탕'));
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout, false));
-      await set(menu('다른 메뉴'));
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout));
-      await set(menu('도가니탕', true));
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout, false), (error) => error.code !== 'QA_MENU_CHOICE_UNAVAILABLE');
-      await set('<div>2 / 4 · 매장</div><input aria-label="메뉴 검색"><button>도가니탕</button><button>도가니탕(으)로 다음</button>');
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout));
+      await set(menu('분류 중', true));
+      await page.locator('input').evaluate((input, copy) => {
+        input.addEventListener('input', () => setTimeout(() => {
+          document.getElementById('classification').textContent = copy;
+          document.querySelector('button').disabled = false;
+        }, 60), { once: true });
+      }, successCopy);
+      await api.checkMenuSelection(page, '도가니탕', timeout);
+      assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
+    });
+    await t.test('missing, loading, unresolved and legacy category choices cannot pass', async () => {
+      for (const copy of ['', '분류 중', '메뉴를 분류하지 못했어요.', '<button>도가니탕</button>', '<button>AI 추천 도가니탕</button>']) {
+        await set(menu(copy));
+        await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout),
+          (error) => error.code === 'QA_MENU_CLASSIFICATION_UNAVAILABLE');
+        assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
+      }
+    });
+    await t.test('disabled or covered Next remains a failure even when classification succeeds', async () => {
+      await set(menu(successCopy, true));
+      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout),
+        (error) => error.code !== 'QA_MENU_CLASSIFICATION_UNAVAILABLE');
+      await set(menu(successCopy));
+      await page.locator('button').evaluate((button) => {
+        const cover = document.createElement('div');
+        cover.style.cssText = 'position:absolute;inset:0;z-index:10';
+        button.style.cssText = 'position:relative';
+        button.parentNode.insertBefore(cover, button);
+        const rect = button.getBoundingClientRect();
+        cover.style.cssText = `position:fixed;left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px;z-index:10`;
+      });
+      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout),
+        (error) => error.code !== 'QA_MENU_CLASSIFICATION_UNAVAILABLE');
+      assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
     });
     await t.test('notifications require signed-in controls and a loaded list or empty state', async () => {
       for (const row of ['새 알림, @user, 댓글', '읽은 알림, 수정 필요']) {
@@ -208,3 +233,4 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
     assert.equal(unexpectedRequests, 0);
   } finally { await browser.close(); }
 });
+
