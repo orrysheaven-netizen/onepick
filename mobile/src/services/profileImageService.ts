@@ -29,13 +29,22 @@ export class ProfileImageService {
     const base64 = await this.prepare(uri);
 
     const path = `${profileUserId}/${Crypto.randomUUID()}.jpg`;
-    const { error: uploadError } = await this.client.storage.from(BUCKET).upload(path, decode(base64), {
+    const bytes = decode(base64);
+    const upload = () => this.client.storage.from(BUCKET).upload(path, bytes, {
       contentType: 'image/jpeg', cacheControl: '31536000', upsert: false,
     });
+    await this.assertSignedIn(profileUserId);
+    let { error: uploadError } = await upload();
+    if (uploadError && Number(uploadError.statusCode) === 403
+        && await this.recoverFullFolder(profileUserId, currentUrl, path)) {
+      await this.assertSignedIn(profileUserId);
+      ({ error: uploadError } = await upload()); // Exactly one retry, same prepared bytes.
+    }
     if (uploadError) {
       if (Number(uploadError.statusCode) === 413) throw new AppError('PHOTO_TOO_LARGE', 'PHOTO_TOO_LARGE', uploadError);
       throw new AppError('PHOTO_UPLOAD_FAILED', 'PHOTO_UPLOAD_FAILED', uploadError);
     }
+    await this.assertSignedIn(profileUserId);
     const { error } = await (this.client as any).rpc('set_profile_image', { p_path: path });
     if (error) {
       // The profile still points at the old photo; drop the orphan upload.
@@ -52,6 +61,30 @@ export class ProfileImageService {
     if (error) throw mapSupabaseError(error);
     await this.removeOld(currentUrl);
     return { userId: profileUserId, profileImageUrl: null };
+  }
+
+  /** Only recover a full own folder after an RLS upload denial. DB DELETE
+   * serialization is authoritative if the current photo changes after listing. */
+  private async recoverFullFolder(userId: string, currentUrl: string | null, pendingPath: string) {
+    await this.assertSignedIn(userId);
+    const { data: objects, error: listError } = await this.client.storage.from(BUCKET)
+      .list(userId, { limit: 20, offset: 0, sortBy: { column: 'created_at', order: 'asc' } });
+    if (listError || !objects || objects.length < 20) return false;
+
+    const { data: profile, error: profileError } = await this.client.from('profiles')
+      .select('profile_image_url').eq('id', userId).single();
+    if (profileError || !profile) return false;
+    const previousPath = profileImagePathFromUrl(currentUrl);
+    const candidates = objects
+      .filter((object) => object.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/.test(object.name))
+      .map((object) => `${userId}/${object.name}`)
+      .filter((path) => path !== profile.profile_image_url && path !== previousPath && path !== pendingPath);
+    if (!candidates.length) return false;
+    await this.assertSignedIn(userId);
+    // Retain all but one unused object; freeing one slot is enough for this upload.
+    // Storage RLS rechecks the actual current photo while holding the same lock as set_profile_image.
+    const { data: removed, error } = await this.client.storage.from(BUCKET).remove(candidates.slice(0, 1));
+    return !error && !!removed?.length;
   }
 
   private async assertSignedIn(profileUserId: string) {
