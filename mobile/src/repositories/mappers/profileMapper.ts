@@ -3,7 +3,7 @@ import type { Profile } from '@/types/domain/profile';
 
 // Profile photos: the database keeps only the owner's `<id>/<uuid>.jpg` path in the
 // public `profile-images` bucket (DB CHECK), so the URL is always our own storage.
-const PROFILE_IMAGE_PATH = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg$/;
+const PROFILE_IMAGE_PATH = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.jpg$/;
 export function profileImagePublicUrl(path: string | null | undefined): string | null {
   if (!path || !PROFILE_IMAGE_PATH.test(path)) return null;
   // Static dot notation: Expo only inlines public env vars accessed this way.
