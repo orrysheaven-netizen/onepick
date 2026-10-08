@@ -72,16 +72,20 @@ select lives_ok($$update public.profiles set nickname='새 사용자' where id='
   'new account can set nickname after profile creation');
 reset role;
 
--- Set up moderation and reverse block with privileged fixture writes, without
--- changing any policies or using a privileged client for the assertions.
+-- Seed moderation as a fixture owner, then create the reverse block as its
+-- authenticated owner, as required by the existing prepare_user_block trigger.
 select set_config('request.jwt.claims','{}',true);
 select set_config('request.jwt.claim.sub','',true);
 update public.profiles set nickname='숨겨진 이름' where id in
   ('fa040000-0000-4000-8000-000000000003','fa040000-0000-4000-8000-000000000004');
 insert into private.user_moderation(user_id,reason,suspended_at)
 values ('fa040000-0000-4000-8000-000000000003','nickname security fixture',now());
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"fa040000-0000-4000-8000-000000000004","role":"authenticated","aal":"aal1"}',true);
+select set_config('request.jwt.claim.sub','fa040000-0000-4000-8000-000000000004',true);
 insert into public.user_blocks(blocker_user_id,blocked_user_id,blocked_username_snapshot)
 values ('fa040000-0000-4000-8000-000000000004','fa040000-0000-4000-8000-000000000001','ignored');
+reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa040000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}',true);
