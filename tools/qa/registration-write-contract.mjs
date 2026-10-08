@@ -8,6 +8,17 @@ export const REVIEW = 'QA 테스트 등록이에요. 실제 방문 후기가 아
 export const uuid = (value) => typeof value === 'string' && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
 export function requireCondition(ok, code) { if (!ok) throw new Error(code); }
 
+// The job is capped at 10 minutes. Keep another 5 minutes clear of the client's
+// refresh window; do not broaden the network guard to admit token refreshes.
+export function assertSessionBudget(session, nowSeconds = Date.now() / 1000) {
+  let exp;
+  try { exp = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64url').toString()).exp; }
+  catch { throw new Error('SESSION_EXPIRY_INVALID'); }
+  requireCondition(Number.isFinite(exp) && Number.isFinite(session.expires_at)
+    && Number.isFinite(nowSeconds)
+    && Math.min(exp, session.expires_at) - nowSeconds >= 15 * 60, 'SESSION_BUDGET_INSUFFICIENT');
+}
+
 export function assertExecution(env) {
   requireCondition(env.GITHUB_EVENT_NAME === 'workflow_dispatch'
     && env.GITHUB_REF === 'refs/heads/main'
@@ -25,6 +36,7 @@ export function createWriteGuard(userId, categoryId) {
   let uploadStem = null;
   const uploads = new Set();
   const successfulUploads = new Set();
+  // Re-review this allowlist whenever a listed database function gains side effects.
   const readRpcs = new Set(['search_store_catalog_page', 'current_user_is_admin',
     'home_pick_feed_page', 'item_review_page', 'notification_unread_count',
     'item_brands', 'search_items']);

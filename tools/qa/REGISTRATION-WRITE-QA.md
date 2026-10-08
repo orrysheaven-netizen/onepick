@@ -9,6 +9,7 @@
 - main의 CI와 배포가 완료된 뒤 `confirm_registration`을 선택해 실행한다.
 - 기존 `daily-qa` Environment의 QA 이메일·비밀번호 Secret만 사용한다.
 - 계정에 원픽이 하나라도 보이면 중단한다. 기존 원픽을 교체하지 않는다.
+- 로그인 직후와 제출 직전에 세션 만료 여유가 15분 이상인지 확인한다. 10분 job 안에서 토큰 갱신 없이 마칠 수 없으면 쓰기 전에 중단한다.
 - 메뉴는 기존 분류의 `도가니탕`을 사용한다. 정확 일치가 안 되면 실패하며 AI 호출은 차단한다.
 
 ## 생성되는 데이터
@@ -43,6 +44,8 @@
 `node --test tools/qa/registration-write-contract.test.mjs`는 네트워크 없이 실행 권한,
 요청 대상·내용 제한, 자기 소유 pending 항목, 사진 쌍, 교체/중복 제출 차단을 검사한다.
 운영 E2E 성공 근거는 수동 workflow의 실제 결과이며 오프라인 테스트로 대체하지 않는다.
+`mobile/scripts/test-registration-write-guard.cjs`가 같은 테스트를 실행하므로 필수 Mobile CI의
+`npm test`에서도 병합 전에 검증한다.
 
 새 Secret 사용 워크플로이므로 병합 전 독립 보안 리뷰와 사용자 병합 승인이 필요하다.
 현재 추가 비용이 드는 모델 호출이나 새 서비스는 사용하지 않는다.

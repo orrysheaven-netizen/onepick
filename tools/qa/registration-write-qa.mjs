@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { chromium } from 'playwright';
 import { isPublicKey } from './setup-qa-profile.mjs';
 import { SITE, API, STORE, MENU, REVIEW, uuid, requireCondition as need,
-  assertExecution, createWriteGuard, enterRegistration } from './registration-write-contract.mjs';
+  assertExecution, assertSessionBudget, createWriteGuard, enterRegistration } from './registration-write-contract.mjs';
 
 async function main() {
   assertExecution(process.env);
@@ -39,6 +39,7 @@ async function main() {
       email: process.env.ONEPICK_QA_EMAIL, password: process.env.ONEPICK_QA_PASSWORD,
     });
     need(session?.access_token, 'AUTH_FAILED');
+    assertSessionBudget(session);
     const user = await request('/auth/v1/user');
     need(uuid(user?.id) && user.id === session.user?.id
       && user.email?.toLowerCase() === process.env.ONEPICK_QA_EMAIL.toLowerCase(), 'IDENTITY_MISMATCH');
@@ -100,6 +101,7 @@ async function main() {
     await enterRegistration(page, Buffer.from(png, 'base64'), async () => {
       need(!fault, 'READ_PREFLIGHT_FAILED');
       await assertEmpty();
+      assertSessionBudget(session);
       guard.arm();
     });
     await page.waitForURL(url => registration && url.pathname === `/item/${registration.item_id}`, { timeout: 60_000 });

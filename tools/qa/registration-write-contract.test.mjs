@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { API, SITE, STORE, MAP, REVIEW, assertExecution, createWriteGuard } from './registration-write-contract.mjs';
+import { API, SITE, STORE, MAP, REVIEW, assertExecution, assertSessionBudget, createWriteGuard } from './registration-write-contract.mjs';
 const user = '11111111-1111-4111-8111-111111111111';
 const category = '22222222-2222-4222-8222-222222222222';
 const item = '33333333-3333-4333-8333-333333333333';
@@ -13,6 +13,21 @@ const image = (file, overrides = {}) => ({ url: `${API}/storage/v1/object/item-p
 const register = { p_category_id: category, p_channel: 'offline', p_item_id: item,
   p_one_line_review: REVIEW, p_expected_previous_pick_id: null, p_request_id: pick,
   p_image_path: `${user}/fixture.jpg`, p_thumbnail_path: `${user}/fixture-thumb.jpg` };
+test('session has sufficient lifetime without enabling token refresh writes', () => {
+  const now = 10_000;
+  const session = (exp, expires_at = exp) => ({ expires_at,
+    access_token: `fixture.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.fixture` });
+  assert.doesNotThrow(() => assertSessionBudget(session(now + 3600), now));
+  assert.doesNotThrow(() => assertSessionBudget(session(now + 900), now));
+  for (const s of [session(now + 899), session(now - 1), session(now + 3600, now + 899),
+    session(now + 899, now + 3600), session('20000'), session(now + 3600, '20000'),
+    { access_token: 'bad' }, session(null)]) {
+    assert.throws(() => assertSessionBudget(s, now));
+  }
+  assert.throws(() => assertSessionBudget(session(now + 3600), now + 2701));
+  const g = createWriteGuard(user, category); g.arm();
+  assert.throws(() => g.admit({ url: `${API}/auth/v1/token?grant_type=refresh_token`, method: 'POST' }));
+});
 function prepared() {
   const g = createWriteGuard(user, category); g.arm();
   g.admit(write('stage_user_place_item', stage)); g.acceptStage(staged);
