@@ -32,8 +32,9 @@ export function assertExecution(env) {
 
 // Only two write RPCs and one full/thumbnail pair are admitted. A failed or
 // ambiguous response is never retried automatically. Unknown writes fail closed.
-export function createWriteGuard(userId, categoryId, { readOnly = false } = {}) {
-  requireCondition(uuid(userId) && uuid(categoryId), 'INVALID_ID');
+export function createWriteGuard(userId, categoryId, { readOnly = false, existingItemId = null } = {}) {
+  requireCondition(uuid(userId) && uuid(categoryId)
+    && (existingItemId === null || (readOnly && uuid(existingItemId))), 'INVALID_ID');
   let staged = null, stageAttempted = false, registerAttempted = false, armed = false;
   let uploadStem = null;
   const uploads = new Set();
@@ -55,6 +56,15 @@ export function createWriteGuard(userId, categoryId, { readOnly = false } = {}) 
       requireCondition(u.origin === API, 'UNEXPECTED_WRITE');
       const rpc = u.pathname.replace('/rest/v1/rpc/', '');
       if (method === 'POST' && readRpcs.has(rpc)) return 'read';
+      // SQL SELECT, stable/security invoker (20260918115546); the app requests
+      // attribution on detail load. Limit this exception to the verified fixture
+      // or this run's staged item, never arbitrary items or extra RPC arguments.
+      if (method === 'POST' && u.pathname === '/rest/v1/rpc/item_photo_credit') {
+        const target = readOnly ? existingItemId : staged?.id;
+        requireCondition(uuid(target) && only(body, ['p_item_id'])
+          && body.p_item_id === target, 'PHOTO_CREDIT_NOT_ALLOWED');
+        return 'read';
+      }
       // App cleanup is best-effort. Suppress it rather than remove older QA files
       // or this run's evidence. Never fabricate a successful deletion response.
       if (u.pathname.startsWith('/storage/v1/object/') &&
@@ -162,6 +172,22 @@ export function safeFailureCode(error) {
     'IDENTITY_MISMATCH', 'GENERAL_USER_REQUIRED', 'QA_ACCOUNT_ALREADY_HAS_PICKS', 'CATEGORY_AMBIGUOUS',
     'READ_PREFLIGHT_FAILED', 'REGISTRATION_NOT_VERIFIED', 'PICK_COUNT_MISMATCH', 'ITEM_COUNT_MISMATCH',
     'PICK_PERSISTENCE_FAILED', 'ITEM_PERSISTENCE_FAILED', 'PHOTO_PERSISTENCE_FAILED', 'UNEXPECTED_REQUEST',
-    'READ_ONLY_MODE', 'INVALID_ID', 'WRITE_REQUEST_FAILED', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE']);
+    'READ_ONLY_MODE', 'INVALID_ID', 'WRITE_REQUEST_FAILED', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE',
+    'PHOTO_CREDIT_NOT_ALLOWED']);
   return codes.has(error?.message) ? error.message : 'UNCLASSIFIED_FAILURE';
 }
+
+// Closed diagnostic vocabulary. Never return any part of the supplied URL.
+export function safeRequestKind(url) {
+  let u;
+  try { u = new URL(url); } catch { return 'INVALID_URL'; }
+  if (u.origin === SITE) return 'SITE_REQUEST';
+  if (u.origin !== API) return 'OUTSIDE_ORIGIN';
+  if (u.pathname === '/rest/v1/rpc/item_photo_credit') return 'PHOTO_CREDIT_RPC';
+  if (u.pathname.startsWith('/rest/v1/rpc/')) return 'OTHER_RPC';
+  if (u.pathname.startsWith('/auth/v1/')) return 'AUTH_REQUEST';
+  if (u.pathname.startsWith('/storage/v1/')) return 'STORAGE_REQUEST';
+  if (u.pathname.startsWith('/rest/v1/')) return 'TABLE_REQUEST';
+  return 'OTHER_API_REQUEST';
+}
+
