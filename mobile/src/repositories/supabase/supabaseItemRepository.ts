@@ -15,6 +15,7 @@ import type {
 } from '@/repositories/interfaces/itemRepository';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
+import { fetchItemProviderIds } from '@/repositories/supabase/itemProviders';
 
 const PUBLIC_ITEM_STATUSES = ['active', 'discontinued'] as const;
 type ItemRow = Database['public']['Tables']['items']['Row'];
@@ -69,8 +70,14 @@ export class SupabaseItemRepository implements ItemRepository {
 
     if (error) throw mapSupabaseError(error);
     if (!data) return null;
-    const channels = await fetchItemChannels(this.client, [data.id]);
-    return { ...this.mapRow(data), channels: channels.get(data.id) ?? [] };
+    // #757: the pick detail reaches its store through the item. Resolve the
+    // provider over the same item_providers relation the home feed uses so a
+    // plain item read carries providerId (null when the item has no store).
+    const [channels, providerIds] = await Promise.all([
+      fetchItemChannels(this.client, [data.id]),
+      fetchItemProviderIds(this.client, [data.id]),
+    ]);
+    return { ...this.mapRow(data), channels: channels.get(data.id) ?? [], providerId: providerIds.get(data.id) ?? null };
   }
 
   async submitItem(input: SubmitItemInput) {

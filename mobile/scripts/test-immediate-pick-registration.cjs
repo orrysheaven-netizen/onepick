@@ -71,6 +71,7 @@ async function main() {
     '@/errors/mapSupabaseError': { mapSupabaseError },
     '@/repositories/mappers/itemMapper': { mapItemRow: (row) => row },
     '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() },
   });
   const supabaseItems = new SupabaseItemRepository({
     rpc: async (name, args) => { itemRpcCalls.push([name, args]); return { data: { id: 'staged' }, error: null }; },

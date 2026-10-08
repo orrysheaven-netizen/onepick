@@ -73,6 +73,7 @@ async function main() {
     '@/errors/appError': { AppError },
     '@/repositories/mappers/itemMapper': { mapItemRow: (row) => row },
     '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() },
   });
   const photos = await new SupabaseItemRepository(client).getMyPendingPhotos('me', ['bare']);
   assert.deepEqual(filters, [

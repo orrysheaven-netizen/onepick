@@ -48,7 +48,7 @@ console.log('Profile photo checks passed: own-path-only URLs, upload/set/clear f
 
 // Exercise event handlers across rerenders; source matching alone cannot verify
 // that actions stay hidden until a tap or that every dismissal closes the menu.
-function menuFixture(imageUrl) {
+function menuFixture(imageUrl, children) {
   let open;
   const calls = { change: 0, clear: 0 };
   const photo = { isPending: false, error: null,
@@ -74,11 +74,11 @@ function menuFixture(imageUrl) {
     assert.ok(name in imports, `Unexpected menu dependency: ${name}`);
     return imports[name];
   } });
-  const render = () => exports.ProfilePhotoControl({ userId: 'me', name: '나', imageUrl });
+  const render = () => exports.ProfilePhotoControl({ userId: 'me', name: '나', imageUrl, children });
   const flatten = (node) => !node || typeof node !== 'object' ? []
     : [node, ...[node.props?.children].flat(Infinity).flatMap(flatten)];
   const find = (predicate) => flatten(render()).find(predicate);
-  return { calls, photo, modal: () => find((n) => n.type === 'Modal'),
+  return { calls, photo, render, modal: () => find((n) => n.type === 'Modal'),
     tap: () => find((n) => n.type === 'Pressable' && n.props.accessibilityLabel === '프로필 사진 바꾸기'),
     button: (label) => find((n) => n.type === 'Button' && n.props.label === label),
     backdrop: () => find((n) => n.props.accessibilityLabel === '프로필 사진 메뉴 닫기') };
@@ -110,3 +110,55 @@ assert.equal(existingPhoto.modal().props.visible, false);
 existingPhoto.photo.isPending = true;
 assert.equal(existingPhoto.tap().props.disabled, true, 'pending save prevents another tap');
 console.log('Profile photo menu runtime checks passed: empty/existing photos, all dismissals, change, delete, pending.');
+
+// An error must not widen the avatar column or squeeze the name and follow stats.
+const composedPhoto = menuFixture('https://project.supabase.co/photo.jpg', (avatar) => ({
+  type: 'ProfileIdentity', props: { avatar },
+}));
+composedPhoto.photo.error = new Error('network failed');
+const composed = composedPhoto.render();
+const identityBlock = composed.props.children[0];
+assert.equal(identityBlock.type, 'ProfileIdentity');
+assert.equal(identityBlock.props.avatar.type, 'Pressable', 'Only the photo button goes inside the identity row');
+assert.equal(identityBlock.props.avatar.props.style({ pressed: false })[0].width, 64);
+const feedback = composed.props.children.find((node) => node?.props?.accessibilityRole === 'alert');
+assert.ok(feedback, 'Error feedback is a sibling of the whole identity, outside the avatar slot');
+assert.equal(feedback.props.children, '프로필 사진을 바꾸지 못했어요. 다시 시도해 주세요.');
+assert.equal(feedback.props.style.maxWidth, undefined, 'Feedback can use the full profile width');
+console.log('Profile photo feedback stays outside the identity avatar column.');
+
+// Exercise the shared identity so the owner control cannot be silently replaced
+// by a display-only Avatar when the two profile features are integrated.
+{
+  const jsx = (type, props) => ({ type, props });
+  const imports = {
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+    'react-native': { Pressable: 'Pressable', Text: 'Text', View: 'View', StyleSheet: { create: (styles) => styles } },
+    '@/components/ui': { Avatar: 'Avatar' },
+    '@/components/ui/touch': { MIN_TOUCH_TARGET: 44, PRESSED_OPACITY: 0.7 },
+    '@/constants/onepick': { OnePick: {}, OnePickSpace: {}, OnePickType: {} },
+  };
+  const output = ts.transpileModule(read('src/components/profile-identity.tsx'), {
+    fileName: 'profile-identity.tsx',
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const exports = {};
+  vm.runInNewContext(output, { exports, require: (name) => {
+    assert.ok(name in imports, `Unexpected identity dependency: ${name}`);
+    return imports[name];
+  } });
+  const flatten = (node) => !node || typeof node !== 'object' ? []
+    : [node, ...[node.props?.children].flat(Infinity).flatMap(flatten)];
+  const render = (props) => flatten(exports.ProfileIdentity({ name: '사진 사용자', bio: '소개', stats: [], ...props }));
+  for (const imageUrl of [null, 'https://project.supabase.co/photo.jpg']) {
+    const avatars = render({ imageUrl }).filter((node) => node.type === 'Avatar');
+    assert.equal(avatars.length, 1);
+    assert.equal(avatars[0].props.imageUrl, imageUrl);
+    assert.equal(avatars[0].props.size, 64);
+  }
+  const editable = jsx('ProfilePhotoControl', { imageUrl: null });
+  const ownerNodes = render({ avatar: editable });
+  assert.equal(ownerNodes.filter((node) => node.type === 'Avatar').length, 0, 'No duplicate display avatar');
+  assert.equal(ownerNodes.filter((node) => node === editable).length, 1);
+}
+console.log('Profile photo identity integration passed: public photo/initial, owner control and no duplicate avatar.');

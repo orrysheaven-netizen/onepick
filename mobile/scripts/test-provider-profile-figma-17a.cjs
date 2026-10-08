@@ -47,7 +47,9 @@ assert.match(service, /order\('id', \{ ascending: true \}\)[\s\S]*?range\(/, 'Pi
 assert.match(service, /latestReviews\.get\(item\.id\)\?\.review \?\? null/);
 assert.match(service, /from\('brands'\)[\s\S]*?select\('id,name,logo_path,is_active'\)/);
 
-for (const [label, source] of [['Home', home], ['menu detail', dish], ['own profile', own], ['public profile', pub]]) {
+// #757: profile rows no longer link the store directly; the Pick detail they open does.
+for (const source of [own, pub]) assert.doesNotMatch(source, /pathname: '\/provider\/\[providerId\]'/);
+for (const [label, source] of [['Home', home], ['menu detail', dish]]) {
   assert.match(source, /pathname: '\/provider\/\[providerId\]'[\s\S]{0,180}scope: 'provider'/,
     label + ' provider-name navigation must open the store profile rather than the brand aggregate');
 }

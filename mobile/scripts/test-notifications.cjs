@@ -65,6 +65,9 @@ const client = {
 const { NotificationService } = load('services/notificationService.ts', {
   '@/lib/supabase/client': { supabase: client },
   '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
+  '@/lib/profile/profileImage': load('lib/profile/profileImage.ts', {
+    '@/repositories/mappers/profileMapper': load('repositories/mappers/profileMapper.ts'),
+  }),
 });
 const service = new NotificationService(client);
 

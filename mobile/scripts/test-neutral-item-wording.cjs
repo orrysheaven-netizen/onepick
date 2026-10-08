@@ -10,7 +10,6 @@ const adminPath = /^(app\/admin\/|components\/admin|lib\/admin)/;
 
 // Each entry: [file relative to src, substring on the offending line, reason].
 const allowlist = [
-  ['app/(tabs)/(profile)/profile.tsx', '승인 대기 제품, 정식 제품', 'admin-only card, shown only to admins'],
   ['lib/items/itemIdentity.ts', "slug === 'ramen'", 'packaged-food category hint, genuinely about products'],
   ['lib/items/itemIdentity.ts', "slug === 'beer'", 'packaged-food category hint, genuinely about products'],
   ['lib/items/itemIdentity.ts', "slug === 'soju'", 'packaged-food category hint, genuinely about products'],

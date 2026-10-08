@@ -34,15 +34,17 @@ assert.match(dish, /renderMenuDetailCard[\s\S]*?pathname: '\/item\/\[itemId\]'/,
 assert.match(dish, /renderMenuDetailCard[\s\S]*?pathname: '\/pick\/\[pickId\]'/,
   'Comments on 16A must open the dedicated Pick conversation');
 
-// Figma 03 owner profile can inspect Figma 40 and both profiles use Figma 17A for store names.
+// #757: profile Pick rows are single buttons to the Pick detail, which carries the
+// item and Figma 17A store links. The own profile opens the follow list on Figma 41.
+assert.match(owner, /pathname: '\/pick\/\[pickId\]'/, 'Owner profile rows open the Pick detail');
 assert.match(owner, /const openPublicProfile = \(\) => router\.push\(\{ pathname: '\/u\/\[username\]'/,
-  'Owner profile must open its public Figma 40 representation');
-assert.match(owner, /onPress=\{openPublicProfile\}[\s\S]*?공개 프로필 보기/,
-  'The public-profile management entry must remain wired');
-assert.match(owner, /pathname: '\/provider\/\[providerId\]'[\s\S]{0,180}scope: 'provider'/,
-  'Owner profile provider names must open Figma 17A store scope');
-assert.match(publicProfile, /pathname: '\/provider\/\[providerId\]'[\s\S]{0,180}scope: 'provider'/,
-  'Public profile provider names must open Figma 17A store scope');
+  'Owner profile can still preview its public Figma 40 representation');
+const pickDetail = fs.readFileSync(path.join(__dirname, '../src/app/pick/[pickId].tsx'), 'utf8');
+assert.match(pickDetail, /pathname: '\/provider\/\[providerId\]'[\s\S]{0,180}scope: 'provider'/,
+  'The Pick detail a profile row opens must link the Figma 17A store scope');
+assert.match(owner, /pathname: '\/u\/\[username\]', params: \{ username: profile\.username, connections: direction, returnTo: '\/profile' \}/,
+  'Owner 팔로워/팔로잉 open the public follow list and return to the own profile');
+assert.match(publicProfile, /pathname: '\/pick\/\[pickId\]'/, 'Public profile rows open the Pick detail');
 assert.match(publicProfile, /onOpenPick=\{\(pickId\) => router\.push\(\{ pathname: '\/pick\/\[pickId\]'/,
   'Public profile Pick rows must keep the dedicated Pick-detail route');
 

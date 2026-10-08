@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar, Button } from '@/components/ui';
@@ -12,7 +12,13 @@ function failureMessage(error: unknown) {
 }
 
 /** Tap my photo: no photo opens the picker; an existing photo opens its action menu. */
-export function ProfilePhotoControl({ userId, name, imageUrl }: { userId: string; name: string; imageUrl: string | null }) {
+export function ProfilePhotoControl({ userId, name, imageUrl, children }: {
+  userId: string;
+  name: string;
+  imageUrl: string | null;
+  /** Place only the photo inside the identity row; feedback stays full width below it. */
+  children?: (avatar: ReactNode) => ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const photo = useProfileImage(userId, imageUrl);
   const choose = () => {
@@ -24,14 +30,18 @@ export function ProfilePhotoControl({ userId, name, imageUrl }: { userId: string
     photo.clear.mutate();
   };
 
+  const avatar = (
+    <Pressable accessibilityRole="button" accessibilityLabel="프로필 사진 바꾸기" accessibilityState={{ expanded: open, busy: photo.isPending }}
+      disabled={photo.isPending} onPress={() => (imageUrl ? setOpen((value) => !value) : choose())}
+      style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
+      <Avatar name={name} size={64} tone="subtle" imageUrl={imageUrl} />
+      {photo.isPending ? <View style={styles.busy}><ActivityIndicator color={OnePick.onAction} /></View> : null}
+    </Pressable>
+  );
+
   return (
     <View style={styles.container}>
-      <Pressable accessibilityRole="button" accessibilityLabel="프로필 사진 바꾸기" accessibilityState={{ expanded: open, busy: photo.isPending }}
-        disabled={photo.isPending} onPress={() => (imageUrl ? setOpen((value) => !value) : choose())}
-        style={({ pressed }) => pressed && styles.pressed}>
-        <Avatar name={name} size={64} tone="subtle" imageUrl={imageUrl} />
-        {photo.isPending ? <View style={styles.busy}><ActivityIndicator color={OnePick.onAction} /></View> : null}
-      </Pressable>
+      {children ? children(avatar) : avatar}
       <Modal visible={open && !!imageUrl} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View style={styles.backdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="프로필 사진 메뉴 닫기"
@@ -49,10 +59,11 @@ export function ProfilePhotoControl({ userId, name, imageUrl }: { userId: string
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', gap: OnePickSpace.xs },
+  container: { alignItems: 'stretch', gap: OnePickSpace.xs },
+  photo: { width: 64, height: 64 },
   busy: { position: 'absolute', inset: 0, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgOverlay },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: OnePick.bgOverlay },
   menu: { width: '100%', maxWidth: 358, padding: 16, borderRadius: 16, gap: OnePickSpace.xs, backgroundColor: OnePick.bgDefault },
-  error: { ...OnePickType.caption, color: OnePick.textDanger, maxWidth: 160, textAlign: 'center' },
+  error: { ...OnePickType.caption, color: OnePick.textDanger },
   pressed: { opacity: 0.7 },
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { API, SITE, STORE, MAP, REVIEW, assertExecution, assertSessionBudget, createWriteGuard } from './registration-write-contract.mjs';
+import { API, SITE, STORE, MAP, REVIEW, assertExecution, assertSessionBudget, createWriteGuard, PICK_COLUMNS, assertStoredFixture, safeFailureCode, safeRequestKind } from './registration-write-contract.mjs';
 const user = '11111111-1111-4111-8111-111111111111';
 const category = '22222222-2222-4222-8222-222222222222';
 const item = '33333333-3333-4333-8333-333333333333';
@@ -115,3 +115,94 @@ test('unknown writes and direct table mutations are blocked; cleanup never delet
   assert.throws(() => g.admit({ url: `${API}/rest/v1/items`, method: 'PATCH', body: {} }));
   assert.equal(g.admit({ url: `${API}/storage/v1/object/item-photos`, method: 'DELETE' }), 'block-cleanup');
 });
+
+test('read-only recovery cannot arm, register, upload or refresh even with write confirmation', () => {
+  const g = createWriteGuard(user, category, { readOnly: true });
+  assert.throws(() => g.arm(), /READ_ONLY_MODE/);
+  for (const req of [write('stage_user_place_item', stage), write('register_item_pick', register), image('fixture.jpg'),
+    { url: `${API}/auth/v1/token?grant_type=refresh_token`, method: 'POST' }]) assert.throws(() => g.admit(req));
+  assert.equal(g.admit(write('item_review_page', {})), 'read');
+});
+
+test('photo-credit read is restricted to the verified fixture and exact RPC payload', () => {
+  const g = createWriteGuard(user, category, { readOnly: true, existingItemId: item });
+  const req = write('item_photo_credit', { p_item_id: item });
+  assert.equal(g.admit(req), 'read');
+  assert.equal(g.admit(req), 'read', 'reload may repeat a read');
+  for (const body of [undefined, null, [], {}, { p_item_id: pick },
+    { p_item_id: item, extra: true }]) {
+    assert.throws(() => g.admit({ ...req, body }), /PHOTO_CREDIT_NOT_ALLOWED/);
+  }
+  for (const method of ['PATCH', 'PUT', 'DELETE']) assert.throws(() => g.admit({ ...req, method }));
+  for (const url of [`${SITE}/rest/v1/rpc/item_photo_credit`,
+    `${API}/rest/v1/rpc/item_photo_credit_extra`, `${API}/rest/v1/rpc/admin_approve_item`]) {
+    assert.throws(() => g.admit({ ...req, url }));
+  }
+  assert.throws(() => g.arm(), /READ_ONLY_MODE/);
+  for (const mutation of [write('stage_user_place_item', stage), write('register_item_pick', register),
+    image('fixture.jpg'), { url: `${API}/rest/v1/picks`, method: 'DELETE' },
+    { url: `${API}/auth/v1/token?grant_type=refresh_token`, method: 'POST' }]) {
+    assert.throws(() => g.admit(mutation));
+  }
+  assert.throws(() => createWriteGuard(user, category, { existingItemId: item }), /INVALID_ID/);
+  assert.throws(() => createWriteGuard(user, category, { readOnly: true, existingItemId: 'bad' }), /INVALID_ID/);
+  assert.throws(() => createWriteGuard(user, category, { readOnly: true }).admit(req));
+  assert.throws(() => createWriteGuard(user, category).admit(req));
+  assert.equal(prepared().admit(req), 'read', 'registration mode only admits its own staged item');
+  assert.throws(() => prepared().admit(write('item_photo_credit', { p_item_id: pick })));
+});
+
+test('request diagnostics expose only fixed categories, never URLs or query secrets', () => {
+  for (const [url, expected] of [
+    [`${API}/rest/v1/rpc/item_photo_credit?secret=PRIVATE`, 'PHOTO_CREDIT_RPC'],
+    [`${API}/rest/v1/rpc/PRIVATE`, 'OTHER_RPC'],
+    [`${API}/auth/v1/token?refresh_token=PRIVATE`, 'AUTH_REQUEST'],
+    [`${API}/storage/v1/object/PRIVATE`, 'STORAGE_REQUEST'],
+    [`${API}/rest/v1/PRIVATE`, 'TABLE_REQUEST'],
+    [`${API}/functions/v1/PRIVATE`, 'OTHER_API_REQUEST'],
+    [`${SITE}/PRIVATE`, 'SITE_REQUEST'], ['https://private.invalid/PRIVATE', 'OUTSIDE_ORIGIN'],
+    ['PRIVATE', 'INVALID_URL'],
+  ]) assert.equal(safeRequestKind(url), expected);
+  assert.equal(safeFailureCode(new Error('PHOTO_CREDIT_NOT_ALLOWED')), 'PHOTO_CREDIT_NOT_ALLOWED');
+});
+
+test('recovery execution still requires manual main first attempt and existing QA secrets', () => {
+  const env = { GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/main',
+    GITHUB_REPOSITORY: 'orrysheaven-netizen/onepick', GITHUB_RUN_ATTEMPT: '1',
+    ONEPICK_QA_EMAIL: 'fixture', ONEPICK_QA_PASSWORD: 'fixture', QA_REGISTRATION_MODE: 'verify_existing' };
+  assert.doesNotThrow(() => assertExecution(env));
+  for (const key of Object.keys(env)) assert.throws(() => assertExecution({ ...env, [key]: '' }));
+  assert.throws(() => assertExecution({ ...env, QA_REGISTRATION_MODE: 'register' }));
+  assert.throws(() => assertExecution({ ...env, GITHUB_RUN_ATTEMPT: '2' }));
+});
+
+test('persisted fixture uses real table columns and rejects other rows, ended picks and mismatched photos', () => {
+  assert.equal(PICK_COLUMNS, 'id,item_id,category_id,channel,one_line_review,ended_at,status');
+  const row = { id: pick, item_id: item, category_id: category, channel: 'offline',
+    one_line_review: REVIEW, ended_at: null, status: 'needs_review' };
+  const photoItem = { ...staged, image_path: `${user}/fixture.jpg`, thumbnail_path: `${user}/fixture-thumb.jpg` };
+  const expected = assertStoredFixture([row], [photoItem], user, category);
+  assert.equal(expected.pick_id, pick);
+  assert.doesNotThrow(() => assertStoredFixture([row], [photoItem], user, category, expected));
+  for (const rows of [[], [row, row], [{ ...row, status: 'active' }], [{ ...row, ended_at: '2026-10-08' }],
+    [{ ...row, one_line_review: 'another review' }], [{ ...row, category_id: item }],
+    [{ ...row, ended_at: undefined, is_current: true }]]) {
+    assert.throws(() => assertStoredFixture(rows, [photoItem], user, category));
+  }
+  for (const items of [[], [photoItem, photoItem], [{ ...photoItem, created_by: category }],
+    [{ ...photoItem, name: 'another store' }], [{ ...photoItem, status: 'active' }],
+    [{ ...photoItem, image_path: `${category}/fixture.jpg` }],
+    [{ ...photoItem, thumbnail_path: `${user}/another-thumb.jpg` }]]) {
+    assert.throws(() => assertStoredFixture([row], items, user, category));
+  }
+  assert.throws(() => assertStoredFixture([row], [photoItem], user, category, { ...expected, pick_id: item }));
+});
+
+test('failure diagnostics never echo arbitrary error messages or response data', () => {
+  assert.equal(safeFailureCode(new Error('PICK_PERSISTENCE_FAILED')), 'PICK_PERSISTENCE_FAILED');
+  for (const value of ['SENSITIVE_TOKEN', 'https://example.invalid/private', 'PICK_PERSISTENCE_FAILED secret', '']) {
+    assert.equal(safeFailureCode(new Error(value)), 'UNCLASSIFIED_FAILURE');
+  }
+  assert.equal(safeFailureCode(null), 'UNCLASSIFIED_FAILURE');
+});
+
