@@ -13,7 +13,12 @@ export function profileNickname(profile: NamedProfile): string | null {
   return nickname ? nickname : null;
 }
 
-/** The name a profile header shows: nickname when set, otherwise the username. */
+/**
+ * The name a profile header shows: nickname when set, otherwise the username.
+ * #804 names "원픽 사용자" as the unset fallback for person mentions. Until nickname
+ * storage ships every profile is unset, so this keeps the username; the shared
+ * fallback is decided once at #804 integration and changed here only.
+ */
 export function profileDisplayName(profile: NamedProfile): string {
   return profileNickname(profile) ?? profile.username;
 }

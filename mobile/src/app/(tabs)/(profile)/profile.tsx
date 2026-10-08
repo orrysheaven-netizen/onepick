@@ -40,6 +40,7 @@ export default function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<ProfileTabKey>('picks');
   const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [hasOpenedEditor, setHasOpenedEditor] = useState(false);
   const [isSharingProfile, setIsSharingProfile] = useState(false);
   const [profileShareError, setProfileShareError] = useState(false);
 
@@ -102,6 +103,8 @@ export default function ProfileScreen() {
     if (!followCounts.data) return;
     router.push({ pathname: '/u/[username]', params: { username: profile.username, connections: direction, returnTo: '/profile' } });
   };
+  // Restored after review: previewing the public view differs from sharing it (decision pending).
+  const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: '/profile' } });
   const openLab = () => router.push('/lab');
   const shareMyProfile = async () => {
     if (isSharingProfile) return;
@@ -155,15 +158,19 @@ export default function ProfileScreen() {
 
         <View style={styles.profileActions}>
           <Button variant="secondary" size="sm" label="프로필 편집" accessibilityLabel="프로필 편집"
-            onPress={() => setIsEditingProfile((open) => !open)} style={styles.profileActionButton} />
+            onPress={() => { setHasOpenedEditor(true); setIsEditingProfile((open) => !open); }} style={styles.profileActionButton} />
           <Button variant="secondary" size="sm" label={isSharingProfile ? '공유 중…' : '프로필 공유'}
             accessibilityLabel="내 프로필 공유하기" disabled={isSharingProfile} onPress={() => void shareMyProfile()} style={styles.profileActionButton} />
         </View>
         {profileShareError ? <Text accessibilityRole="alert" style={styles.shareError}>프로필을 공유하지 못했어요. 다시 시도해주세요.</Text> : null}
-        {isEditingProfile ? <View style={styles.editor}>
+        {/* Mounted on first open and then only hidden, so an unsaved bio draft survives
+            closing and reopening 프로필 편집. */}
+        {hasOpenedEditor ? <View style={[styles.editor, !isEditingProfile && styles.hidden]}>
           <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
         </View> : null}
+        <Button variant="ghost" size="sm" label="공개 프로필 미리 보기" accessibilityLabel="다른 사람에게 보이는 내 프로필 미리 보기"
+          onPress={openPublicProfile} style={styles.previewLink} />
 
         <View style={styles.tabs}><ProfileTabs value={profileTab} onChange={setProfileTab} /></View>
 
@@ -227,6 +234,8 @@ const styles = StyleSheet.create({
   profileActionButton: { flex: 1 },
   shareError: { ...OnePickType.caption, color: OnePick.textDanger, textAlign: 'center', marginTop: OnePickSpace.sm },
   editor: { marginTop: OnePickSpace.lg },
+  hidden: { display: 'none' },
+  previewLink: { alignSelf: 'center', marginTop: OnePickSpace.xs },
   tabs: { marginTop: OnePickSpace.xl },
   tabBody: { paddingTop: OnePickSpace.lg, gap: OnePickSpace.md },
   profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },

@@ -165,8 +165,11 @@ async function main() {
   // 5) Profile -> public profile -> native share payload with a stable public URL.
   const profileSource = read('src/app/(tabs)/(profile)/profile.tsx');
   const publicProfileSource = read('src/app/(tabs)/(profile)/u/[username].tsx');
-  // #757: the own profile no longer links its public view; it shares the public URL directly.
-  assert.doesNotMatch(profileSource, /openPublicProfile/, 'the 공개 프로필 보기 entry left the own profile (#757)');
+  assert.match(
+    profileSource,
+    /openPublicProfile = \(\) => router\.push\({ pathname: '\/u\/\[username\]'[\s\S]*?username: profile\.username/,
+    'the owner profile must open its public profile by username',
+  );
   assert.match(
     profileSource,
     /shareProfile\({ username: profile\.username, pickCount: publicMainPicks\.length }\)/,

@@ -240,6 +240,8 @@ async function main() {
     assert.equal(view.all('SignOutButton').length, 0, 'Sign-out lives in Settings (#757)');
     view.find('Button', (p) => p.label === '프로필 편집').onPress(); view.render();
     assert.equal(view.all('ProfileBioEditor').length, 1); assert.equal(view.all('ProfileSocialLinks').length, 0);
+    view.find('Button', (p) => p.label === '프로필 편집').onPress(); view.render();
+    assert.equal(view.all('ProfileBioEditor').length, 1, 'Closing 프로필 편집 hides the editor without unmounting its draft');
     view.find('ProfileTabs').onChange('records'); view.render();
     assert.equal(view.all('ProfileRecords').length, 1);
   });

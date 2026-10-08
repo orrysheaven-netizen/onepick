@@ -58,7 +58,16 @@ assert.match(owner, /label=\{isSharingProfile \? '공유 중…' : '프로필 �
 assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: publicMainPicks\.length \}\)/,
   'Owner share uses the same public food-only count as the public profile');
 assert.match(owner, /\{profileTab === 'picks' \? <View style=\{styles\.tabBody\}>/, 'Tab row stays even with zero Picks');
-assert.match(owner, /isEditingProfile \? <View style=\{styles\.editor\}>\s*<ProfileBioEditor/);
+assert.match(owner, /hasOpenedEditor \? <View style=\{\[styles\.editor, !isEditingProfile && styles\.hidden\]\}>\s*<ProfileBioEditor/,
+  'The editor stays mounted once opened so closing 프로필 편집 keeps an unsaved draft');
+assert.match(owner, /hidden: \{ display: 'none' \}/);
+assert.match(owner, /const openPublicProfile = \(\) => router\.push\(\{ pathname: '\/u\/\[username\]', params: \{ username: profile\.username, returnTo: '\/profile' \} \}\);/,
+  'Own profile keeps a preview of its public view (removal not approved)');
+assert.match(owner, /label="공개 프로필 미리 보기"[\s\S]*?onPress=\{openPublicProfile\}/);
+const pickDetail = read('src/app/pick/[pickId].tsx');
+assert.match(pickDetail, /pathname: '\/item\/\[itemId\]', params: \{ itemId: itemQuery\.data!\.item\.id \}/, 'Pick detail links the menu/item');
+assert.match(pickDetail, /itemQuery\.data\.item\.providerId \? <Pressable[\s\S]*?pathname: '\/provider\/\[providerId\]'[\s\S]*?scope: 'provider'/, 'Pick detail links the store when one exists');
+assert.match(pickDetail, /linkRow: \{ minHeight: 48/);
 assert.match(owner, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition/);
 assert.match(owner, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 assert.match(owner, /params: \{ username: profile\.username, connections: direction, returnTo: '\/profile' \}/,
