@@ -226,6 +226,12 @@ type TableShape<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
 export type AppDatabase = Omit<Database, 'public'> & {
   public: Omit<Database['public'], 'Functions' | 'Tables'> & {
     Tables: Database['public']['Tables'] & {
+      home_settings: {
+        Row: Database['public']['Tables']['home_settings']['Row'] & { feedback_email: string | null };
+        Insert: Database['public']['Tables']['home_settings']['Insert'] & { feedback_email?: string | null };
+        Update: Database['public']['Tables']['home_settings']['Update'] & { feedback_email?: string | null };
+        Relationships: [];
+      };
       profile_onboarding_state: TableShape<OnboardingStateRow, {
         profile_id: string;
         current_category_id?: string | null;
@@ -457,3 +463,4 @@ export type AppDatabase = Omit<Database, 'public'> & {
     };
   };
 };
+
