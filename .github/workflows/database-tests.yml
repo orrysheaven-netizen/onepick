@@ -130,6 +130,10 @@ jobs:
         if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         run: supabase test db
 
+      - name: Test profile image concurrency (two local DB sessions)
+        if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
+        run: python3 tools/test_profile_image_concurrency.py
+
       - name: Setup Deno
         if: needs.changes.result != 'success' || needs.changes.outputs.run == 'true'
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
