@@ -52,6 +52,36 @@ begin
   reset role;
   assert not exists(select 1 from public.places where name='분류와플집'), 'No store is materialized before approval';
 
+  -- L7: the legacy member classifier must not merge a private store request,
+  -- even when a public item has the same normalized name. #836 does not call
+  -- this RPC; only the MFA admin review/merge flow may consume store requests.
+  insert into public.items(category_id,name,normalized_name,status)
+    select closed_store,name,normalized_name,'active' from public.items where id=b_item;
+  perform set_config('request.jwt.claim.sub',bob::text,true);
+  perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
+  set local role authenticated;
+  raised := false;
+  begin
+    perform public.classify_pending_item(b_item,closed_store);
+  exception when insufficient_privilege then raised := sqlerrm = 'ADMIN_REQUIRED'; end;
+  assert raised, 'Member classification cannot consume a store request through duplicate merge';
+  reset role;
+  assert (select status='pending' and category_id=pending_id and merged_into_item_id is null
+    from public.items where id=b_item), 'Denied member merge preserves the pending item';
+  assert exists(select 1 from private.user_place_requests where item_id=b_item),
+    'Denied member merge preserves the private store request';
+  assert exists(select 1 from private.unclassified_menu_places where item_id=b_item and place_id is null),
+    'Denied member merge preserves the unclassified menu mapping';
+  assert (select item_id=b_item and category_id=pending_id and status='needs_review'
+    and one_line_review='밥도 와플' from public.picks where id=b_pick),
+    'Denied member merge preserves the Pick identity and review';
+  assert (select image_path=bob::text||'/a.jpg' and thumbnail_path=bob::text||'/a-t.jpg'
+    from public.items where id=b_item), 'Denied member merge preserves submitted photos';
+  assert not exists(select 1 from public.places where map_url='https://naver.me/ccr1'),
+    'Denied member merge creates no canonical store';
+  assert not exists(select 1 from public.item_places where item_id=b_item),
+    'Denied member merge creates no public store link';
+
   -- Removed requests retain history but cannot be published without re-registration.
   perform set_config('request.jwt.claim.sub',alice::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
