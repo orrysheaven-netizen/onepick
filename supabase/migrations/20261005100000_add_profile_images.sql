@@ -15,13 +15,55 @@ on conflict (id) do update
       file_size_limit=excluded.file_size_limit,
       allowed_mime_types=excluded.allowed_mime_types;
 
+-- Includes current, previous and orphan uploads. VOLATILE gives each query a
+-- fresh READ COMMITTED snapshot after the per-user transaction lock is acquired.
+-- Call directly from RLS, never through a SELECT init-plan: multi-row INSERTs
+-- must count preceding rows in the same statement.
+create or replace function private.can_upload_profile_image(
+  p_bucket text, p_name text, p_owner text
+)
+returns boolean
+language plpgsql volatile security definer
+set search_path = ''
+as $quota$
+declare
+  v_user uuid := auth.uid();
+  v_count integer;
+begin
+  if v_user is null
+     or p_bucket is distinct from 'profile-images'
+     or p_owner is distinct from v_user::text
+     or p_name is null
+     or p_name !~ ('^' || v_user::text || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$')
+     or current_setting('transaction_isolation') <> 'read committed'
+     or not exists (select 1 from public.profiles where id=v_user) then
+    return false;
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('onepick:profile-images:' || v_user::text, 0)
+  );
+  -- A separate query after the lock observes the preceding uploader's commit.
+  select count(*) into v_count
+  from (
+    select 1 from storage.objects o
+    where o.bucket_id='profile-images'
+      and o.name like v_user::text || '/%'
+    limit 20
+  ) retained;
+  return v_count < 20;
+end;
+$quota$;
+
+revoke all on function private.can_upload_profile_image(text,text,text) from public, anon;
+grant execute on function private.can_upload_profile_image(text,text,text) to authenticated;
+
 drop policy if exists profile_images_own_insert on storage.objects;
 create policy profile_images_own_insert
 on storage.objects for insert to authenticated
 with check (
   bucket_id='profile-images'
-  and (storage.foldername(name))[1]=(select auth.uid()::text)
-  and lower(storage.extension(name))='jpg'
+  and private.can_upload_profile_image(bucket_id,name,owner_id)
 );
 
 drop policy if exists profile_images_own_select on storage.objects;
