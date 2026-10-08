@@ -426,21 +426,21 @@ async function main() {
         page.off('response', onRpcResponse);
       }
     });
-    await check(flow, '메뉴 선택 가능, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
-      // Step 2 selects a category for the menu; the "다음" button's press
+    await check(flow, '메뉴 자동 분류 완료, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
+      // Step 2 automatically classifies the menu; the "다음" button's press
       // (confirmMenu → selectItem.mutateAsync) is a write, so it is only
       // trial-clicked, never pressed.
       const blockedBefore = blockedMenuSuggestions;
       try {
-        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS, !BLOCK_MENU_AI);
+        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS);
       } catch (error) {
-        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CHOICE_UNAVAILABLE') {
-          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/추천·다음 버튼 통과 판정 아님' };
+        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CLASSIFICATION_UNAVAILABLE') {
+          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/자동 분류·다음 버튼 통과 판정 아님' };
         }
         throw error;
       }
       await noErrorCopy(page);
-      return '메뉴 선택 → "다음" 버튼 활성화 (제출하지 않음)';
+      return '메뉴 자동 분류 완료 → "다음" 버튼 활성화 (제출하지 않음)';
     });
     await shot(page, 'pick_new');
 
@@ -728,3 +728,4 @@ async function main() {
 await main();
 // A failed check is a QA finding; make it visible as a red run. Skips stay green.
 if (steps.some((s) => s.status === 'fail')) process.exitCode = 1;
+
