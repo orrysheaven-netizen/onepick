@@ -22,18 +22,16 @@ export async function assertPublicProfile(page, timeout = 15_000) {
     .filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }
 
-export async function checkMenuSelection(page, menuName, timeout = 15_000, allowAi = true) {
+export async function checkMenuSelection(page, menuName, timeout = 15_000) {
   await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout });
   await page.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(menuName, { timeout });
-  const escaped = menuName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Preserve the scheduled QA's AI suggestion path; safe mode only accepts exact matches.
-  const chip = page.getByRole('button', { name: new RegExp(`^(?:.+ › )?${escaped}$${allowAi ? '|^AI 추천 ' : ''}`) });
+  const classified = page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true });
   try {
-    await chip.first().click({ timeout });
+    await classified.waitFor({ state: 'visible', timeout });
   } catch (error) {
-    // Only missing choices can be explained by a blocked recommendation.
-    // A disabled/covered chip or Next button must still fail in safety mode.
-    if (await chip.count() === 0) error.code = 'QA_MENU_CHOICE_UNAVAILABLE';
+    // A blocked recommendation can leave classification unavailable. The caller
+    // must also observe an actually blocked request before downgrading to a warning.
+    if (!(await classified.isVisible())) error.code = 'QA_MENU_CLASSIFICATION_UNAVAILABLE';
     throw error;
   }
   // confirmMenu may write: only trial-click the real, enabled Next button.
@@ -150,3 +148,4 @@ export async function assertPickConversation(page, pickId, timeout = 15_000) {
   await page.getByRole('button', { name: '이전 화면', exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
   await page.getByText(/^“.*”$|^삭제된 한줄평이에요/).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }
+
