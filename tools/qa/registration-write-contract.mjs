@@ -20,17 +20,19 @@ export function assertSessionBudget(session, nowSeconds = Date.now() / 1000) {
 }
 
 export function assertExecution(env) {
+  const mode = env.QA_REGISTRATION_MODE ?? 'register';
+  requireCondition(['register', 'verify_existing'].includes(mode), 'EXECUTION_NOT_AUTHORIZED');
   requireCondition(env.GITHUB_EVENT_NAME === 'workflow_dispatch'
     && env.GITHUB_REF === 'refs/heads/main'
     && env.GITHUB_REPOSITORY === 'orrysheaven-netizen/onepick'
-    && env.CONFIRM_QA_REGISTRATION === 'true'
+    && (mode === 'verify_existing' || env.CONFIRM_QA_REGISTRATION === 'true')
     && env.GITHUB_RUN_ATTEMPT === '1'
     && env.ONEPICK_QA_EMAIL && env.ONEPICK_QA_PASSWORD, 'EXECUTION_NOT_AUTHORIZED');
 }
 
 // Only two write RPCs and one full/thumbnail pair are admitted. A failed or
 // ambiguous response is never retried automatically. Unknown writes fail closed.
-export function createWriteGuard(userId, categoryId) {
+export function createWriteGuard(userId, categoryId, { readOnly = false } = {}) {
   requireCondition(uuid(userId) && uuid(categoryId), 'INVALID_ID');
   let staged = null, stageAttempted = false, registerAttempted = false, armed = false;
   let uploadStem = null;
@@ -43,7 +45,7 @@ export function createWriteGuard(userId, categoryId) {
   const only = (body, keys) => body && typeof body === 'object' && !Array.isArray(body)
     && Object.keys(body).every(key => keys.includes(key));
   return {
-    arm() { armed = true; },
+    arm() { requireCondition(!readOnly, 'READ_ONLY_MODE'); armed = true; },
     get staged() { return staged; },
     get uploads() { return [...successfulUploads]; },
     admit({ url, method, body, headers = {}, bytes = 0 }) {
@@ -130,4 +132,36 @@ export async function enterRegistration(page, imageBuffer, beforeSubmit, timeout
   await page.getByRole('textbox', { name: '원픽 한줄평', exact: true }).fill(REVIEW);
   await beforeSubmit();
   await page.getByRole('button', { name: '원픽 등록하기', exact: true }).click();
+}
+
+// Raw picks rows use status + ended_at; isCurrent is an application projection.
+export const PICK_COLUMNS = 'id,item_id,category_id,channel,one_line_review,ended_at,status';
+export function assertStoredFixture(rows, items, userId, categoryId, expected = null) {
+  requireCondition(Array.isArray(rows) && rows.length === 1, 'PICK_COUNT_MISMATCH');
+  const pick = rows[0];
+  requireCondition(uuid(pick.id) && uuid(pick.item_id) && pick.category_id === categoryId
+    && pick.channel === 'offline' && pick.one_line_review === REVIEW
+    && pick.ended_at === null && pick.status === 'needs_review'
+    && (!expected || (pick.id === expected.pick_id && pick.item_id === expected.item_id)),
+  'PICK_PERSISTENCE_FAILED');
+  requireCondition(Array.isArray(items) && items.length === 1, 'ITEM_COUNT_MISMATCH');
+  const item = items[0];
+  requireCondition(item.id === pick.item_id && item.name === STORE && item.created_by === userId
+    && item.status === 'pending', 'ITEM_PERSISTENCE_FAILED');
+  const prefix = `${userId}/`;
+  const image = item.image_path?.startsWith(prefix) ? item.image_path.slice(prefix.length) : '';
+  const match = image.match(/^([a-z0-9-]+)\.jpg$/);
+  requireCondition(match && item.thumbnail_path === `${prefix}${match[1]}-thumb.jpg`, 'PHOTO_PERSISTENCE_FAILED');
+  return { pick_id: pick.id, item_id: item.id, image_path: item.image_path, thumbnail_path: item.thumbnail_path };
+}
+
+// Enumerated codes only: never print arbitrary exception messages or responses.
+export function safeFailureCode(error) {
+  const codes = new Set(['EXECUTION_NOT_AUTHORIZED', 'SESSION_EXPIRY_INVALID', 'SESSION_BUDGET_INSUFFICIENT',
+    'API_REQUEST_FAILED', 'DEPLOYMENT_NOT_CURRENT', 'PUBLIC_KEY_NOT_FOUND', 'AUTH_FAILED',
+    'IDENTITY_MISMATCH', 'GENERAL_USER_REQUIRED', 'QA_ACCOUNT_ALREADY_HAS_PICKS', 'CATEGORY_AMBIGUOUS',
+    'READ_PREFLIGHT_FAILED', 'REGISTRATION_NOT_VERIFIED', 'PICK_COUNT_MISMATCH', 'ITEM_COUNT_MISMATCH',
+    'PICK_PERSISTENCE_FAILED', 'ITEM_PERSISTENCE_FAILED', 'PHOTO_PERSISTENCE_FAILED', 'UNEXPECTED_REQUEST',
+    'READ_ONLY_MODE', 'INVALID_ID', 'WRITE_REQUEST_FAILED', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE']);
+  return codes.has(error?.message) ? error.message : 'UNCLASSIFIED_FAILURE';
 }
