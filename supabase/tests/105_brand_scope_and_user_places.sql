@@ -176,13 +176,11 @@ begin
   p_u := (res->>'pick_id')::uuid;
   assert (res->>'published')::boolean = false, 'The Pick on a submitted store waits';
   reset role;
-  -- item_places RLS hides the pending link from everyone; read it as the owner role.
-  select ip.place_id into u_place from public.item_places ip where ip.item_id=u_item;
-  assert u_place is not null, 'The submitted store is linked to its place';
-  assert (select map_url='https://naver.me/dongne2' and not is_visible and place_provider='user' from public.places where id=u_place),
-    'The submitted place is hidden and carries the revised map link';
-  select pc.id into u_catalog from public.place_catalog pc join public.places p on p.place_provider=pc.place_provider and p.provider_place_id=pc.provider_place_id where p.id=u_place;
-  assert (select business_status='pending' from public.place_catalog where id=u_catalog), 'The catalog row waits too';
+  assert not exists (select 1 from public.item_places where item_id=u_item), 'Pending request has no canonical store link';
+  assert not exists (select 1 from public.places where map_url='https://naver.me/dongne2'), 'No canonical store is created before approval';
+  assert not exists (select 1 from public.place_catalog where name='동네국밥'), 'No catalog row before approval';
+  assert (select map_url='https://naver.me/dongne2' from private.user_place_requests where item_id=u_item),
+    'The private request carries the revised map link';
   perform set_config('request.jwt.claim.sub',bob::text,true);
   set local role authenticated;
   assert (select count(*) from public.places where id=u_place) = 0, 'Others do not see the hidden place';
@@ -202,6 +200,10 @@ begin
   set local role authenticated;
   perform public.admin_review_pending_item(u_item,'active');
   reset role;
+  select ip.place_id into u_place from public.item_places ip where ip.item_id=u_item;
+  select pc.id into u_catalog from public.place_catalog pc join public.places p
+    on p.place_provider=pc.place_provider and p.provider_place_id=pc.provider_place_id where p.id=u_place;
+  assert u_place is not null and u_catalog is not null, 'Approval creates canonical store and catalog';
   assert (select is_visible from public.places where id=u_place), 'Approval publishes the place';
   assert (select business_status='open' from public.place_catalog where id=u_catalog), 'Approval opens the catalog row';
   assert (select status='active' from public.picks where id=p_u), 'Approval activates the Pick on the submitted store';
