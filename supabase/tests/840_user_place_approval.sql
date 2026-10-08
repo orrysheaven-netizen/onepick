@@ -2,13 +2,30 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(1);
 set local plpgsql.check_asserts = on;
+-- Force a failure after materialization has inserted every canonical row and
+-- consumed the request, proving the RPC rolls the whole operation back.
+create function private.test_840_fail_after_materialize()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.status = 'active' and old.status = 'pending' and new.name = '승인후생성만두' then
+    assert exists(select 1 from public.item_places where item_id=new.id), 'Materialization already linked item';
+    assert exists(select 1 from public.places where map_url='https://naver.me/approval840-fixed'), 'Materialization already inserted place';
+    assert exists(select 1 from public.place_catalog where name=new.name), 'Materialization already inserted catalog';
+    assert not exists(select 1 from private.user_place_requests where item_id=new.id), 'Materialization already consumed request';
+    raise exception 'TEST_AFTER_MATERIALIZATION';
+  end if;
+  return new;
+end;
+$$;
+create trigger test_840_fail_after_materialize before update of status on public.items
+for each row execute function private.test_840_fail_after_materialize();
 select lives_ok($test$
 do $flow$
 #variable_conflict use_variable
 declare
   admin uuid := gen_random_uuid(); alice uuid := gen_random_uuid(); bob uuid := gen_random_uuid();
   grp uuid := gen_random_uuid(); menu uuid := gen_random_uuid(); menu2 uuid := gen_random_uuid(); second_request uuid;
-  request_item uuid; saved_pick uuid; saved_photo text;
+  request_item uuid; saved_pick uuid; saved_photo text; duplicate_item uuid; duplicate_pick uuid; duplicate_photo text;
   res jsonb; raised boolean; v_item public.items%rowtype;
 begin
   insert into auth.users(id,aud,role,created_at,updated_at)
@@ -78,7 +95,8 @@ begin
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
   perform public.revise_item_request(request_item,p_link_url=>'https://naver.me/approval840-fixed');
-  second_request := (public.stage_user_place_item(menu2,'승인후생성만두','','https://naver.me/approval840-fixed')).id;
+  second_request := (public.stage_user_place_item(menu2,'승인후생성만두','','https://naver.me/approval840-other')).id;
+  perform public.revise_item_request(second_request,p_link_url=>'https://naver.me/approval840-fixed');
   reset role;
   assert (select map_url='https://naver.me/approval840-fixed' from private.user_place_requests where item_id=request_item), 'Correction changes the request link';
   assert not exists(select 1 from public.places where map_url='https://naver.me/approval840-fixed'), 'Correction still creates no store';
@@ -92,6 +110,19 @@ begin
   assert raised, 'Invalid classification does not approve';
   reset role;
   assert not exists(select 1 from public.places where map_url='https://naver.me/approval840-fixed'), 'Failed review does not leak a store';
+  set local role authenticated;
+  raised := false;
+  begin perform public.admin_review_pending_item(request_item,'active');
+  exception when others then raised := sqlerrm='TEST_AFTER_MATERIALIZATION'; end;
+  assert raised, 'Failure was injected after all materialization writes';
+  reset role;
+  assert not exists(select 1 from public.places where map_url='https://naver.me/approval840-fixed'), 'Post-materialization failure rolls back place';
+  assert not exists(select 1 from public.place_catalog where name='승인후생성만두'), 'Post-materialization failure rolls back catalog';
+  assert not exists(select 1 from public.item_places where item_id=request_item), 'Post-materialization failure rolls back link';
+  assert exists(select 1 from private.user_place_requests where item_id=request_item), 'Post-materialization failure restores request';
+  assert (select status='pending' and external_id like 'request:%' from public.items where id=request_item), 'Item identity and status roll back';
+  assert (select status='needs_review' from public.picks where id=saved_pick), 'Failed approval leaves Pick waiting';
+  drop trigger test_840_fail_after_materialize on public.items;
   set local role authenticated;
   perform public.admin_review_pending_item(request_item,'active');
   raised := false;
@@ -110,6 +141,8 @@ begin
   perform set_config('request.jwt.claim.sub',alice::text,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
+  perform public.revise_item_request(second_request,p_link_url=>'https://naver.me/approval840-other');
+  perform public.revise_item_request(second_request,p_link_url=>'https://naver.me/approval840-fixed');
   assert (public.stage_user_place_item(menu2,'승인후생성만두','','https://naver.me/approval840-fixed')).id=second_request,
     'Retry reuses the existing request even after another menu materializes the store';
   reset role;
@@ -120,6 +153,44 @@ begin
   reset role;
   assert (select count(*) from public.places where map_url='https://naver.me/approval840-fixed')=1,
     'Approving a second menu reuses the same canonical store';
+
+  -- A second short link can represent the same store. Merge resolves it without
+  -- materializing another canonical store, preserving the submitted Pick.
+  perform set_config('request.jwt.claim.sub',bob::text,true);
+  perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
+  set local role authenticated;
+  duplicate_item := (public.stage_user_place_item(menu,'승인후생성만두','','https://naver.me/approval840-duplicate')).id;
+  res := public.register_item_pick(menu,'offline','중복 요청 한줄평',p_item_id=>duplicate_item,
+    p_image_path=>bob::text||'/full.jpg',p_thumbnail_path=>bob::text||'/thumb.jpg');
+  duplicate_pick := (res->>'pick_id')::uuid;
+  raised := false;
+  begin perform public.admin_merge_pending_item(duplicate_item,request_item);
+  exception when others then raised := sqlerrm='ADMIN_REQUIRED'; end;
+  assert raised, 'Member cannot merge request';
+  reset role;
+  duplicate_photo := (select image_path from public.items where id=duplicate_item);
+  perform set_config('request.jwt.claim.sub',admin::text,true);
+  set local role authenticated;
+  raised := false;
+  begin perform public.admin_merge_pending_item(duplicate_item,request_item);
+  exception when others then raised := sqlerrm='ADMIN_REQUIRED'; end;
+  assert raised, 'Admin without MFA cannot merge request';
+  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
+  raised := false;
+  begin perform public.admin_merge_pending_item(duplicate_item,second_request);
+  exception when others then raised := sqlerrm='MERGE_CATEGORY_MISMATCH'; end;
+  assert raised, 'Wrong-category merge still fails';
+  reset role;
+  assert exists(select 1 from private.user_place_requests where item_id=duplicate_item), 'Failed merge retains request';
+  set local role authenticated;
+  perform public.admin_merge_pending_item(duplicate_item,request_item);
+  reset role;
+  assert not exists(select 1 from private.user_place_requests where item_id=duplicate_item), 'Merge consumes request';
+  assert (select status='merged' and merged_into_item_id=request_item from public.items where id=duplicate_item), 'Request merges into canonical item';
+  assert (select item_id=request_item and status='active' and one_line_review='중복 요청 한줄평' from public.picks where id=duplicate_pick), 'Merge preserves same Pick and review';
+  assert (select image_path=duplicate_photo from public.items where id=duplicate_item), 'Merge retains submitted photo';
+  assert not exists(select 1 from public.places where map_url='https://naver.me/approval840-duplicate'), 'Merge does not create a duplicate store';
+  assert not exists(select 1 from public.item_places where item_id=duplicate_item), 'Merge does not create source place link';
 
 end;
 $flow$;

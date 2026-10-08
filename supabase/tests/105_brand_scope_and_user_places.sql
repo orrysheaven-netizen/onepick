@@ -183,7 +183,7 @@ begin
     'The private request carries the revised map link';
   perform set_config('request.jwt.claim.sub',bob::text,true);
   set local role authenticated;
-  assert (select count(*) from public.places where id=u_place) = 0, 'Others do not see the hidden place';
+  assert (select count(*) from public.places where map_url='https://naver.me/dongne2') = 0, 'Others see no canonical store before approval';
   raised := false;
   begin
     perform public.stage_user_place_item(menu,'동네국밥','','https://naver.me/dongne2');
