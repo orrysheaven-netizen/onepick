@@ -56,7 +56,7 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let linkData, linkResponse;
+let linkData, linkResponse, deferLink, finishLink;
 let aiFailed = false, aiFetching = false;
 let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill, storeSearchEnabled, routerBackCalls;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
@@ -98,7 +98,13 @@ const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBa
   },
   '@/hooks/useLinkCategorySuggestions': { useLinkCategorySuggestions: () => ({
     data: linkData, isPending: false, isError: false, isSuccess: linkData !== undefined, error: null,
-    mutate: (input) => { calls.push(['link', input]); linkData = linkResponse(input); },
+    mutate: (input, options) => {
+      calls.push(['link', input]);
+      const result = linkResponse(input);
+      const complete = () => { linkData = result; if (result) options?.onSuccess?.(result); };
+      if (deferLink) finishLink = complete;
+      else complete();
+    },
     reset: () => { linkData = undefined; },
   }) },
   '@/hooks/useStoreFirst': hooks,
@@ -117,6 +123,7 @@ const linkResult = (url, resolvedName, places) => ({ kind: 'place', inputUrl: ur
 function reset() {
   aiFailed = false; aiFetching = false;
   linkData = undefined; linkResponse = () => undefined;
+  deferLink = false; finishLink = undefined;
   states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false; routerBackCalls = 0;
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   results = {
@@ -512,19 +519,42 @@ async function main() {
   // No catalog row: the store is registered with the link's name and the link itself.
   reset();
   registerRun = () => ({ itemId: 'pending-link-item', pickId: 'link-pick', published: false, replacedPickId: null, retried: false });
-  linkResponse = (input) => linkResult(input.url, '골목 냉면', []);
+  linkResponse = (input) => linkResult(input.url, '이고집만두', []);
   render();
-  input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/golmok'); render(); press('매장명 가져오기'); page = render();
-  assert.match(page, /골목 냉면은\(는\) 아직 목록에 없어요/);
-  press('새 매장으로 등록'); page = render();
+  input('매장 찾기 네이버 지도 링크').onChangeText('[네이버지도]\n이고집만두\n충남 천안시 동남구 태조산길 258\nhttps://naver.me/x1uzYNK5'); render(); press('매장명 가져오기'); page = render();
   assert.equal(step(page), '2');
-  assert.match(page, /2 \/ 4 · 골목 냉면/);
+  assert.match(page, /2 \/ 4 · 이고집만두/);
+  assert.match(page, /이고집만두 매장을 선택했어요\./);
+  assert.doesNotMatch(page, /목록에 없어요|새 매장으로 등록/);
+  assert.ok(!calls.some(([name]) => name === 'register' || name === 'select'), 'Lookup does not write a store or Pick');
+  press('이전 단계'); page = render();
+  assert.equal(step(page), '1', 'Back does not automatically bounce into the menu again');
+  assert.match(page, /이고집만두의 메뉴를 등록할 수 있어요/);
+  press('다음'); page = render();
+  assert.equal(step(page), '2');
   input('메뉴 이름').onChangeText('평양냉면'); render(); press('다음'); await flush();
   render(); press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
   const linkSave = calls.find(([name]) => name === 'register')[1];
-  assert.equal(linkSave.newPlace.name, '골목 냉면');
-  assert.equal(linkSave.newPlace.mapUrl, 'https://naver.me/golmok');
+  assert.equal(linkSave.newPlace.name, '이고집만두');
+  assert.equal(linkSave.newPlace.mapUrl, 'https://naver.me/x1uzYNK5');
+
+  // A slow response cannot advance after edit, back, cancel, fallback or account change.
+  for (const abandon of ['edit', 'back', 'cancel', 'fallback', 'account', 'logout']) {
+    reset(); deferLink = true;
+    linkResponse = (input) => linkResult(input.url, '이고집만두', []);
+    render(); render();
+    input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/x1uzYNK5'); render(); press('매장명 가져오기');
+    if (abandon === 'edit') input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/other');
+    if (abandon === 'back') press('이전 단계');
+    if (abandon === 'cancel') press('원픽 등록 취소');
+    if (abandon === 'fallback') press('URL 없음');
+    if (abandon === 'account') auth.user = { id: 'other-owner' };
+    if (abandon === 'logout') auth.user = null;
+    render(); finishLink(); page = render();
+    assert.notEqual(step(page), '2', `${abandon}: stale lookup must not advance`);
+    assert.ok(!calls.some(([name]) => name === 'register' || name === 'select'));
+  }
 
   // The name could not be read: only the name is asked; the pasted link is not asked again.
   reset();
