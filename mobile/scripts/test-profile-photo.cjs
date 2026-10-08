@@ -32,8 +32,12 @@ assert.match(service, /const MAX_SIDE = 512;/);
 
 const control = read('src/components/profile-photo-control.tsx');
 assert.match(control, /onPress=\{\(\) => \(imageUrl \? setOpen\(\(value\) => !value\) : choose\(\)\)\}/, 'no photo → picker; photo → 사진 선택 / 사진 삭제');
-assert.match(control, /label="사진 선택"/);
-assert.match(control, /label="사진 삭제"/);
+assert.match(control, /label="사진 바꾸기"/);
+assert.match(control, /label="사진 삭제하기"/);
+assert.match(control, /<Modal visible=\{open && !!imageUrl\}/, 'actions only appear in a photo-tap modal');
+assert.match(control, /onRequestClose=\{\(\) => setOpen\(false\)\}/, 'native back dismisses the menu');
+assert.match(control, /label="닫기"/);
+assert.match(control, /<Avatar name=\{name\} size=\{64\}/, 'profile photo matches the approved 64px identity');
 assert.doesNotMatch(control, /아바타/);
 
 const avatar = read('src/components/ui/avatar.tsx');
