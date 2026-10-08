@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthSession } from '@/hooks/useAuthSession';
+import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
 import { useUpdateProfileBio } from '@/hooks/useUpdateProfileBio';
 import { MAX_PROFILE_BIO_LENGTH, profileBioLength, ProfileBioValidationError } from '@/lib/profileBio';
 import { OnePick } from '@/constants/onepick';
@@ -58,7 +59,7 @@ function BioEditor({ profileUserId, bio }: Props) {
       <Text style={styles.hint}>다른 사람이 내 프로필에서 볼 수 있는 공개 소개예요.</Text>
       <TextInput accessibilityLabel="자기소개 입력" multiline textAlignVertical="top"
         placeholder="라면과 영화를 좋아해요. 오래 좋아한 것들을 모읍니다."
-        placeholderTextColor={OnePick.hint} value={draft}
+        placeholderTextColor={OnePick.textSecondary} value={draft}
         onChangeText={(value) => { setDraft(value); setError(''); }}
         editable={!mutation.isPending} maxLength={Math.max(MAX_PROFILE_BIO_LENGTH * 2, (bio ?? '').length)}
         style={styles.input} />
@@ -68,10 +69,10 @@ function BioEditor({ profileUserId, bio }: Props) {
       <View style={styles.buttons}>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 저장" disabled={disabled}
           onPress={() => void save()} style={[styles.save, disabled && styles.disabled]}>
-          {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장</Text>}
+          {mutation.isPending ? <ActivityIndicator color={OnePick.onAccent} accessibilityLabel="자기소개 저장 중" /> : <Text style={styles.saveText}>저장하기</Text>}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="자기소개 편집 취소" disabled={mutation.isPending}
-          onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>취소</Text></Pressable>
+          onPress={cancel} style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.actionText}>{DIALOG_CANCEL_LABEL}</Text></Pressable>
         {draft ? <Pressable accessibilityRole="button" accessibilityLabel="자기소개 내용 지우기" disabled={mutation.isPending}
           onPress={() => { if (!inFlight.current) { setDraft(''); setError(''); } }}
           style={[styles.action, mutation.isPending && styles.disabled]}><Text style={styles.clearText}>내용 지우기</Text></Pressable> : null}

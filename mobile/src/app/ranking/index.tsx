@@ -3,7 +3,7 @@ import Head from 'expo-router/head';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { StateCard } from '@/components/ui';
+import { Icon, StateCard } from '@/components/ui';
 import { useRankingCategories } from '@/hooks/useExploreData';
 import { OnePick, OnePickMvp } from '@/constants/onepick';
 
@@ -18,7 +18,7 @@ export default function RankingIndexScreen() {
       <Head><title>카테고리별 원픽 랭킹 | OnePick</title></Head>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text accessibilityRole="header" style={styles.title}>카테고리별 원픽 랭킹</Text>
         <Text style={styles.subtitle}>카테고리마다 하나씩만 고른 원픽을 모아, 지금 가장 많이 선택된 순서로 보여드려요.</Text>
@@ -37,7 +37,7 @@ export default function RankingIndexScreen() {
               <Text style={styles.rowName}>{category.name} 원픽 랭킹</Text>
               {category.path !== category.name ? <Text style={styles.rowPath}>{category.path}</Text> : null}
             </View>
-            <Text style={styles.arrow}>›</Text>
+            <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
           </Pressable>)}
         </View>
       </ScrollView>
@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, fontWeight: '800', lineHeight: 34, letterSpacing: -0.6, marginTop: 6 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 8, marginBottom: 18 },
   loading: { marginVertical: 32 },
@@ -58,6 +57,6 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1 },
   rowName: { color: OnePick.text, fontSize: 15, lineHeight: 21, fontWeight: '800' },
   rowPath: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
-  arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 8 },
+  arrow: { marginLeft: 8  },
   pressed: { opacity: 0.7 },
 });

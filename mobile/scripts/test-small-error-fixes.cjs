@@ -67,7 +67,7 @@ assert.match(read('src/app/auth/callback.tsx'), /getPostAuthRoute\(intent, resul
 
 // Sign-out is intentionally global (see test-auth-session); the label now says so.
 assert.match(read('src/repositories/supabase/supabaseAuthRepository.ts'), /async signOut\(\) \{[\s\S]*?signOut\(\{ scope: 'global' \}\)/);
-assert.match(read('src/components/sign-out-button.tsx'), /모든 기기에서 로그아웃/);
+assert.match(read('src/components/sign-out-button.tsx'), /모든 기기에서 로그아웃하기/);
 assert.doesNotMatch(read('src/components/sign-out-button.tsx'), /이 기기에서 로그아웃/);
 
 // Recipe: same-frame double taps are blocked; a sent request refreshes the profile request list.

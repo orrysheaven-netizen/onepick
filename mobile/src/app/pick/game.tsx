@@ -11,6 +11,7 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { GameCatalogEntry, ImportedGameItem } from '@/types/domain/gameCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -166,7 +167,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 게임 원픽 찾기</Text>
       <Text style={styles.subtitle}>게임 이름으로 찾고, 가장 좋아하는 게임 하나를 골라보세요.</Text>
       <Text style={styles.notice}>플랫폼별 동일 게임은 하나로 보고, 일반판·컬렉터스 에디션 같은 버전은 제외해요. 리메이크·리마스터·확장팩은 IGDB에서 별도 게임이면 따로 선택할 수 있어요.</Text>
@@ -182,7 +183,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <TextInput autoFocus accessibilityLabel="원픽 게임 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={searchText}
         onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-        placeholder="예: Minecraft" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: Minecraft" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 게임과 IGDB를 함께 찾고 있어요.</Text></View> : null}
@@ -197,7 +198,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 게임 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-          {selection.phase === 'failed' ? gameErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 게임 정보가 준비됐어요.' : '이전 게임 선택을 다시 이어갈 수 있어요.'}
+          {selection.phase === 'failed' ? gameErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 게임 정보를 준비했어요.' : '이전 게임 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
           ? <Pressable onPress={() => continueGame(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 게임으로 계속</Text></Pressable>
@@ -220,7 +221,7 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
           {item.creatorName ? <Text style={styles.developer}>{item.creatorName}</Text> : null}
           <Text style={styles.meta}>{[item.collectionName, item.releaseYear].filter(Boolean).join(' · ')}</Text>
-          <Text style={styles.itemAction}>이 게임을 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 게임을 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -234,14 +235,14 @@ function GamePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.itemName}>{entry.title}</Text>
           {entry.developerName ? <Text style={styles.developer}>{entry.developerName}</Text> : null}
           <Text style={styles.meta}>{[entry.releaseYear, entry.gameType, entry.platformNames.slice(0, 4).join(' · ')].filter(Boolean).join(' · ') || '출시 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '게임 정보를 준비하고 있어요…' : '이 게임을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '게임 정보를 준비하고 있어요…' : '이 게임을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 게임을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>게임 이름 철자를 바꿔서 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>게임 메타데이터·커버: IGDB.com · 상업 운영 전 IGDB 파트너십 및 사용자 표시 출처 조건을 다시 확인합니다.</Text>
+      <Text style={styles.attribution}>게임 메타데이터·커버: IGDB.com · 상업 운영 전 IGDB 파트너십 및 사용자 표시 출처 조건을 다시 확인해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -250,7 +251,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

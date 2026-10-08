@@ -13,6 +13,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, setTimeout, clearTimeout, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency ${name}`);
@@ -123,31 +124,31 @@ async function main() {
   });
   const render = () => { buttons = []; stateIndex = 0; refIndex = 0; return renderToStaticMarkup(React.createElement(Detail)); };
   const button = (label) => buttons.find((b) => textOf(b.children) === label);
-  assert.match(render(), /사진 업로드/);
-  pickerResult = null; await button('사진 업로드').onPress(); await flush(); render();
-  assert.equal(savedCalls, 0); assert.equal(button('대표 이미지 등록'), undefined, 'Cancelling picker makes no change');
-  pickerResult = photo; button('사진 업로드').onPress(); button('사진 업로드').onPress(); await flush();
+  assert.match(render(), /사진 올리기/);
+  pickerResult = null; await button('사진 올리기').onPress(); await flush(); render();
+  assert.equal(savedCalls, 0); assert.equal(button('이 사진 등록하기'), undefined, 'Cancelling picker makes no change');
+  pickerResult = photo; button('사진 올리기').onPress(); button('사진 올리기').onPress(); await flush();
   assert.equal(pickerCalls, 2, 'Repeated picker taps are deduplicated');
-  render(); assert.equal(button('대표 이미지 등록').disabled, false, 'A chosen photo can be registered without a separate consent step');
+  render(); assert.equal(button('이 사진 등록하기').disabled, false, 'A chosen photo can be registered without a separate consent step');
   assert.equal(buttons.find((b) => b.accessibilityRole === 'checkbox'), undefined, 'No consent checkbox is rendered');
-  rejectSave = true; await button('대표 이미지 등록').onPress(); await flush();
-  render(); assert.ok(button('대표 이미지 등록'), 'Retry preserves selected photo');
+  rejectSave = true; await button('이 사진 등록하기').onPress(); await flush();
+  render(); assert.ok(button('이 사진 등록하기'), 'Retry preserves selected photo');
   assert.equal(image.source.uri, photo.uri);
-  button('사진 선택 취소').onPress(); render(); assert.ok(button('사진 업로드')); assert.equal(button('대표 이미지 등록'), undefined);
-  button('사진 업로드').onPress(); await flush(); render();
+  button('사진 빼기').onPress(); render(); assert.ok(button('사진 올리기')); assert.equal(button('이 사진 등록하기'), undefined);
+  button('사진 올리기').onPress(); await flush(); render();
   rejectSave = false; const beforeSave = savedCalls;
-  button('대표 이미지 등록').onPress(); button('대표 이미지 등록').onPress(); await flush();
+  button('이 사진 등록하기').onPress(); button('이 사진 등록하기').onPress(); await flush();
   assert.equal(savedCalls, beforeSave + 1, 'Repeated upload taps are deduplicated');
-  const savedMarkup = render(); assert.doesNotMatch(savedMarkup, /사진 업로드|대표 이미지 등록/); assert.match(savedMarkup, /storage.test\/photo.jpg/);
+  const savedMarkup = render(); assert.doesNotMatch(savedMarkup, /사진 올리기|이 사진 등록하기/); assert.match(savedMarkup, /storage.test\/photo.jpg/);
   state = []; refs = []; query.data.item = { ...blank, imageSourceUrl: poster, imageUrl: poster };
-  assert.doesNotMatch(render(), /사진 업로드|대표 이미지 등록/);
+  assert.doesNotMatch(render(), /사진 올리기|이 사진 등록하기/);
   query.data.item = blank; auth.user = null;
-  assert.match(render(), /사진 업로드/); button('사진 업로드').onPress();
+  assert.match(render(), /사진 올리기/); button('사진 올리기').onPress();
   assert.equal(destination.params.action, 'add_item_photo'); assert.equal(destination.params.itemId, uuid);
   const anonymousKey = Detail().key; auth.user = { id: 'u' }; const userKey = Detail().key;
   assert.notEqual(anonymousKey, userKey, 'Account changes remount drafts');
   params.itemId = 'b2222222-2222-4222-8222-222222222222'; assert.notEqual(Detail().key, userKey, 'Item changes remount drafts'); params.itemId = uuid;
-  auth.error = new Error('offline'); assert.doesNotMatch(render(), /사진 업로드|대표 이미지 등록/); auth.error = null;
+  auth.error = new Error('offline'); assert.doesNotMatch(render(), /사진 올리기|이 사진 등록하기/); auth.error = null;
 
   const { queryKeys } = load('lib/query/queryKeys.ts');
   const { invalidatePickData } = load('lib/query/invalidatePickData.ts', { './queryKeys': { queryKeys } });

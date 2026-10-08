@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, Chip, StateCard } from '@/components/ui';
+import { Button, Chip, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
@@ -214,19 +214,19 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 레시피 원픽</Text>
       <Text style={styles.subtitle}>가장 좋아하는 레시피 영상의 YouTube 링크를 붙여넣고, 어떤 요리의 레시피인지 골라주세요. 요리마다 오프라인·온라인·레시피 원픽을 하나씩 둘 수 있어요.</Text>
-      <Text style={styles.notice}>OnePick은 영상 제목·채널명·썸네일만 사용하며 조회수, 좋아요 수 같은 통계는 가져오지 않습니다. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거합니다.</Text>
+      <Text style={styles.notice}>OnePick은 영상 제목·채널명·썸네일만 사용하며 조회수, 좋아요 수 같은 통계는 가져오지 않아요. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거해요.</Text>
 
       {consent === null ? <ActivityIndicator style={styles.loading} /> : !consent ? <View style={styles.policyCard}>
         <Text style={styles.stateTitle}>YouTube 영상 확인 전 동의가 필요해요.</Text>
-        <Text style={styles.stateText}>레시피 영상 정보는 YouTube Data API Services로 확인합니다. 아래 안내와 약관을 확인한 뒤 동의해야 등록할 수 있어요.</Text>
+        <Text style={styles.stateText}>레시피 영상 정보는 YouTube Data API Services로 확인해요. 아래 안내와 약관을 확인한 뒤 동의해야 등록할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
-        <Button fullWidth label="개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다." loading={consentSaving}
+        <Button fullWidth label="개인정보 안내와 YouTube API 이용조건을 확인했고 동의해요." loading={consentSaving}
           disabled={consentSaving} onPress={() => void acceptConsent()} style={styles.consentButton} />
       </View> : null}
 
@@ -237,7 +237,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         <TextInput autoFocus={Platform.OS !== 'web' && !validReturn} accessibilityLabel="레시피 YouTube 영상 링크" autoCapitalize="none" autoCorrect={false}
           editable={!busy} maxLength={2048} value={link} keyboardType="url"
           onChangeText={(value) => { if (!busy) { setLink(value); setActionError(null); setChosenDishId(null); setRequestMode(false); } }}
-          placeholder="https://youtu.be/…" placeholderTextColor={OnePick.hint} returnKeyType="done" style={styles.input} />
+          placeholder="https://youtu.be/…" placeholderTextColor={OnePick.textSecondary} returnKeyType="done" style={styles.input} />
         <Text style={styles.hint}>YouTube 앱의 공유 › 링크 복사로 받은 영상·Shorts 링크를 붙여넣으세요. 채널·재생목록 링크는 등록할 수 없어요.</Text>
 
         {trimmedLink && !videoId ? <Text accessibilityRole="alert" style={styles.errorText}>{recipeErrorMessage(new AppError('VIDEO_URL_INVALID'))}</Text> : null}
@@ -279,7 +279,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                 : null}
             </View>
             <TextInput accessibilityLabel="요리 검색" autoCapitalize="none" maxLength={100} editable={!busy} value={dishQuery}
-              onChangeText={setDishQuery} placeholder="다른 요리 검색: 미역국, 파김치…" placeholderTextColor={OnePick.hint} style={[styles.input, styles.dishSearch]} />
+              onChangeText={setDishQuery} placeholder="다른 요리 검색: 미역국, 파김치…" placeholderTextColor={OnePick.textSecondary} style={[styles.input, styles.dishSearch]} />
             {dishMatches.length ? <View style={styles.dishList}>
               {dishMatches.map((dish) => <Chip key={dish.id} label={dish.name} selected={!requestMode && selectedDish?.id === dish.id}
                 accessibilityLabel={`${dish.name} 레시피로 고르기`} onPress={() => pickDish(dish.id)} />)}
@@ -300,7 +300,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               <Text style={styles.stateText}>요리 이름을 남기면 관리자가 확인해요. 승인돼도 레시피 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 확인 후 직접 원픽으로 선택할 수 있어요.</Text>
               <Text style={styles.label}>요리 이름</Text>
               <TextInput accessibilityLabel="요리 이름" maxLength={DISH_NAME_MAX} editable={!busy} value={dishName} onChangeText={setDishName}
-                placeholder="예: 파김치" placeholderTextColor={OnePick.hint} style={styles.input} />
+                placeholder="예: 파김치" placeholderTextColor={OnePick.textSecondary} style={styles.input} />
               <Button fullWidth size="lg" label="등록 요청하기" loading={requestVideo.isPending} disabled={busy || !canRequest}
                 onPress={() => void request(video)} style={styles.submit} />
               <Button variant="ghost" label="목록에서 고르기" disabled={busy} onPress={() => setRequestMode(false)} style={styles.centered} />
@@ -314,7 +314,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         text={`관리자가 '${requested}' 요리를 확인해요. 승인돼도 자동으로 원픽이 되거나 승인 알림이 오지 않아요. 확인이 끝난 뒤 직접 선택할 수 있어요.`}
         action={{ label: '홈으로', variant: 'secondary', onPress: () => router.replace('/') }} /></View> : null}
 
-      <Text style={styles.attribution}>YouTube Data API Services를 사용합니다. YouTube는 OnePick을 후원하거나 승인하지 않습니다.</Text>
+      <Text style={styles.attribution}>YouTube Data API Services를 사용해요. YouTube는 OnePick을 후원하거나 승인하지 않아요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -325,7 +325,6 @@ const styles = StyleSheet.create({
   gate: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
   centered: { alignSelf: 'center' },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

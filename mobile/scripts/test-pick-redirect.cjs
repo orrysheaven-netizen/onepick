@@ -41,7 +41,9 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../s
     ? require('./design-tokens.cjs')
     : name === 'react' || name === 'react/jsx-runtime'
       ? require(name)
-      : imports[name],
+      : name === '@/components/ui'
+        ? { ...require('./icon-stub.cjs'), ...(imports[name] ?? {}) }
+        : imports[name],
 });
 
 const render = () => renderToStaticMarkup(React.createElement(exportsObject.default));
@@ -59,7 +61,7 @@ itemQuery = {
   isError: false,
   refetch() {},
   data: {
-    item: { id: 'product', name: '중앙해장' },
+    item: { id: 'product', name: '중앙해장', imageSourceUrl: 'https://onepick.test/product.jpg' },
     category: { name: '내장탕' },
     isRestaurant: true,
     picks: [{

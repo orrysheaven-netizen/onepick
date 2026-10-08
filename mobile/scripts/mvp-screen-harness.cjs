@@ -42,7 +42,7 @@ function screen(relative, imports, platform = 'ios') {
   const Screen = load(relative, {
     react,
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
-    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator Image Modal'), Platform: { OS: platform }, StyleSheet: { create: (value) => value, absoluteFill: {} } },
+    'react-native': { ...names('Text View Pressable ScrollView FlatList RefreshControl ActivityIndicator Image Modal TextInput'), PanResponder: { create: (handlers) => ({ panHandlers: handlers }) }, Platform: { OS: platform }, StyleSheet: { create: (value) => value, absoluteFill: {} } },
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     'expo-image': { Image: 'Image' },
     '@/components/ui': names('Avatar BrandMark Button Chip SectionHeader StateCard'),

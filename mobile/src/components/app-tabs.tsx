@@ -4,6 +4,10 @@ import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotificationCount } from '@/hooks/useNotifications';
 
+// NativeTabs is the deliberate tab-bar geometry exception to OnePick / Icon.
+// iOS/Android keep SF Symbols / Material Symbols drawn by the OS; semantics,
+// labels and active-state roles must stay aligned with the Figma/Web tab set.
+
 export default function AppTabs() {
   const router = useRouter();
   const auth = useAuthSession();
@@ -11,9 +15,9 @@ export default function AppTabs() {
   const hasUnreadNotifications = !notificationCount.isError && (notificationCount.data ?? 0) > 0;
   return (
     <NativeTabs
-      backgroundColor={OnePick.surface}
+      backgroundColor={OnePick.bgDefault}
       tintColor={OnePick.actionPrimary}
-      indicatorColor={OnePick.surface}
+      indicatorColor={OnePick.bgDefault}
       labelStyle={{
         default: { color: OnePick.textSecondary, fontSize: 12, fontWeight: '500' },
         selected: { color: OnePick.actionPrimary, fontSize: 12, fontWeight: '500' },
@@ -21,8 +25,8 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>홈</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
+          sf={{ default: 'house', selected: 'house.fill' }}
+          md="home"
         />
       </NativeTabs.Trigger>
 

@@ -21,6 +21,9 @@ function loadUi(imports = {}) {
         exports: exportsObject,
         require: (name) => {
           if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+          // Regression checks target the web build (like app-tabs.web.tsx), so the shared
+          // Icon resolves to its inline-SVG variant instead of the expo-image native one.
+          if (name === './icon') return load('icon.web.tsx');
           if (name.startsWith('./')) return load(fs.existsSync(path.join(uiDir, name + '.tsx')) ? name + '.tsx' : name + '.ts');
           if (name === '@/constants/onepick') return require('./design-tokens.cjs');
           if (name in imports) return imports[name];

@@ -95,7 +95,7 @@ const imports = {
   },
   '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: categories, isPending: false, isError: false, refetch() {} }) },
 };
-const { default: Find } = load('app/pick/find.tsx', imports);
+const { default: Find } = load('app/pick/find.tsx', { ...imports, '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} } });
 const render = () => {
   stateIndex = 0; refIndex = 0; presses = []; inputs = [];
   return renderToStaticMarkup(React.createElement(Find));

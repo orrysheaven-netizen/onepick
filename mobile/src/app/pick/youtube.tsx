@@ -13,6 +13,7 @@ import { useImportYouTubeChannel, useYouTubeCatalogSearch } from '@/hooks/useYou
 import { acceptYouTubePolicyConsent, getYouTubePolicyConsent } from '@/lib/youtube/consent';
 import type { ImportedYouTubeChannelItem, YouTubeChannelEntry } from '@/types/domain/youtubeCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -193,20 +194,20 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 유튜브 채널 원픽</Text>
       <Text style={styles.subtitle}>가장 좋아하는 YouTube 채널 하나를 골라보세요.</Text>
-      <Text style={styles.notice}>OnePick은 채널 제목·채널 ID·썸네일만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 가져오지 않습니다. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거하도록 설계합니다.</Text>
+      <Text style={styles.notice}>OnePick은 채널 제목·채널 ID·썸네일만 사용하며 구독자 수, 조회수, 영상 수 같은 통계는 가져오지 않아요. 저장된 YouTube API 데이터는 30일 정책보다 짧은 주기로 재검증하거나 제거하도록 설계했어요.</Text>
 
       {consent === null ? <ActivityIndicator style={styles.loading} /> : !consent ? <View style={styles.policyCard}>
         <Text style={styles.stateTitle}>YouTube 검색 전 확인이 필요해요.</Text>
-        <Text style={styles.stateText}>YouTube 채널 검색은 YouTube Data API Services를 사용합니다. 아래 안내와 약관을 확인한 뒤 동의해야 검색할 수 있어요.</Text>
+        <Text style={styles.stateText}>YouTube 채널 검색은 YouTube Data API Services를 사용해요. 아래 안내와 약관을 확인한 뒤 동의해야 검색할 수 있어요.</Text>
         <Pressable onPress={() => router.push('/legal/privacy')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick 개인정보 및 YouTube API 안내 ›</Text></Pressable>
         <Pressable onPress={() => router.push('/legal/terms')} style={styles.policyLink}><Text style={styles.policyLinkText}>OnePick YouTube API 이용조건 ›</Text></Pressable>
         <ExternalLink href="https://www.youtube.com/t/terms" style={styles.externalLink}>YouTube 이용약관</ExternalLink>
         <ExternalLink href="https://policies.google.com/privacy" style={styles.externalLink}>Google 개인정보처리방침</ExternalLink>
         <Pressable disabled={consentSaving} onPress={() => void acceptConsent()} style={[styles.consentButton, consentSaving && styles.disabled]}>
-          {consentSaving ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의합니다.</Text>}
+          {consentSaving ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.consentButtonText}>개인정보 안내와 YouTube API 이용조건을 확인했고 동의해요.</Text>}
         </Pressable>
       </View> : null}
 
@@ -222,8 +223,8 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         <TextInput autoFocus={Platform.OS !== 'web'} accessibilityLabel="원픽 YouTube 채널 검색" autoCapitalize="none" autoCorrect={false}
           editable={Boolean(category) && !importing} maxLength={1000} value={searchText}
           onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
-        <Text style={styles.hint}>채널 링크뿐 아니라 영상·Shorts 링크를 붙여넣어도 해당 업로더 채널을 찾아줍니다. @handle이나 링크 검색은 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용합니다.</Text>
+          placeholder="예: 최재천의 아마존 또는 YouTube 링크" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
+        <Text style={styles.hint}>채널 링크뿐 아니라 영상·Shorts 링크를 붙여넣어도 해당 업로더 채널을 찾아줘요. @handle이나 링크 검색은 일반 이름 검색보다 적은 YouTube 검색 할당량을 사용해요.</Text>
         {cleanQuery.length === 1 ? <Text style={styles.stateText}>두 글자 이상 입력해주세요.</Text> : null}
 
         {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 채널과 YouTube를 함께 찾고 있어요.</Text></View> : null}
@@ -238,7 +239,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
         {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 채널 정보를 확인하고 있어요.</Text></View> : null}
         {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
           <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-            {selection.phase === 'failed' ? youtubeErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 채널 정보가 준비됐어요.' : '이전 채널 선택을 다시 이어갈 수 있어요.'}
+            {selection.phase === 'failed' ? youtubeErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 채널 정보를 준비했어요.' : '이전 채널 선택을 다시 이어갈 수 있어요.'}
           </Text>
           {selection.phase === 'ready'
             ? <Pressable onPress={() => continueChannel(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 채널로 계속</Text></Pressable>
@@ -259,7 +260,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
             onPress={() => chooseItem(item.id, item.categoryId)} style={({ pressed }) => [styles.itemCopy, pressed && styles.pressed]}>
             <Text style={styles.itemCategory}>유튜브 · 등록됨</Text>
             <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
-            <Text style={styles.itemAction}>이 채널을 원픽으로 선택 ›</Text>
+            <Text style={styles.itemAction}>이 채널을 원픽으로 고르기 ›</Text>
           </Pressable>
         </View>)}
 
@@ -271,7 +272,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <View style={styles.itemCopy}>
             <Text style={styles.itemCategory}>유튜브 · YouTube</Text>
             <Text style={styles.itemName}>{entry.title}</Text>
-            <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '채널 정보를 확인하고 있어요…' : '이 채널을 원픽으로 선택 ›'}</Text>
+            <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '채널 정보를 확인하고 있어요…' : '이 채널을 원픽으로 고르기 ›'}</Text>
           </View>
         </Pressable>)}
 
@@ -279,7 +280,7 @@ function YouTubePickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.stateText}>채널명을 다시 입력하거나, 해당 채널의 YouTube 영상/채널 링크를 붙여넣어보세요.</Text></View> : null}
       </> : null}
 
-      <Text style={styles.attribution}>YouTube Data API Services를 사용합니다. YouTube는 OnePick을 후원하거나 승인하지 않습니다.</Text>
+      <Text style={styles.attribution}>YouTube Data API Services를 사용해요. YouTube는 OnePick을 후원하거나 승인하지 않아요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -288,7 +289,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

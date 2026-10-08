@@ -13,7 +13,7 @@ import { ItemPickCount } from '@/components/item-pick-count';
 import { ItemReviewCard } from '@/components/item-review-card';
 import { YouTubeVideoLink } from '@/components/youtube-video-link';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
@@ -283,7 +283,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerState}>
-          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청은 처리됐어요.' : '정보를 볼 수 없어요.'}
+          <StateCard tone={savedItem ? 'default' : 'danger'} title={savedItem ? '사진 등록 요청을 처리했어요.' : '정보를 볼 수 없어요.'}
             text={savedItem
               ? '서버의 처리 응답은 받았지만 최신 정보를 확인하지 못했어요. 다시 불러와 현재 사진을 확인해주세요.'
               : '연결 상태를 확인한 뒤 다시 시도해주세요. 없어졌거나 공개되지 않은 링크일 수도 있어요.'}
@@ -300,6 +300,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   // Legacy food items may have no item_channels row, while an explicit Pick
   // channel is still valid by the DB contract. If a current public offline Pick
   // reached Home/Profile, its item detail must stay reachable too.
+  const hasCurrentPick = allPicks.some(({ pick }) =>
+    pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review'));
+  const hasOwnCurrentPick = Boolean(user && allPicks.some(({ pick }) =>
+    pick.userId === user.id
+    && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review'))));
   const hasPublicCurrentPick = allPicks.some(({ pick }) =>
     pick.channel === OnePickMvp.publicPickChannel
     && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review')));
@@ -319,6 +324,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
     </View></SafeAreaView>;
   }
+  if (!hasPhoto && hasCurrentPick && !hasOwnCurrentPick) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
+      <StateCard title="현재 공개 중인 원픽이 아니에요." text="사진이 있는 원픽만 공개하고 있어요." />
+      <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
+    </View></SafeAreaView>;
+  }
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
@@ -330,7 +341,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
 
         {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요." text="마지막으로 불러온 내용을 표시하고 있어요."
@@ -346,12 +357,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             value={revisionLink}
             onChangeText={(value) => { setRevisionLink(value); setRevisionError(null); }}
             placeholder="새 네이버 지도 링크가 있으면 입력"
-            placeholderTextColor={OnePick.textTertiary}
+            placeholderTextColor={OnePick.textSecondary}
             style={styles.revisionInput}
           />
           {revisionPhoto ? <Image source={{ uri: revisionPhoto.uri }} style={styles.revisionPreview} resizeMode="contain" accessibilityLabel="수정할 대표 이미지 미리보기" /> : null}
           <View style={styles.revisionActions}>
-            <Button variant="secondary" label={revisionPhoto ? '사진 다시 선택' : '사진 수정'} loading={photoPicker.isPending}
+            <Button variant="secondary" label={revisionPhoto ? '다른 사진 고르기' : '사진 바꾸기'} loading={photoPicker.isPending}
               disabled={revisionMutation.isPending} onPress={() => void chooseRevisionPhoto()} style={styles.revisionAction} />
             <Button label="수정 내용 보내기" loading={revisionMutation.isPending}
               disabled={photoPicker.isPending} onPress={() => void saveRevision()} style={styles.revisionAction} />
@@ -376,15 +387,15 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                   <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
                   <Text style={styles.photoContributionHint}>올린 사진은 관리자 검수 후 같은 걸 고른 사람들의 카드에 내 사용자명과 함께 표시돼요.</Text>
                   <View style={styles.photoActions}>
-                    <Button variant="secondary" label="다시 선택" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
-                    <Button label="대표 이미지 등록" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />
+                    <Button variant="secondary" label="다른 사진 고르기" disabled={photoBusy} onPress={() => void choosePhoto()} style={styles.photoAction} />
+                    <Button label="이 사진 등록하기" disabled={photoBusy && !photoAttachment.isPending} loading={photoAttachment.isPending} onPress={() => void attachPhoto()} style={styles.photoAction} />
                   </View>
-                  <Button variant="ghost" size="sm" label="사진 선택 취소" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.centered} />
+                  <Button variant="ghost" size="sm" label="사진 빼기" disabled={photoBusy} onPress={() => { setPhoto(null); photoAttachment.reset(); }} style={styles.centered} />
                 </>
               ) : (
                 <View style={styles.uploadRow}>
                   <Text numberOfLines={1} style={styles.uploadText}>사진을 올려주세요.</Text>
-                  <Button size="sm" label="사진 업로드" accessibilityLabel={`${item.name} 사진 업로드`}
+                  <Button size="sm" label="사진 올리기" accessibilityLabel={`${item.name} 사진 올리기`}
                     disabled={Boolean(user) && photoBusy && !photoPicker.isPending} loading={photoPicker.isPending}
                     onPress={() => user ? void choosePhoto() : router.push({ pathname: '/auth/login', params: photoIntent })} />
                 </View>
@@ -418,7 +429,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
           {myPickStatus.type === 'selected_this' ? (
             <View accessible accessibilityLabel="내 원픽이에요" style={[styles.pickMark, styles.pickMarkMine]}>
-              <View style={[styles.pickDot, styles.pickDotMine]}><Text style={styles.pickCheck}>✓</Text></View>
+              <View style={[styles.pickDot, styles.pickDotMine]}><Icon name="check" size="sm" color={OnePick.bgAccent} /></View>
               <Text style={[styles.pickMarkText, styles.pickMarkTextMine]}>원픽</Text>
             </View>
           ) : canChoose ? (
@@ -433,7 +444,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
         <View style={styles.sectionGap} />
 
-        {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제되었거나 현재 공개 범위에 없어요.</Text> : null}
+        {focusPickId && !focusAvailable ? <Text style={styles.stateText}>연결된 한줄평이 삭제됐거나 현재 공개 범위에 없어요.</Text> : null}
         {picks.length > 0 ? (
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
@@ -449,7 +460,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             </View>
           ))
         ) : (
-          <StateCard title="아직 다른 사람의 한줄평이 없어요." text={canChoose ? '첫 번째로 이걸 원픽으로 선택할 수 있어요.' : '지금은 새로운 선택을 받을 수 없어요.'} />
+          <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
@@ -487,7 +498,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   revisionPanel: {
     borderWidth: 1,
     borderColor: OnePick.borderDefault,
@@ -614,7 +624,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pickDotMine: { borderColor: OnePick.textPrimary, backgroundColor: OnePick.textPrimary },
-  pickCheck: { ...OnePickType.captionMedium, color: OnePick.bgAccent },
   pickMarkText: { ...OnePickType.headline, color: OnePick.textPrimary },
   pickMarkTextMine: { color: OnePick.textPrimary },
   sectionGap: { height: OnePickSpace.xl },

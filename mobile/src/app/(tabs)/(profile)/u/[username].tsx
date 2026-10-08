@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlockUserButton } from '@/components/block-user-button';
@@ -12,7 +12,8 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
-import { Avatar, Button, Chip, StateCard } from '@/components/ui';
+import { Avatar, Button, Chip, Icon, StateCard } from '@/components/ui';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useProfileAiComment } from '@/hooks/useProfileAi';
@@ -25,6 +26,7 @@ import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profile
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
 import { isSeedProfileId } from '@/lib/seedProfiles';
+import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
@@ -162,18 +164,21 @@ export default function PublicProfileScreen() {
     router.replace(returnHref ?? '/');
   };
 
-  useEffect(() => {
-    if (!returnHref) return;
-    let unsubscribe: (() => void) | undefined;
-    unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      const actionType = event.data.action.type;
-      if (actionType !== 'GO_BACK' && actionType !== 'POP' && actionType !== 'POP_TO_TOP') return;
-      event.preventDefault();
-      unsubscribe?.();
-      router.dismissTo(returnHref);
-    });
-    return () => unsubscribe?.();
-  }, [navigation, returnHref, router]);
+  const swipeBackResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.x0 <= 32
+      && gesture.dx > 12
+      && Math.abs(gesture.dy) < 24,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx < 72 || gesture.vx <= 0) return;
+      swipeBackRef.current();
+    },
+  }), []);
+
+  // Native: this route's own edge zone owns swipe-back (native-stack swipe is
+  // disabled so JS dismiss/back cannot race a native pop). Web: the root-layout
+  // edge (lib/navigation/swipeBack) runs swipeBack via useSwipeBackHandler.
   const openFollowLogin = (targetUsername: string) => {
     setLoginTargetUsername(targetUsername);
     setLoginSheetOpen(true);
@@ -207,6 +212,17 @@ export default function PublicProfileScreen() {
     }
     router.replace('/');
   };
+  // Swipe-back target: follower/following list -> its profile, otherwise the
+  // validated origin (returnTo), else the same rule as the header back.
+  const swipeBack = () => {
+    if (connectionDirection) { closeConnections(); return; }
+    if (returnHref) router.dismissTo(returnHref);
+    else goBack();
+  };
+  const swipeBackRef = useRef(swipeBack);
+  swipeBackRef.current = swipeBack;
+  // Web: the root-layout edge gesture runs this while the profile is focused.
+  useSwipeBackHandler(swipeBack, { confirmUnsaved: false });
 
   useEffect(() => {
     if (Platform.OS === 'web' || !connectionDirection || typeof username !== 'string') return;
@@ -299,6 +315,13 @@ export default function PublicProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {Platform.OS !== 'web' ? (
+        <View
+          testID="public-profile-swipe-edge"
+          style={styles.swipeEdgeZone}
+          {...swipeBackResponder.panHandlers}
+        />
+      ) : null}
       {query.data && OnePickFeatures.profileFollowConnections && connectionDirection ? (
         <FollowConnectionsView
           profileId={query.data.profile.id}
@@ -310,7 +333,7 @@ export default function PublicProfileScreen() {
           onRequireLogin={openFollowLogin}
         />
       ) : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable> : null}
+        {!query.data ? <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable> : null}
         {query.isPending ? <View style={styles.stateArea}><StateCard loading title="프로필을 불러오고 있어요." /></View> : null}
         {!query.isPending && isProfileNotFound ? <View style={styles.stateArea}>
           <StateCard title="프로필을 찾을 수 없어요." text="사용자명이 바뀌었거나 존재하지 않는 프로필일 수 있어요."
@@ -409,8 +432,8 @@ export default function PublicProfileScreen() {
                 onOpenItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
                 onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
               />)}
-            </View> : <StateCard title={profileScope === 'food' ? '아직 공개된 음식 원픽이 없어요.' : '아직 공개된 다른 취향 원픽이 없어요.'}
-              text={profileScope === 'food' ? '이 사용자가 음식 원픽을 고르면 여기에 표시됩니다.' : '이 사용자가 다른 취향을 고르면 여기에 표시됩니다.'} />}
+            </View> : <StateCard title={profileScope === 'food' ? '아직 고른 원픽이 없어요.' : '아직 고른 다른 취향 원픽이 없어요.'}
+              text={profileScope === 'food' ? '이 사용자가 원픽을 고르면 여기에 보여요.' : '이 사용자가 다른 취향을 고르면 여기에 보여요.'} />}
           </View>
 
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
@@ -431,7 +454,7 @@ export default function PublicProfileScreen() {
           </View> : null}
           {!query.data.isMine && user && !isSeed ? <View style={styles.safetyCard}>
             <Text style={styles.safetyTitle}>사용자 관리</Text>
-            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있습니다.</Text>
+            <Text style={styles.safetyText}>문제가 있는 프로필은 신고하거나, 더 이상 서로의 콘텐츠를 보지 않도록 차단할 수 있어요.</Text>
             <View style={styles.safetyActions}>
               <ReportAction reporterUserId={user.id} targetType="profile" targetId={query.data.profile.id} />
               <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={goBack} />
@@ -463,7 +486,7 @@ export default function PublicProfileScreen() {
               <Text style={styles.appleText}>Apple로 계속하기</Text>
             </Pressable>
             {socialSignIn.isError ? <Text accessibilityRole="alert" style={styles.loginError}>로그인을 완료하지 못했어요. 다시 시도해주세요.</Text> : null}
-            <Button variant="ghost" size="sm" label="취소" onPress={closeFollowLogin} />
+            <Button variant="ghost" size="sm" label={DIALOG_CLOSE_LABEL} onPress={closeFollowLogin} />
           </View>
         </View>
       </Modal>
@@ -473,6 +496,14 @@ export default function PublicProfileScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
+  swipeEdgeZone: {
+    position: 'absolute',
+    zIndex: 100,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 32,
+  },
   content: {
     width: '100%',
     maxWidth: OnePick.maxWidth,
@@ -488,7 +519,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   publicHeader: {
     height: 56,
     flexDirection: 'row',

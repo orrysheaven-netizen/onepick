@@ -11,6 +11,7 @@ import { useImportPokemonCatalogItem, usePokemonCatalogSearch } from '@/hooks/us
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedPokemonItem, PokemonCatalogEntry } from '@/types/domain/pokemonCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -166,10 +167,10 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 포켓몬 원픽</Text>
       <Text style={styles.subtitle}>한국어·영문 이름이나 전국도감 번호로 가장 좋아하는 포켓몬 하나를 골라보세요.</Text>
-      <Text style={styles.notice}>PokéAPI의 종(species) ID를 기준으로 선택해요. MVP 기능 검증을 위해 PokéAPI 이미지를 원격으로 표시하며, 이미지 파일을 OnePick Storage에 복사하지 않습니다.</Text>
+      <Text style={styles.notice}>PokéAPI의 종(species) ID를 기준으로 선택해요. MVP 기능 검증을 위해 PokéAPI 이미지를 원격으로 표시하며, 이미지 파일을 OnePick Storage에 복사하지 않아요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>포켓몬 카테고리를 사용할 수 없어요.</Text>
@@ -182,7 +183,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       <TextInput autoFocus accessibilityLabel="원픽 포켓몬 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={searchText}
         onChangeText={(value) => { if (!busy.current) { setSearchText(value); setSelection(null); } }}
-        placeholder="예: 피카츄, Pikachu, #25" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 피카츄, Pikachu, #25" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 포켓몬과 PokéAPI 색인을 함께 찾고 있어요.</Text></View> : null}
       {local.isError ? <View style={styles.stateCard}><Text style={styles.stateTitle}>등록된 포켓몬 검색을 불러오지 못했어요.</Text>
@@ -196,7 +197,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 포켓몬 정보를 확인하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-          {selection.phase === 'failed' ? pokemonErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 포켓몬 정보가 준비됐어요.' : '이전 포켓몬 선택을 다시 이어갈 수 있어요.'}
+          {selection.phase === 'failed' ? pokemonErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 포켓몬 정보를 준비했어요.' : '이전 포켓몬 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
           ? <Pressable onPress={() => continuePokemon(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 포켓몬으로 계속</Text></Pressable>
@@ -218,7 +219,7 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.itemCategory}>포켓몬 · 등록됨</Text>
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.meta}>{item.externalId ? dex(item.externalId) : ''}{item.originalName && item.originalName !== item.name ? ` · ${item.originalName}` : ''}</Text>
-          <Text style={styles.itemAction}>이 포켓몬을 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 포켓몬을 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -231,14 +232,14 @@ function PokemonPickContent({ auth, params }: { auth: ReturnType<typeof useAuthS
           <Text style={styles.itemCategory}>포켓몬 · PokéAPI</Text>
           <Text style={styles.itemName}>{entry.name}</Text>
           <Text style={styles.meta}>{dex(entry.dexNumber)}{entry.englishName !== entry.name ? ` · ${entry.englishName}` : ''}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '포켓몬 정보를 확인하고 있어요…' : '이 포켓몬을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '포켓몬 정보를 확인하고 있어요…' : '이 포켓몬을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 포켓몬을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>한국어·영문 이름이나 도감 번호를 바꿔서 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
-      <Text style={styles.attribution}>포켓몬 이름·종 데이터 및 원격 이미지: PokéAPI. Pokémon 관련 이미지·캐릭터·상표 권리는 상업화 전에 다시 검토합니다. 사용자 업로드 사진이 있으면 OnePick 사진을 우선 표시합니다.</Text>
+      <Text style={styles.attribution}>포켓몬 이름·종 데이터 및 원격 이미지: PokéAPI. Pokémon 관련 이미지·캐릭터·상표 권리는 상업화 전에 다시 검토해요. 사용자 업로드 사진이 있으면 OnePick 사진을 우선 표시해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -247,7 +248,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

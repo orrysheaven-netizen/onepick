@@ -210,12 +210,12 @@ async function main() {
   assert.equal(destination.params.itemId, 'available-ramen');
 
   state = []; render();
-  press('직접 사진 선택'); await settle(); render();
+  press('사진 고르기'); await settle(); render();
   assert.equal(button('등록하기').disabled, false, 'A chosen photo can be sent without a separate confirmation step');
   assert.doesNotMatch(render(), /이 제품의 사진이 맞으며|체크해주세요/, 'No consent checkbox is rendered');
   chosenPhoto = null;
-  press('사진 바꾸기'); await settle(); render();
-  button('사진 제거');
+  press('다른 사진 고르기'); await settle(); render();
+  button('사진 빼기');
   assert.equal(button('등록하기').disabled, false, 'Cancelling the picker keeps the chosen photo');
   nameInput().onChangeText('사진 있는 라면'); render();
   assert.equal(button('등록하기').disabled, false, 'Changing the name keeps the photo ready to send');
@@ -227,9 +227,9 @@ async function main() {
   render(); press('등록하기'); await settle();
   assert.equal(payload.photo, draft, 'The actual request carries the selected image');
   mutation.isError = true; mutation.error = new AppError('PHOTO_UPLOAD_FAILED');
-  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버 저장에 실패했어요/);
-  button('사진 제거'); assert.equal(button('등록하기').disabled, false, 'Upload failure preserves photo for retry');
-  press('사진 제거'); render();
+  assert.match(render(), /사진 파일은 정상적으로 읽었지만 서버에 저장하지 못했어요/);
+  button('사진 빼기'); assert.equal(button('등록하기').disabled, false, 'Upload failure preserves photo for retry');
+  press('사진 빼기'); render();
   assert.equal(button('등록하기').disabled, false, 'Image-free requests remain supported');
   inputs.find((p) => p.accessibilityLabel === '대표 이미지 링크').onChangeText('https://maker.example/ramen');
   render(); press('링크에서 이미지 가져오기'); await settle(); render();
@@ -261,7 +261,7 @@ async function main() {
   params = { categoryId: category.id, itemName: '온라인 라면', sourceUrl: 'https://shop.example/ramen' };
   outcome = async () => ({ type: 'pending_item', item: { id: 'pending-online', name: '온라인 라면' } });
   const onlinePage = render();
-  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장되어 관리자 검수에 사용됩니다/,
+  assert.match(onlinePage, /원본 링크\(shop\.example\)가 함께 저장돼 관리자 검수에 사용돼요/,
     'The user sees which host will be attached before submitting');
   press('등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-online');
@@ -284,7 +284,7 @@ async function main() {
   assert.match(sellerPage, /https:\/\/로 시작하는 판매처 링크/);
   assert.equal(button('등록하기').disabled, true);
   sellerLink().onChangeText('https://smartstore.example/gomtang'); sellerPage = render();
-  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장되어/);
+  assert.match(sellerPage, /원본 링크\(smartstore\.example\)가 함께 저장돼/);
   press('등록하기'); await settle();
   assert.equal(attachedPendingLink.itemId, 'pending-seller');
   assert.equal(attachedPendingLink.url, 'https://smartstore.example/gomtang', 'The typed seller link is attached for admin review');
@@ -304,7 +304,7 @@ async function main() {
   categories.isError = true; params = { itemName: '새 텀블러' }; mutation.isError = false; mutation.error = null;
   outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 텀블러' } });
   const generalPage = render();
-  assert.match(generalPage, /이름만 등록하면 됩니다/);
+  assert.match(generalPage, /이름만 등록하면 돼요/);
   assert.doesNotMatch(generalPage, /카테고리를 불러오지 못했어요|선택한 종류를 확인하지 못했어요/);
   press('등록하기'); await settle();
   assert.equal(payload.itemName, '새 텀블러');
@@ -314,12 +314,12 @@ async function main() {
   assert.equal(suggestionItemId, 'general-pending');
   assert.equal(applyItemId, 'general-pending');
   assert.match(aiPage, /AI가 카테고리를 추천했어요/);
-  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않습니다/);
+  assert.match(aiPage, /AI의 추천은 자동으로 적용되지 않아요/);
   assert.equal(appliedCategoryId, undefined, 'AI suggestions never apply automatically');
 
   press('먹을것 › 라면'); render();
   assert.equal(appliedCategoryId, undefined, 'Selecting a suggestion still does not mutate the item');
-  press('이 카테고리 적용'); await settle();
+  press('이 카테고리로 정하기'); await settle();
   assert.equal(appliedCategoryId, 'ramen', 'Only the explicit apply action writes the category');
   assert.match(render(), /카테고리를 적용했어요/);
 
@@ -360,7 +360,7 @@ async function main() {
   params = { itemName: '새 제품' }; outcome = async () => ({ type: 'pending_item', item: { id: 'general-pending', name: '새 제품' } });
   applyOutcome = () => ({ type: 'existing_item', itemId: 'existing-ramen', categoryId: 'ramen' });
   render(); press('등록하기'); await settle(); render();
-  press('먹을것 › 라면'); render(); press('이 카테고리 적용'); await settle();
+  press('먹을것 › 라면'); render(); press('이 카테고리로 정하기'); await settle();
   assert.equal(destination.pathname, '/item/[itemId]');
   assert.equal(destination.params.itemId, 'existing-ramen');
 

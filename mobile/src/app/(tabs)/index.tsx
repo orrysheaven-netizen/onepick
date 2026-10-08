@@ -7,12 +7,11 @@ import { HomePickRow } from '@/components/home-pick-row';
 import { RecentItemCard } from '@/components/recent-item-card';
 import { HomeHeader } from '@/components/home-header';
 import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
-import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickLayout, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
 import { useHomeData, useHomeItemRanking } from '@/hooks/useHomeData';
-import { categoryLabel, selectableCategories } from '@/lib/categories/categoryTree';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -51,9 +50,9 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || followDefaultPending || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  // Home search, category filters and Explore share one cached category-tree query.
-  // Start it alongside Home context instead of waiting for Home to finish first.
-  const categoriesQuery = useExploreCategories(!isSessionLoading && !sessionError);
+  // Hidden category chips need no initial request. The search dialog loads the
+  // same cached tree when opened; future chip rollout still loads it here.
+  const categoriesQuery = useExploreCategories(Boolean(OnePickFeatures.categoryChips) && !isSessionLoading && !sessionError);
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
@@ -69,15 +68,13 @@ export default function HomeScreen() {
     [data?.picks, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  const searchCategories = useMemo(() => selectableCategories(categoryCatalog).map((category) => ({
-    ...category,
-    label: categoryLabel(category, categoryCatalog),
-  })), [categoryCatalog]);
   // Figma 30-1 (10-04/10-05): no group chips; the top six store×menu items in a 2×3 grid.
   const itemRankingQuery = useHomeItemRanking(mvpChannel, HOME_RANKING_CANDIDATES, !isSessionLoading && !sessionError);
   // The product contract never displays a photo-less card; only URL load failure uses the fixed placeholder.
   const rankedItems = (itemRankingQuery.data ?? []).filter((item) => Boolean(item.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
   const ready = !isLoading && !sessionError && Boolean(data);
+  // Ranking has its own loading/error state and must not wait for feed enrichment.
+  const showRanking = !isSessionLoading && !sessionError && !followDefaultPending;
 
   useEffect(() => {
     if (selectedCategoryGroupId && (!showCategoryFilters || !categoryFilters.some((group) => group.id === selectedCategoryGroupId))) {
@@ -180,17 +177,18 @@ export default function HomeScreen() {
             onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} />
         </View>}
 
-        {ready ? <View style={styles.rankingSection}>
+        {showRanking ? <View style={styles.rankingSection}>
           <View style={styles.rankingHeader}>
             <Text accessibilityRole="header" style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="인기 메뉴 더보기" onPress={() => router.push('/popular')}
-              style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
+            style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
               <Text style={styles.moreText}>더보기</Text>
             </Pressable>
           </View>
           {itemRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
           {itemRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
-            text="사람들의 원픽은 계속 볼 수 있어요. 메뉴 탐색은 탐색 탭에서 이어갈 수 있습니다."
+            text="메뉴 탐색은 탐색 탭에서 이어갈 수 있어요."
             action={{ label: '메뉴 둘러보기', onPress: () => router.push('/explore') }} /> : null}
           {!itemRankingQuery.isPending && !itemRankingQuery.isError && rankedItems.length ? <View style={styles.menuGrid}>
             {rankedItems.map((item) => <RecentItemCard key={item.itemId} item={item} onOpen={() => openItem(item.itemId)} />)}
@@ -204,6 +202,7 @@ export default function HomeScreen() {
         <View style={styles.feedHeader}>
           <Text accessibilityRole="header" style={styles.feedTitle}>사람들의 원픽</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="사람들의 원픽 더보기" onPress={() => router.push('/feed')}
+            hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
             <Text style={styles.moreText}>더보기</Text>
           </Pressable>
@@ -233,7 +232,7 @@ export default function HomeScreen() {
             <Button variant="ghost" size="sm" accessibilityLabel="홈 원픽 새로고침" disabled={homeQuery.isFetching} onPress={refresh}
               label={homeQuery.isFetching ? '새로고침 중…' : homeQuery.isError && !homeQuery.isFetchNextPageError ? '다시 불러오기' : '새로고침'} />
           </View> : null}
-          {!data.picks.length ? <StateCard title="아직 공개된 매장 원픽이 없어요." text="누군가 매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
+          {!data.picks.length ? <StateCard title={user ? '첫 원픽을 골라보세요.' : '아직 공개된 매장 원픽이 없어요.'} text="매장에서 먹은 메뉴를 원픽으로 고르면 이유와 함께 여기에 보여요."
             action={user ? { label: '내 원픽 먼저 고르기', onPress: () => router.push('/pick/new') } : undefined} /> : null}
         </> : null}
         </>}
@@ -252,8 +251,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: OnePick.background },
-  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxl },
+  safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
+  content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickLayout.homeFeedGutter, paddingBottom: OnePickSpace.xxl },
   signinStrip: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md, padding: OnePickSpace.lg, marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   signinCopy: { flex: 1, minWidth: 0 },
   signinTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
@@ -275,18 +274,20 @@ const styles = StyleSheet.create({
   scopeText: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   scopeTextSelected: { color: OnePick.onAction },
   categoryFilterRow: { gap: OnePickSpace.sm, paddingVertical: OnePickSpace.sm, paddingRight: OnePickSpace.xs, marginBottom: OnePickSpace.sm },
-  fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.background },
-  rankingSection: { marginTop: OnePickSpace.sm },
-  rankingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.xs },
+  fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.bgDefault },
+  // Figma 30-1 (92:39): content starts 12 below the header; header row 28 high, 12 above the grid.
+  rankingSection: { marginTop: OnePickSpace.md },
+  rankingHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.md },
   rankingSort: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: OnePickSpace.lg },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 },
   // Light gray rule between 인기 메뉴 and 사람들의 원픽, 24px above and below.
-  sectionDivider: { height: 1, backgroundColor: OnePick.borderDefault, marginVertical: 24 },
-  feedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.sm },
-  feedTitle: { ...OnePickType.headline, fontSize: 18, color: OnePick.textPrimary },
-  moreButton: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  moreText: { ...OnePickType.body, color: OnePick.textSecondary },
-  feedGap: { height: 12 },
+  sectionDivider: { height: 1, backgroundColor: '#E5E5EB', marginVertical: 24 },
+  feedHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.md },
+  feedTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  // 28-high header row; hitSlop keeps the 44 touch target.
+  moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
+  moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
+  feedGap: { height: OnePickSpace.xxl },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },
@@ -301,3 +302,4 @@ const styles = StyleSheet.create({
   footerText: { ...OnePickType.body, color: OnePick.textSecondary, flex: 1 },
   pressed: { opacity: 0.65 },
 });
+

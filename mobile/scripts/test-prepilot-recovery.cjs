@@ -12,6 +12,7 @@ function load(file, imports) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require(name) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
     if (name in imports) return imports[name];
     // Pure channel helpers of the choose screen load as-is.
@@ -135,17 +136,17 @@ async function check(name, run) {
 }
 async function main() {
   await check('Pick saving blocks same-frame double taps and old success handlers', async () => {
-    const c = choice(); c.draft(); const submit = c.view.button('내 원픽으로 선택').onPress;
+    const c = choice(); c.draft(); const submit = c.view.button('내 원픽으로 고르기').onPress;
     submit(); submit(); assert.equal(c.writes.length, 1, 'Only one request before pending UI renders');
     c.pending[0].resolve(c.result); await flush();
     submit(); assert.equal(c.writes.length, 1, 'A stale handler cannot resubmit a confirmed save');
     assert.match(c.view.render(), /내 원픽 보기/);
   });
   await check('Pick retry retains the draft and unlocks after failure', async () => {
-    const c = choice(); c.draft(); c.view.button('내 원픽으로 선택').onPress();
+    const c = choice(); c.draft(); c.view.button('내 원픽으로 고르기').onPress();
     c.pending[0].reject(new Error('offline')); await flush(); c.view.render();
     assert.equal(c.view.input().value, '  나의 이유  ');
-    c.view.button('내 원픽으로 선택').onPress(); assert.equal(c.writes.length, 2);
+    c.view.button('내 원픽으로 고르기').onPress(); assert.equal(c.writes.length, 2);
     c.pending[1].resolve(c.result); await flush(); assert.match(c.view.render(), /내 원픽 보기/);
   });
   await check('Metadata failure offers a guarded retry without losing the reason', async () => {
@@ -161,7 +162,7 @@ async function main() {
     const c = choice(); c.query.isError = true; c.view.render(); c.view.button('돌아가기').onPress();
     assert.equal(c.destinations.at(-1), '/');
     c.query.isError = false; c.draft(); const back = c.view.button('돌아가기').onPress;
-    c.view.button('내 원픽으로 선택').onPress(); back();
+    c.view.button('내 원픽으로 고르기').onPress(); back();
     assert.equal(c.destinations.length, 1, 'Do not navigate away while a save is pending');
     c.mutation.isPending = true; c.view.render(); assert.equal(c.view.input().editable, false);
     c.pending[0].resolve(c.result); await flush();
@@ -221,12 +222,12 @@ async function main() {
     assert.equal(deleteButtons().length, 1, 'Only my own comment is deletable');
     c.view.button('내 댓글 삭제').onPress(); assert.equal(c.deletes.length, 0, 'The first tap only asks for confirmation');
     assert.match(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
-    c.view.button('댓글 삭제 취소').onPress(); assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
+    c.view.button('댓글 삭제 확인 닫기').onPress(); assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.view.button('내 댓글 삭제').onPress(); c.view.render({ pickId: 'pick' });
-    c.removal.fail = true; c.view.button('댓글 삭제 확인').onPress(); await flush();
+    c.removal.fail = true; c.view.button('댓글 삭제하기').onPress(); await flush();
     assert.deepEqual(c.deletes, ['mine']);
     assert.match(c.view.render({ pickId: 'pick' }), /댓글을 삭제하지 못했어요/, 'A failed delete keeps the confirmation and says so');
-    c.removal.fail = false; c.view.button('댓글 삭제 확인').onPress(); await flush();
+    c.removal.fail = false; c.view.button('댓글 삭제하기').onPress(); await flush();
     assert.deepEqual(c.deletes, ['mine', 'mine']);
     assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.auth.user = null; c.view.render({ pickId: 'pick' });

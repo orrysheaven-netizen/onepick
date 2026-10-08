@@ -14,6 +14,7 @@ export const queryKeys = {
   },
   explore: {
     all: ['explore'] as const,
+    menuPickCounts: (channel: string | null = null) => ['explore', 'menu-pick-counts', channel ?? 'all-channels'] as const,
     topItems: (categoryId?: string, channel: string | null = null) =>
       ['explore', categoryId ?? 'all', 'top-items', channel ?? 'all-channels'] as const,
     ranking: (slug?: string, channel: string | null = null, rootSlug: string | null = null) =>

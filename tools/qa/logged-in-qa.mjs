@@ -23,17 +23,18 @@ import path from 'node:path';
 import { chromium, devices } from 'playwright';
 import {
   SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications,
-  openOwnComments, openNotificationsTab, assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
+  openHomeSearch, submitHomeSearch, openOwnComments, openNotificationsTab,
+  assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
   pickIdSource, pickIdsFromResponse, assertPickConversation,
 } from './logged-in-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
 const SEARCH_QUERY = process.env.QA_SEARCH_QUERY || '라면';
-// Registration is store-first (#412): /pick/new starts with a store/seller-name
-// search (step 1), then a menu step (step 2) scoped to the chosen store. The
-// store query is one of the screen's own placeholder examples.
-const STORE_QUERY = process.env.QA_STORE_QUERY || '을밀대';
+// Registration is link-first (#794): /pick/new starts with a Naver-map URL.
+// Daily QA deliberately chooses the visible "URL 없음" fallback, then uses a
+// query with >20 production catalog rows so #811 pagination is exercised.
+const STORE_QUERY = process.env.QA_STORE_QUERY || '카페인중독';
 const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
 // Opt-in registration safety only; not a guarantee that the entire live QA is offline.
 const BLOCK_MENU_AI = process.env.QA_BLOCK_MENU_AI === '1';
@@ -276,7 +277,7 @@ async function main() {
     flow = '홈';
     await check(flow, '홈 화면 로드', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      await page.getByRole('textbox', { name: '항목명 검색' }).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByRole('button', { name: '메뉴 검색', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await noErrorCopy(page);
     });
     for (const label of ['홈', '탐색', '알림', '프로필']) {
@@ -297,25 +298,20 @@ async function main() {
     await shot(page, 'home');
 
     flow = '검색';
-    await check(flow, `홈 검색 "${SEARCH_QUERY}" 즉시 결과`, async () => {
-      await page.getByRole('textbox', { name: '항목명 검색' }).first().fill(SEARCH_QUERY);
-      const count = page.getByText(/^검색 결과/).first();
-      await count.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      await noErrorCopy(page);
-      return await count.innerText();
+    let homeSearchResults = null;
+    await check(flow, '검색 버튼 → 다이얼로그 열기', async () => {
+      await openHomeSearch(page, STEP_TIMEOUT_MS);
+      return '홈 검색 다이얼로그 표시';
     });
-    await check(flow, '검색 실행 → 탐색 검색 화면', async () => {
-      await page.getByRole('button', { name: '검색 실행' }).click();
-      await page.waitForURL(/\/explore/, { timeout: STEP_TIMEOUT_MS });
-      await page.getByText(/^검색 결과/).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+    await check(flow, `홈 검색 "${SEARCH_QUERY}" → 결과`, async () => {
+      homeSearchResults = await submitHomeSearch(page, SEARCH_QUERY, STEP_TIMEOUT_MS);
+      const count = await homeSearchResults.count();
       await noErrorCopy(page);
+      return `검색 결과 ${count}개`;
     });
     await check(flow, '검색 결과 → 제품 상세 이동', async () => {
-      const results = page.getByRole('button', { name: / 상세 보기$/ });
-      const labels = await results.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''));
-      const index = labels.findIndex((label) => !label.endsWith('제품 상세 보기'));
-      if (index < 0) return { status: 'warn', detail: '검색 결과 0개' };
-      await results.nth(index).click();
+      if (!homeSearchResults) throw new Error('검색 결과 단계가 완료되지 않음');
+      await homeSearchResults.first().click({ timeout: STEP_TIMEOUT_MS });
       await page.waitForURL(/\/item\//, { timeout: STEP_TIMEOUT_MS });
       await page.waitForLoadState('networkidle');
       await noErrorCopy(page);
@@ -327,10 +323,10 @@ async function main() {
     await check(flow, '등록 화면 진입', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await page.getByRole('button', { name: '원픽 등록', exact: true }).click();
-      // Store-first flow (#412): the button now opens /pick/new (a single-screen
-      // 4-step wizard), not the old /pick/find.
       await page.waitForURL(/\/pick\/new/, { timeout: STEP_TIMEOUT_MS });
       if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
+      await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByRole('button', { name: 'URL 없음', exact: true }).click({ timeout: STEP_TIMEOUT_MS });
     });
     await check(flow, '매장 검색 cold/warm + 선택 가능 (1/4 매장)', async () => {
       await page.getByText('1 / 4 · 오프라인 매장', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
@@ -380,7 +376,7 @@ async function main() {
         const coldUiMs = Date.now() - coldUiStarted;
         await page.waitForTimeout(50);
 
-        const searchable = new Set(['search_store_catalog', 'search_place_catalog']);
+        const searchable = new Set(['search_store_catalog_page', 'search_store_catalog', 'search_place_catalog']);
         const coldCall = rpcCalls.find((call) => searchable.has(call.name)) ?? rpcCalls[0];
         if (!coldCall) throw new Error(`"${STORE_QUERY}" 검색 RPC를 확인하지 못함`);
 
@@ -400,30 +396,51 @@ async function main() {
         }, { url: coldCall.url, headers: replayHeaders, body: coldCall.body });
 
         if (warm.status >= 400) throw new Error(`"${STORE_QUERY}" warm 검색 HTTP ${warm.status}`);
-        await result.first().click();
+        const firstPageCount = await result.count();
+        if (firstPageCount < 20) return {
+          status: 'warn',
+          detail: `pagination 검증 데이터 전제 불충족: "${STORE_QUERY}" 첫 페이지 ${firstPageCount}개(<20) · 제품 실패 판정 아님 · QA_STORE_QUERY로 20개 초과 검색어 지정 필요`,
+        };
+        const appendError = page.getByText('다음 매장을 불러오지 못했어요.', { exact: true });
+        const deadline = Date.now() + STEP_TIMEOUT_MS;
+        while (await result.count() <= 20 && Date.now() < deadline) {
+          await result.last().scrollIntoViewIfNeeded();
+          await page.mouse.wheel(0, 900);
+          if (await appendError.isVisible().catch(() => false)) break;
+          await page.waitForTimeout(200);
+        }
+        const pagedCount = await result.count();
+        if (pagedCount <= 20) {
+          const pageCalls = rpcCalls.filter((call) => call.name === 'search_store_catalog_page');
+          const rpc = pageCalls.map((call, index) => `p${index + 1} ${call.status} ${call.ms}ms ${call.rows ?? '?'}행`).join(', ') || '페이지 RPC 없음';
+          const state = await appendError.isVisible().catch(() => false) ? '추가 조회 오류 카드 표시' : '추가 결과 없음';
+          throw new Error(`"${STORE_QUERY}" 21번째 이후 결과가 로드되지 않음 · ${state} · 현재 ${pagedCount}개 · rpc=[${rpc}]`);
+        }
+        await result.nth(20).click();
+        await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
         await noErrorCopy(page);
         const rows = (value) => value == null ? '?' : value;
-        return `"${STORE_QUERY}" cold RPC ${coldCall.ms}ms / warm RPC ${warm.ms}ms · UI 첫 결과 ${coldUiMs}ms · cold ${coldCall.name} ${coldCall.status} ${rows(coldCall.rows)}행 · warm ${warm.status} ${rows(warm.rows)}행 · 매장 선택`;
+        return `"${STORE_QUERY}" cold RPC ${coldCall.ms}ms / warm RPC ${warm.ms}ms · UI 첫 결과 ${coldUiMs}ms · 첫 페이지 ${firstPageCount}개 → ${pagedCount}개 · 21번째 이후 매장 선택 · cold ${coldCall.name} ${coldCall.status} ${rows(coldCall.rows)}행 · warm ${warm.status} ${rows(warm.rows)}행`;
       } finally {
         page.off('request', onRpcRequest);
         page.off('response', onRpcResponse);
       }
     });
-    await check(flow, '메뉴 선택 가능, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
-      // Step 2 selects a category for the menu; the "다음" button's press
+    await check(flow, '메뉴 자동 분류 완료, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
+      // Step 2 automatically classifies the menu; the "다음" button's press
       // (confirmMenu → selectItem.mutateAsync) is a write, so it is only
       // trial-clicked, never pressed.
       const blockedBefore = blockedMenuSuggestions;
       try {
-        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS, !BLOCK_MENU_AI);
+        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS);
       } catch (error) {
-        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CHOICE_UNAVAILABLE') {
-          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/추천·다음 버튼 통과 판정 아님' };
+        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CLASSIFICATION_UNAVAILABLE') {
+          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/자동 분류·다음 버튼 통과 판정 아님' };
         }
         throw error;
       }
       await noErrorCopy(page);
-      return '메뉴 선택 → "다음" 버튼 활성화 (제출하지 않음)';
+      return '메뉴 자동 분류 완료 → "다음" 버튼 활성화 (제출하지 않음)';
     });
     await shot(page, 'pick_new');
 
@@ -531,8 +548,8 @@ async function main() {
     await check(flow, '내 원픽 목록 표시', async () => {
       // Read-only: the own picks list is only looked at; the row is trial-clicked, never opened.
       const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ });
-      // Empty copy per scope tab (profile.tsx): "아직 고른 음식 원픽이 없어요" / "아직 다른 취향 원픽이 없어요".
-      const empty = page.getByText(/아직 (고른 음식|다른 취향) 원픽이 없어요/);
+      // Empty copy per scope tab (profile.tsx): "첫 원픽을 골라보세요" / "다른 취향 원픽도 골라보세요".
+      const empty = page.getByText(/첫 원픽을 골라보세요|다른 취향 원픽도 골라보세요/);
       await rows.first().or(empty).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await rows.count();
       if (!count) {
@@ -582,10 +599,10 @@ async function main() {
     let otherProfilePath = null;
     await check(flow, '피드에서 다른 사용자 프로필 이동', async () => {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
-      const people = page.getByRole('button', { name: /^@.+ 프로필 보기$/ });
+      const people = page.getByRole('button', { name: /.+ 프로필 보기$/ });
       await people.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const names = await people.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
-      const index = names.findIndex((name) => name && name !== `@${qaUsername} 프로필 보기`);
+      const index = names.findIndex((name) => name && name !== `${qaUsername} 프로필 보기`);
       if (index < 0) return { status: 'warn', detail: '피드에 다른 사용자 없음' };
       await people.nth(index).click();
       await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
@@ -711,3 +728,4 @@ async function main() {
 await main();
 // A failed check is a QA finding; make it visible as a red run. Skips stay green.
 if (steps.some((s) => s.status === 'fail')) process.exitCode = 1;
+

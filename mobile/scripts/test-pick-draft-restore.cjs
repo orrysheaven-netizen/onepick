@@ -16,6 +16,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, URL, setTimeout, clearTimeout, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency: ${name}`);
@@ -247,7 +248,7 @@ const service = load('services/storeFirstService.ts', {
 let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStore;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
-const { default: Screen } = load('app/pick/new.tsx', {
+const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {
@@ -317,10 +318,10 @@ const count = (name) => calls.filter(([n]) => n === name).length;
 
 // Store -> menu -> photo -> review typed on the last step (not submitted).
 async function writeUntilReview() {
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
-  input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
+  await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render();
   press('다음'); await flush(); await render();
-  press('사진 선택'); await flush(); await render(); press('다음'); await render();
+  press('사진 고르기'); await flush(); await render(); press('다음'); await render();
   input('원픽 한줄평').onChangeText('육수가 깔끔해요'); return render();
 }
 
@@ -398,7 +399,7 @@ async function screenTests() {
   assert.equal(isDisabled('다음'), true, 'required photo cannot be skipped');
   assert.equal(count('register'), 0);
   choosePhotoResult = { ...photo };
-  press('사진 선택'); await flush(); page = await render();
+  press('사진 고르기'); await flush(); page = await render();
   assert.doesNotMatch(page, /사진을 다시 선택해주세요/);
   press('다음'); page = await render();
   assert.equal(stepOf(page), '4');
@@ -415,8 +416,8 @@ async function screenTests() {
   // 6. Item already has a photo: no photo request, review step returns directly.
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
-  input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
+  await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render();
   press('다음'); await flush(); await render();
   input('원픽 한줄평').onChangeText('또 가고 싶어요'); await render();
   mount(); page = await render(); page = await render();
@@ -459,6 +460,15 @@ async function screenTests() {
   assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
     'restored step-1 draft may search normally');
 
+  // A legacy manual category is never trusted when restoring a later step.
+  reset();
+  draftStore.save('owner', fields({ manualCategory: true, categoryQuery: '잘못된 분류',
+    menu: { categoryId: 'legacy-wrong-category', name: '평양냉면' } }));
+  mount(); await render(); page = await render();
+  assert.equal(calls.find(([name]) => name === 'select')[1].categoryId, 'cat-naengmyeon');
+  assert.equal(count('register'), 0);
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
+
   // 9. Explicit cancel clears the draft.
   reset();
   await writeUntilReview();
@@ -468,11 +478,17 @@ async function screenTests() {
 
   // 9. Early steps restore as they were (menu step keeps its selection).
   reset();
-  await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
+  await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
   input('메뉴 이름').onChangeText('평양냉면'); await render();
   mount(); page = await render(); page = await render();
   assert.equal(stepOf(page), '2');
   assert.equal(input('메뉴 이름').value, '평양냉면');
+  press('이전 단계'); page = await render();
+  assert.equal(stepOf(page), '1');
+  assert.equal(input('매장명 검색').value, '을밀대',
+    'restored name-search flow returns to the saved store query, not an empty link screen');
+  assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
+    'restored name-search results remain available after going back from 2/4');
   assert.equal(count('register'), 0);
 }
 
@@ -502,3 +518,4 @@ async function main() {
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

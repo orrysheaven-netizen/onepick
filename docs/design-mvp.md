@@ -16,7 +16,7 @@ OnePick MVP는 **light-only** 인터페이스를 사용합니다. 디자인의 �
 
 | 역할 | 토큰 | 값 | 용도 |
 | --- | --- | --- | --- |
-| Surface | `background` | `#FAFAF7` | 화면 배경 |
+| Surface | `background` / `bgDefault` | `#FFFFFF` | 화면 기본 배경 |
 | | `surface` | `#FFFFFF` | 카드, 시트, 입력, 스플래시 |
 | | `sunken` | `#EEF0F4` | 조용한 보조 배경 |
 | Ink | `text` | `#141416` | 본문, 제목, 주 버튼 기반 |
@@ -28,6 +28,8 @@ OnePick MVP는 **light-only** 인터페이스를 사용합니다. 디자인의 �
 | Third party | `kakao`, `apple` | provider brand | 로그인 버튼 |
 
 파랑·인디고는 OnePick 브랜드 색으로 사용하지 않습니다. 제3자 브랜드 색과 의미 기반 상태 색은 예외입니다.
+
+하단 탭의 Figma 기준 프레임은 **390×98**이며, 탭 콘텐츠 56px + 상단 8px + 하단 Safe Area 34px를 사용합니다. 웹은 실제 inset이 34px보다 작아도 34px을 확보하고, 네이티브는 시스템 Safe Area를 사용해 기기별 inset을 침범하지 않습니다.
 
 ## UI kit
 

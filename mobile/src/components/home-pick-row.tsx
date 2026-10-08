@@ -1,78 +1,99 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickPhoto } from '@/components/pick-photo';
-import { Avatar } from '@/components/ui';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
-import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
+import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
+import { OnePick, OnePickFeedType, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
- * One current Pick in the Home / full feed (Figma 30-1, 30-1D):
- * photo | profile + flag, [매장] store (bold) menu, one-line review.
- * No comments/share on Home; the row opens the item and the person opens their profile.
- * Every feed row is a current Pick, so the flag is always shown.
+ * One current Pick in the Home feed (Figma Feed Card v3, 993:7228):
+ * photo → store/branch → menu → nickname → one-line review.
+ *
+ * The read model does not expose branch as a separate field yet, so the current
+ * provider/item name stays on the Store Branch role without guessing a split.
  */
-export function HomePickRow({ pick, mine = false, onOpenItem, onOpenProfile, onOpenProvider }: {
+export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }: {
   pick: HomeFeedPick;
-  /** The viewer's own current Pick (orange flag). */
+  /** Kept for caller compatibility; v3 no longer draws the legacy current-Pick flag. */
   mine?: boolean;
   onOpenItem: () => void;
   onOpenProfile: () => void;
-  /** Store profile (Figma 17A); the store name links there when the Pick has a provider. */
+  /** Store profile; the store/branch line links there when a provider is available. */
   onOpenProvider?: () => void;
 }) {
   const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
-  const channelLabel = channel ? PICK_CHANNEL_OPTIONS.find((option) => option.channel === channel)?.label : undefined;
-  // Store/online items are named for their provider; the menu is the category.
-  const providerName = channel === 'offline' || channel === 'online' ? pick.name : undefined;
-  const menuName = channel ? pick.categoryName : pick.name;
-  const contentName = providerName ? `${providerName} ${menuName}` : menuName;
+  // Only provider-backed offline/online rows have a store/provider line. Legacy
+  // rows without a channel keep their historical item name as the menu/title;
+  // never promote the category name into a fake 20px menu title.
+  const hasProviderContext = channel === 'offline' || channel === 'online';
+  const storeBranchName = hasProviderContext ? pick.name : undefined;
+  const menuName = hasProviderContext ? pick.categoryName : pick.name;
+  const contentName = storeBranchName ? `${storeBranchName} ${menuName}` : menuName;
 
-  return <View style={styles.row}>
+  return <View style={styles.card}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
       style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
-      <PickPhoto feed uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
+      <PickPhoto feedCard uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
     </Pressable>
-    <View style={styles.copy}>
-      <View style={styles.personRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`@${pick.username} 프로필 보기`} onPress={onOpenProfile}
-          style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-          <Avatar name={pick.username} size={24} tone="subtle" imageUrl={pick.profileImageUrl} />
-          <Text numberOfLines={1} style={styles.username}>@{pick.username}</Text>
+
+    <View style={styles.textArea}>
+      <View style={styles.itemGroup}>
+        {storeBranchName
+          ? onOpenProvider
+            ? <Pressable accessibilityRole="button" accessibilityLabel={`${storeBranchName} 매장 보기`} onPress={onOpenProvider}
+                style={({ pressed }) => [styles.storeAction, pressed && styles.pressed]}>
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
+              </Pressable>
+            : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
+          : null}
+        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
+          style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.menu}>{menuName}</Text>
         </Pressable>
-        <CurrentPickFlag mine={mine} />
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 상세 보기`} onPress={onOpenItem}
-        style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
-        <View style={styles.titleRow}>
-          {channelLabel ? <View style={styles.badge}><Text style={styles.badgeText}>{channelLabel}</Text></View> : null}
-          <Text numberOfLines={1} style={styles.title}>
-            {providerName ? <Text style={styles.provider} {...(onOpenProvider ? { accessibilityRole: 'link' as const,
-              onPress: (event: { stopPropagation?: () => void }) => { event?.stopPropagation?.(); onOpenProvider(); } } : {})}>{providerName} </Text> : null}
-            <Text style={providerName ? styles.menu : styles.provider}>{menuName}</Text>
-          </Text>
-        </View>
-        {pick.oneLineReview ? <Text numberOfLines={2} style={styles.review}>{`“${pick.oneLineReview}”`}</Text> : null}
-      </Pressable>
+
+      <View style={styles.personGroup}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
+          style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>{pick.username}</Text>
+        </Pressable>
+        {pick.oneLineReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
+          style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{pick.oneLineReview}</Text>
+        </Pressable> : null}
+      </View>
     </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: OnePickSpace.md, paddingVertical: 8 },
-  photo: { borderRadius: OnePickRadius.md, overflow: 'hidden' },
-  copy: { flex: 1, minWidth: 0, gap: 6 },
-  personRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: OnePickSpace.sm },
-  person: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm, minWidth: 0, flexShrink: 1, minHeight: 32 },
-  username: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1 },
-  body: { gap: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: OnePickRadius.sm, backgroundColor: OnePick.bgAccentSubtle },
-  badgeText: { ...OnePickType.captionMedium, color: OnePick.accentDeep },
-  title: { flex: 1, minWidth: 0, color: OnePick.textPrimary },
-  provider: { ...OnePickType.headline, color: OnePick.textPrimary },
-  menu: { ...OnePickType.body, fontSize: 16, color: OnePick.textPrimary },
-  review: { ...OnePickType.body, color: OnePick.textPrimary },
+  card: { width: '100%', alignItems: 'stretch' },
+  photo: { width: '100%', height: 176, borderRadius: OnePickRadius.lg, overflow: 'hidden' },
+  textArea: { width: '100%', paddingTop: OnePickSpace.md, gap: OnePickSpace.md },
+  itemGroup: { width: '100%', gap: OnePickSpace.xs },
+  personGroup: { width: '100%', gap: OnePickSpace.xs },
+  // Keep the 21/20px visual rows in place while their actual web/native targets
+  // meet the 44px product contract. This follows the shared Avatar/footer pattern.
+  storeAction: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    marginVertical: -(MIN_TOUCH_TARGET - OnePickFeedType.storeBranch.lineHeight) / 2,
+    justifyContent: 'center',
+  },
+  profileAction: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    marginVertical: -(MIN_TOUCH_TARGET - OnePickFeedType.nickname.lineHeight) / 2,
+    justifyContent: 'center',
+  },
+  blockAction: { width: '100%' },
+  storeBranch: { ...OnePickFeedType.storeBranch, color: OnePick.textPrimary },
+  menu: { ...OnePickType.title, color: OnePick.textPrimary },
+  username: { ...OnePickFeedType.nickname, color: OnePick.textSecondary },
+  review: { ...OnePickFeedType.review, color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });

@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExternalLink } from '@/components/external-link';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 export default function PrivacyScreen() {
   const router = useRouter();
   return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content}>
-      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')}><Text style={styles.back}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={styles.backButton}><Icon name="back" /></Pressable>
       <Text style={styles.kicker}>PRIVACY</Text>
       <Text style={styles.title}>개인정보 및 YouTube API 안내</Text>
       <Text style={styles.note}>시행일 · 2026-09-19</Text>
@@ -38,7 +39,7 @@ export default function PrivacyScreen() {
 const styles=StyleSheet.create({
   safe:{flex:1,backgroundColor:OnePick.background},
   content:{width:'100%',maxWidth:680,alignSelf:'center',padding:22,paddingBottom:50},
-  back:{fontSize:36,color:OnePick.text},
+  backButton:{width:44,height:44,justifyContent:'center',marginLeft:-10},
   kicker:{color:OnePick.accent,fontSize:12,fontWeight:'800',letterSpacing:2,marginTop:12},
   title:{fontSize:27,fontWeight:'900',color:OnePick.text,marginTop:8},
   note:{fontSize:12,lineHeight:19,color:OnePick.danger,marginTop:10},

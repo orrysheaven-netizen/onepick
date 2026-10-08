@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import AppFrame from '@/components/app-frame';
 import { RootErrorBoundary } from '@/components/root-error-boundary';
 import { AnimatedSplashOverlay } from '@/components/splash-overlay';
+import SwipeBackEdge from '@/components/swipe-back-edge';
 import { OnePick } from '@/constants/onepick';
 import { AppQueryProvider } from '@/lib/query/appQueryProvider';
 
@@ -14,7 +15,7 @@ const theme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: OnePick.background,
+    background: OnePick.bgDefault,
     card: OnePick.surface,
     text: OnePick.text,
     border: OnePick.border,
@@ -43,6 +44,7 @@ function AppStack() {
         <Stack.Screen name="auth/callback" options={{ presentation: 'card' }} />
         <Stack.Screen name="auth/admin-security" options={{ presentation: 'card', animation: 'none' }} />
       </Stack>
+      <SwipeBackEdge />
     </>
   );
 }

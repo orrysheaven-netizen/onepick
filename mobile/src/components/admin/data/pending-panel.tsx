@@ -645,7 +645,7 @@ export function PendingPanel() {
                   <View style={adminStyles.row}>
                     <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canCreateCategory }} disabled={!canCreateCategory} onPress={addReviewCategory}
                       style={[adminStyles.primaryButton, !canCreateCategory && { opacity: 0.5 }]}>
-                      <Text style={adminStyles.primaryButtonText}>{creatingCategory ? '만드는 중' : '만들고 선택'}</Text>
+                      <Text style={adminStyles.primaryButtonText}>{creatingCategory ? '만드는 중' : '만들고 이 요청에 적용'}</Text>
                     </Pressable>
                     <Pressable accessibilityRole="button" disabled={creatingCategory} onPress={() => setNewCategoryOpen(false)} style={adminStyles.secondaryButton}>
                       <Text style={adminStyles.secondaryButtonText}>취소</Text>

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ReportAction } from '@/components/report-action';
-import { ShareGlyph } from '@/components/share-glyph';
+import { Icon } from '@/components/ui';
+import { touchSlop } from '@/components/ui/touch';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { sharePick } from '@/lib/share/sharePick';
 import { isSeedProfileId } from '@/lib/seedProfiles';
@@ -49,12 +50,12 @@ export function PickShareActions(props: PickShareActionsProps) {
     <View style={styles.container}>
       <View style={styles.row}>
         <Pressable accessibilityRole="button" accessibilityLabel="이 원픽 공유" disabled={isSharing}
-          onPress={() => void handleShare()} style={({ pressed }) => [styles.icon, (pressed || isSharing) && styles.pressed]}>
-          <ShareGlyph />
+          onPress={() => void handleShare()} hitSlop={ICON_SLOP} style={({ pressed }) => [styles.icon, (pressed || isSharing) && styles.pressed]}>
+          <Icon name="share" color={OnePick.textSecondary} />
         </Pressable>
         {canReport ? <Pressable accessibilityRole="button" accessibilityLabel={menuOpen ? '더보기 닫기' : '더보기'}
-          onPress={() => setMenuOpen((open) => !open)} style={({ pressed }) => [styles.icon, pressed && styles.pressed]}>
-          <Text style={styles.more}>⋯</Text>
+          onPress={() => setMenuOpen((open) => !open)} hitSlop={ICON_SLOP} style={({ pressed }) => [styles.icon, pressed && styles.pressed]}>
+          <Icon name="more" color={OnePick.textSecondary} />
         </Pressable> : null}
       </View>
       {notice ? <Text accessibilityLiveRegion="polite" style={notice === 'error' ? styles.error : styles.notice}>
@@ -67,11 +68,13 @@ export function PickShareActions(props: PickShareActionsProps) {
   );
 }
 
+// 36px visual buttons keep their layout; hitSlop lifts the touch area to the 44px minimum.
+const ICON_SLOP = touchSlop(36, 36);
+
 const styles = StyleSheet.create({
   container: { alignItems: 'flex-end' },
   row: { flexDirection: 'row', alignItems: 'center' },
   icon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },
-  more: { color: OnePick.muted, fontSize: 18, lineHeight: 20, fontWeight: '800' },
   notice: { color: OnePick.success, fontSize: 11, lineHeight: 15 },
   error: { color: OnePick.danger, fontSize: 11, lineHeight: 15 },
   menu: { marginTop: 4 },

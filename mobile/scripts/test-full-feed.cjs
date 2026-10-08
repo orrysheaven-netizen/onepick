@@ -60,7 +60,7 @@ const { default: FullFeed } = load('app/feed.tsx', {
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/home-pick-row': { HomePickRow: (props) => { rowProps.push(props); return React.createElement('p', null, '@' + props.pick.username); } },
-  '@/components/ui': { StateCard: ({ title, text }) => React.createElement('aside', null, title, text) },
+  '@/components/ui': { ...require('./icon-stub.cjs'), StateCard: ({ title, text }) => React.createElement('aside', null, title, text) },
   '@/constants/onepick': constants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
   '@/hooks/useHomeData': { useFullPickFeed: (...args) => { assert.deepEqual(args.slice(2), ['offline', 'food']); return feed; } },
@@ -86,13 +86,23 @@ list.onEndReached(); assert.equal(feed.calls, 1, 'Stops when the server has no m
 assert.match(html, /지금 볼 수 있는 원픽을 모두 확인했어요/);
 assert.doesNotMatch(html, />댓글<|>공유</, 'No extra UI beyond the rows');
 
-// 3. Shared flag colors.
-const flagStyles = [];
-const flagNative = { View: (props) => { flagStyles.push(props); return null; }, StyleSheet: { create: (s) => s, flatten: (s) => s } };
-const { CurrentPickFlag } = load('components/current-pick-flag.tsx', { 'react-native': flagNative, '@/constants/onepick': constants });
-const colorOf = (el) => el.props.children[0].props.style[1].backgroundColor;
-assert.equal(colorOf(CurrentPickFlag({ mine: true })), '#FF8500');
-assert.equal(colorOf(CurrentPickFlag({})), '#555555');
+// 3. Shared flag: the exact Figma OnePick / Flag (752:4349) shape, colour by owner.
+const { CurrentPickFlag } = load('components/current-pick-flag.tsx', {
+  'react-native': { StyleSheet: { create: (s) => s }, View: 'View' },
+  'expo-image': { Image: 'Image' },
+  '../../public/icons/flag-mine.svg': 'flag-mine.svg',
+  '../../public/icons/flag-other.svg': 'flag-other.svg',
+});
+assert.equal(CurrentPickFlag({ mine: true }).props.children.props.source, 'flag-mine.svg');
+assert.equal(CurrentPickFlag({}).props.children.props.source, 'flag-other.svg');
 assert.equal(CurrentPickFlag({ mine: true }).props.accessibilityLabel, '내 현재 원픽');
+assert.equal(CurrentPickFlag({}).props.accessibilityLabel, '현재 원픽', 'The label is on a View so web screen readers get it');
+assert.deepEqual({ ...CurrentPickFlag({}).props.style }, { width: 24, height: 24 });
+const figmaFlag = 'M7 5H9V19H7V5ZM9 5H18L15.2 9L18 13H9V5Z';
+for (const [file, colour] of [['flag-mine.svg', '#FF8500'], ['flag-other.svg', '#555555']]) {
+  const svg = fs.readFileSync(path.join(__dirname, '../public/icons', file), 'utf8');
+  assert.ok(svg.includes(`d="${figmaFlag}" fill="${colour}"`), `${file}: Figma swallowtail flag in ${colour}`);
+  assert.ok(svg.includes('fill="#FFFFFF"'), `${file}: white 24px circle`);
+}
 
 console.log('Full feed checks passed: 20 per page, next 20 near the bottom, no duplicate requests or rows, stop at the end, flag colors.');

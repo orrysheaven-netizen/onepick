@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
-import { Avatar } from '@/components/ui';
+import { Avatar, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { PICK_CHANNEL_OPTIONS } from '@/lib/items/pickChannel';
@@ -74,7 +74,7 @@ export function MenuDetailPickCard({
                 onPress={(event) => { event.stopPropagation(); onOpenProvider(); }}
                 style={({ pressed }) => [styles.providerAction, pressed && styles.pressed]}>
                 <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>
-                <Text style={styles.providerArrow}>›</Text>
+                <Icon name="chevronRight" size="sm" color={OnePick.textPrimary} />
               </Pressable>
             ) : <Text numberOfLines={1} style={styles.providerName}>{providerName}</Text>) : null}
           </View>
@@ -127,7 +127,6 @@ const styles = StyleSheet.create({
   channelBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
   providerAction: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   providerName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1 },
-  providerArrow: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   review: { ...OnePickType.body, color: OnePick.textPrimary },
   footer: { minHeight: 18, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
   metric: { ...OnePickType.captionMedium, color: OnePick.muted },

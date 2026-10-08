@@ -32,13 +32,16 @@ function loadProfileService() {
 async function main() {
   const ProfileService = loadProfileService();
   const ownerId = '11111111-1111-4111-8111-111111111111';
+  const photo = (id) => ({ id, imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: `https://onepick.test/${id}.jpg` });
+  const bare = { id: 'i7', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null };
   const mixedPicks = [
-    { pick: { id: 'p1', status: 'active' }, category: { id: 'c1', slug: 'pyeongyang-naengmyeon', name: '평양냉면' } },
-    { pick: { id: 'p2', status: 'active' }, category: { id: 'c2', slug: 'movie', name: '영화' } },
-    { pick: { id: 'p3', status: 'active' }, category: { id: 'c3', slug: 'game', name: '게임' } },
-    { pick: { id: 'p4', status: 'active' }, category: { id: 'c4', slug: 'book', name: '책' } },
-    { pick: { id: 'p5', status: 'active' }, category: { id: 'c5', slug: 'music', name: '음악' } },
-    { pick: { id: 'p6', status: 'needs_review' }, category: { id: 'c6', slug: 'ganjang-gejang', name: '간장게장' } },
+    { pick: { id: 'p1', status: 'active' }, category: { id: 'c1', slug: 'pyeongyang-naengmyeon', name: '평양냉면' }, item: photo('i1') },
+    { pick: { id: 'p2', status: 'active' }, category: { id: 'c2', slug: 'movie', name: '영화' }, item: photo('i2') },
+    { pick: { id: 'p3', status: 'active' }, category: { id: 'c3', slug: 'game', name: '게임' }, item: photo('i3') },
+    { pick: { id: 'p4', status: 'active' }, category: { id: 'c4', slug: 'book', name: '책' }, item: photo('i4') },
+    { pick: { id: 'p5', status: 'active' }, category: { id: 'c5', slug: 'music', name: '음악' }, item: photo('i5') },
+    { pick: { id: 'p6', status: 'needs_review' }, category: { id: 'c6', slug: 'ganjang-gejang', name: '간장게장' }, item: photo('i6') },
+    { pick: { id: 'p7', status: 'active' }, category: { id: 'c7', slug: 'youtube', name: '유튜브' }, item: bare },
   ];
 
   const calls = [];
@@ -58,8 +61,8 @@ async function main() {
   const mine = await service.getMyProfile(ownerId);
   assert.deepEqual(
     Array.from(mine.currentPicks, (entry) => entry.category.slug),
-    ['pyeongyang-naengmyeon', 'movie', 'game', 'book', 'music', 'ganjang-gejang'],
-    'My Profile must keep restaurant and non-restaurant current Picks together',
+    ['pyeongyang-naengmyeon', 'movie', 'game', 'book', 'music', 'ganjang-gejang', 'youtube'],
+    'My Profile keeps photo-less legacy current Picks reachable for owner management',
   );
   assert.deepEqual(Array.from(calls[0].statuses), ['active', 'needs_review']);
   assert.equal(Object.hasOwn(calls[0], 'categoryId'), false, 'My Profile must not apply an MVP restaurant category filter');
@@ -68,7 +71,7 @@ async function main() {
   assert.deepEqual(
     Array.from(publicProfile.currentPicks, (entry) => entry.category.slug),
     ['pyeongyang-naengmyeon', 'movie', 'game', 'book', 'music'],
-    'Public Profile must keep every active non-restaurant Pick visible alongside restaurant Picks',
+    'Public Profile keeps photographed active Picks and hides legacy photo-less Picks',
   );
   assert.deepEqual(Array.from(calls[1].statuses), ['active']);
   assert.equal(Object.hasOwn(calls[1], 'categoryId'), false, 'Public Profile must not apply an MVP restaurant category filter');
@@ -90,7 +93,7 @@ async function main() {
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 
-  console.log('MVP profile scope checks passed: services keep every Pick; FOOD display is offline-only while other tastes remain available.');
+  console.log('MVP profile scope checks passed: owner management keeps legacy Picks while public profiles hide photo-less current Picks.');
 }
 
 main().catch((error) => {

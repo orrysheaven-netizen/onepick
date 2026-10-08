@@ -91,7 +91,7 @@ const tree = [
 ];
 const categoryTree = load('lib/categories/categoryTree.ts');
 const ui = require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } });
-const { default: Find } = load('app/pick/find.tsx', {
+const { default: Find } = load('app/pick/find.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
   react: fakeReact,
   'expo-router': {
     useLocalSearchParams: () => params,
@@ -161,7 +161,7 @@ assert.equal(onlineChip().accessibilityState?.selected, true);
 assert.equal(placeSearchArgs[2], false, '온라인 never queries the place catalog');
 assert.doesNotMatch(page, /음식점만 가능해요/, 'Online sellers are not limited by region');
 assert.ok(inputs.find((input) => input.accessibilityLabel === '원픽 온라인 판매처 검색'));
-assert.match(page, /○○곰탕 온라인몰/); assert.match(page, /이 판매처를 원픽으로 선택/);
+assert.match(page, /○○곰탕 온라인몰/); assert.match(page, /이 판매처를 원픽으로 고르기/);
 assert.doesNotMatch(page, /본점|예전 도가니탕/, '온라인 lists only online-provider items');
 press('○○곰탕 온라인몰 원픽 선택');
 assert.equal(destination.pathname, '/pick/choose'); assert.equal(destination.params.itemId, 'online-item');

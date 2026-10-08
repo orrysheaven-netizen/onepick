@@ -79,6 +79,7 @@ const hooks = {
 };
 
 const ui = {
+  ...require('./icon-stub.cjs'),
   Avatar: ({ name }) => React.createElement('span', null, `avatar:${name}`),
   StateCard: ({ title, text }) => React.createElement('section', null, title, text),
 };
@@ -168,6 +169,6 @@ assert.match(followButtonSource, /initialFollowing\?: boolean/);
 assert.match(followButtonSource, /useFollowState\(viewerUserId, profileUserId, initialFollowing\)/);
 assert.match(followButtonSource, /setConfirmingUnfollow\(true\)/);
 assert.match(followButtonSource, />팔로우 취소<\/Text>/);
-assert.match(followButtonSource, /accessibilityLabel="팔로우 취소하지 않기"/);
+assert.match(followButtonSource, /accessibilityLabel="팔로우 취소 확인 닫기"/);
 
 console.log('Canonical follow connections view checks passed.');

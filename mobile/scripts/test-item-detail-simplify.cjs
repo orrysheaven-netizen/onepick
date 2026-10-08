@@ -122,7 +122,7 @@ assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineRevi
 // Share actions: icon per card, 신고 only behind ⋯ and never on my own Pick.
 const shareSource = source('components/pick-share-actions.tsx');
 assert.match(shareSource, /accessibilityLabel="이 원픽 공유"/);
-assert.match(shareSource, /<Text style=\{styles\.more\}>⋯<\/Text>/);
+assert.match(shareSource, /<Icon name="more" color=\{OnePick\.textSecondary\} \/>/, '더보기 is the shared 24px More icon, not a ⋯ glyph');
 assert.match(shareSource, /menuOpen && canReport && user \? <View style=\{styles\.menu\}>\s*<ReportAction/);
 assert.match(shareSource, /user\.id !== props\.authorUserId/);
 
@@ -130,7 +130,7 @@ const currentFlagSource = source('components/current-pick-flag.tsx');
 assert.match(currentFlagSource, /accessibilityLabel=\{mine \? '내 현재 원픽' : '현재 원픽'\}/);
 assert.match(currentFlagSource, /width: 24/);
 assert.match(currentFlagSource, /height: 24/);
-assert.match(currentFlagSource, /mine \? OnePick\.flagMine : OnePick\.flagOther/, 'Shared flag: my current Pick orange, anyone else dark gray (10-04)');
+assert.match(currentFlagSource, /source=\{mine \? flags\.mine : flags\.other\}/, 'Shared flag: my current Pick orange, anyone else dark gray (Figma 752:4349)');
 assert.doesNotMatch(currentFlagSource, /✓ 이 집 원픽|✓ 원픽/, 'Shared flag stays icon-only');
 
 const reviewCardSource = source('components/item-review-card.tsx');

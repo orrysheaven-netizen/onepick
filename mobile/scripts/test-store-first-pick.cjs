@@ -15,6 +15,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, URL, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency: ${name}`);
@@ -55,8 +56,9 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let linkData, linkResponse;
-let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill, storeSearchEnabled;
+let linkData, linkResponse, deferLink, finishLink;
+let aiFailed = false, aiFetching = false;
+let auth, results, menuOptions, aiResult, detail, calls, selectResult, registerRun, currentSlotRun, providerPrefill, storeSearchEnabled, routerBackCalls;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const hooks = {
@@ -73,16 +75,16 @@ const hooks = {
       isWaiting: false, isFetching: false, isError: false, refetch() {} };
   },
   useMenuOptions: () => ({ data: menuOptions, isSuccess: true, isError: false, refetch() {} }),
-  useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: !enabled, isFetching: false, isError: false }),
+  useMenuSuggestions: (store, key, menuName, enabled) => ({ data: enabled && menuName.trim() ? aiResult : undefined, isPending: !enabled, isFetching: aiFetching, isError: aiFailed, refetch: () => { calls.push(['reclassify', menuName]); } }),
   useSelectStoreItem: () => mutation('select', () => selectResult),
 };
 
-const { default: Screen } = load('app/pick/new.tsx', {
+const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
   react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {
     useLocalSearchParams: () => routeParams,
-    useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {}, canGoBack: () => true }),
+    useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back: () => { routerBackCalls += 1; }, canGoBack: () => true }),
   },
   '@/components/ui': ui, '@/errors/appError': { AppError },
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
@@ -96,7 +98,13 @@ const { default: Screen } = load('app/pick/new.tsx', {
   },
   '@/hooks/useLinkCategorySuggestions': { useLinkCategorySuggestions: () => ({
     data: linkData, isPending: false, isError: false, isSuccess: linkData !== undefined, error: null,
-    mutate: (input) => { calls.push(['link', input]); linkData = linkResponse(input); },
+    mutate: (input, options) => {
+      calls.push(['link', input]);
+      const result = linkResponse(input);
+      const complete = () => { linkData = result; if (result) options?.onSuccess?.(result); };
+      if (deferLink) finishLink = complete;
+      else complete();
+    },
     reset: () => { linkData = undefined; },
   }) },
   '@/hooks/useStoreFirst': hooks,
@@ -113,8 +121,10 @@ const linkPlace = (catalogId, name, branchName) => ({ catalogId, name, branchNam
 const linkResult = (url, resolvedName, places) => ({ kind: 'place', inputUrl: url, canonicalUrl: url, host: 'map.naver.com',
   title: resolvedName, description: null, resolvedName, needsName: !resolvedName, places, suggestions: [], categories: [] });
 function reset() {
+  aiFailed = false; aiFetching = false;
   linkData = undefined; linkResponse = () => undefined;
-  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false;
+  deferLink = false; finishLink = undefined;
+  states = []; refs = []; calls = []; destination = undefined; uuidCounter = 0; routeParams = {}; storeSearchEnabled = false; routerBackCalls = 0;
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   results = {
     offline: [
@@ -150,10 +160,15 @@ function press(label) {
 }
 const input = (label) => { const found = inputs.find((props) => props.accessibilityLabel === label); assert.ok(found, `Expected input: ${label}`); return found; };
 const step = (page) => /(\d) \/ 4/.exec(page)?.[1];
+const openStoreSearch = () => {
+  render();
+  const fallback = pressables.find((props) => textOf(props.children) === 'URL 없음');
+  if (fallback) { fallback.onPress(); render(); }
+};
 
 async function chooseExistingOffline(name = '을밀대', menu = '평양냉면', menuLabel = '면 › 평양냉면') {
-  render(); input('매장명 검색').onChangeText(name); render(); press(`${name} 선택`); render();
-  input('메뉴 이름').onChangeText(menu); render(); press(menuLabel); render(); press('다음'); await flush();
+  openStoreSearch(); input('매장명 검색').onChangeText(name); render(); press(`${name} 선택`); render();
+  input('메뉴 이름').onChangeText(menu); render(); press('다음'); await flush();
 }
 
 async function main() {
@@ -169,10 +184,15 @@ async function main() {
   reset();
   routeParams = { providerId: '11111111-1111-1111-1111-111111111111' };
   render(); // first render binds the account-owned draft scope
-  page = render(); // next render may apply the validated entry prefill
+  page = render(); // validated provider context is available without asking for a link again
   assert.equal(input('매장명 검색').value, '서울집 성수점');
-  assert.match(page, /보고 있던 매장을 선택해 두었어요/);
+  assert.doesNotMatch(page, /네이버 지도 링크를 입력해주세요/);
+  assert.match(page, /보고 있던 매장을 선택해 뒀어요/);
   assert.match(page, /서울집 · 성수점/);
+  press('이전 단계'); page = render();
+  assert.equal(routerBackCalls, 1, 'provider-context step 1 goes back to the provider profile');
+  assert.doesNotMatch(page, /네이버 지도 링크를 입력해주세요/,
+    'provider-context back does not insert the generic link-first screen');
   press('다음'); page = render();
   assert.equal(step(page), '2');
 
@@ -192,11 +212,11 @@ async function main() {
   ];
   selectResult = { itemId: 'item-ramen', categoryId: '22222222-2222-2222-2222-222222222222', hasPhoto: true, pending: false };
   routeParams = { menuName: '라멘', categoryId: '22222222-2222-2222-2222-222222222222' };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
+  openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
   assert.equal(step(page), '2');
   assert.equal(input('메뉴 이름').value, '라멘');
   assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
-  assert.match(page, /면 › 라멘/);
+  assert.match(page, /메뉴를 확인했어요/);
   input('메뉴 이름').onChangeText('쇼유라멘'); page = render();
   press('이전 단계'); page = render();
   input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
@@ -209,29 +229,33 @@ async function main() {
   ];
   selectResult = { itemId: 'item-ramen', categoryId: '22222222-2222-2222-2222-222222222222', hasPhoto: true, pending: false };
   routeParams = { menuName: '라멘', categoryId: '22222222-2222-2222-2222-222222222222' };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
   press('다음'); await flush();
   page = render(); assert.equal(step(page), '4', 'Existing photo skips the photo interaction from a valid menu prefill');
 
-  // Public MVP starts directly at offline store search: no channel chooser.
+  // Public MVP starts at Naver link input; "URL 없음" is the explicit store-search fallback.
   // A disabled provider-prefill query is isPending=true in TanStack Query v5,
-  // but that must not disable ordinary store search.
+  // but that must not disable ordinary store search after the fallback.
   reset();
   page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /상호명을 검색해 주세요/);
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
   assert.match(page, /오프라인 매장/);
+  assert.ok(pressables.find((props) => textOf(props.children) === '매장명 가져오기')?.disabled, 'No link, no lookup');
+  assert.ok(pressables.some((props) => textOf(props.children) === 'URL 없음'), 'Name search is an explicit fallback');
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '매장명 검색'), 'Name search is not the default entry');
   assert.doesNotMatch(page, /온라인 판매처|레시피는 메뉴부터 찾기/);
+  press('URL 없음'); page = render();
   input('매장명 검색').onChangeText('을밀대'); page = render();
-  assert.equal(storeSearchEnabled, true, 'normal entry enables store search even while disabled prefill query is pending');
-  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해 주세요/);
+  assert.equal(storeSearchEnabled, true, 'URL 없음 enables ordinary store search even while disabled prefill query is pending');
+  assert.match(page, /검색 결과 2개 · 지점과 주소를 확인해주세요/);
 
   // Existing item: store -> menu -> photo -> review, then response ids.
   await chooseExistingOffline();
   page = render();
   assert.equal(step(page), '3');
   assert.doesNotMatch(page, /사진 없이 계속/);
-  press('사진 선택'); await flush(); render(); press('다음');
+  press('사진 고르기'); await flush(); render(); press('다음');
   page = render();
   assert.equal(step(page), '4');
   input('원픽 한줄평').onChangeText('육수가 깔끔해요'); render();
@@ -273,8 +297,8 @@ async function main() {
     },
   };
   registerRun = () => ({ itemId: 'brand-pending', pickId: 'brand-pick', published: false, replacedPickId: null, retried: false });
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
-  input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
+  openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  input('메뉴 이름').onChangeText('평양냉면'); render(); press('다음'); await flush();
   page = render();
   assert.equal(step(page), '2');
   assert.match(page, /원픽 범위/);
@@ -282,7 +306,7 @@ async function main() {
   assert.match(page, /을밀대 전체/);
   press('을밀대 전체'); render(); press('다음'); await flush();
   page = render(); assert.equal(step(page), '3', 'A new brand-wide product still needs its photo');
-  press('사진 선택'); await flush(); render(); press('다음'); render();
+  press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('어느 지점이든 좋아요'); render(); press('원픽 등록하기'); await flush();
   const brandSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(brandSave.brandId, 'brand-1');
@@ -293,11 +317,11 @@ async function main() {
   // AI recommendation remains inside the menu step.
   reset();
   selectResult = { itemId: 'item-ai', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
-  render(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
+  openStoreSearch(); input('매장명 검색').onChangeText('우래옥'); render(); press('우래옥 선택'); render();
   input('메뉴 이름').onChangeText('평양물냉'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
   assert.equal(step(page), '2');
-  assert.match(page, /카테고리 · AI 추천/);
-  assert.match(page, /평양냉면으로 유명한 곳이에요/);
+  assert.match(page, /메뉴를 확인했어요/);
+  assert.ok(!pressables.some((props) => props.accessibilityLabel?.startsWith('AI 추천')));
   press('다음'); await flush(); page = render();
   assert.equal(step(page), '4', 'Existing photo skips the photo interaction');
   input('원픽 한줄평').onChangeText('시원한 육수가 좋아요'); render(); press('원픽 등록하기'); await flush();
@@ -306,17 +330,52 @@ async function main() {
   // Missing category cannot become a fake request-success state.
   reset();
   aiResult = { suggestions: [{ categoryId: 'cat-suyuk', label: '고기 › 저신뢰추천', reason: '확신이 낮아요', confidence: 'low' }], needsNewCategory: false };
-  render(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+  openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
   input('메뉴 이름').onChangeText('할머니 비법 국수'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
-  assert.match(page, /카테고리를 추천하지 못했어요/);
-  assert.match(page, /현재 등록 가능한 카테고리 중 하나를 골라주세요/);
+  assert.match(page, /메뉴를 분류하지 못했어요/);
+  assert.match(page, /입력한 내용은 유지돼요/);
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '카테고리 검색'));
+  assert.ok(pressables.find((props) => textOf(props.children) === '다음').disabled);
+
+  // Uncertain/unsupported categories never silently select the first candidate.
+  for (const testCase of [
+    { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'medium' }] },
+    { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }, { categoryId: 'cat-suyuk', confidence: 'high' }] },
+    { suggestions: [{ categoryId: 'cat-gomtang', confidence: 'high' }] },
+    { suggestions: [{ categoryId: 'unknown-category', confidence: 'high' }] },
+    { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }], needsNewCategory: true },
+    { suggestions: [] },
+  ]) {
+    reset(); aiResult = { needsNewCategory: false, ...testCase };
+    openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+    input('메뉴 이름').onChangeText('비법 국수'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
+    assert.match(page, /메뉴를 분류하지 못했어요/);
+    assert.ok(pressables.find((props) => textOf(props.children) === '다음').disabled);
+    press('다시 확인하기'); render();
+    assert.equal(input('메뉴 이름').value, '비법 국수', 'retry preserves the menu');
+    assert.equal(calls.filter(([name]) => name === 'reclassify').length, 1);
+    assert.equal(calls.filter(([name]) => name === 'select' || name === 'register').length, 0);
+    aiResult = { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }], needsNewCategory: false };
+    render(); press('다음'); await flush(); render();
+    assert.equal(calls.find(([name]) => name === 'select')[1].categoryId, 'cat-naengmyeon');
+  }
+
+  // Refetching or failed classification cannot reuse stale high-confidence data.
+  for (const status of ['fetching', 'error']) {
+    reset();
+    openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
+    input('메뉴 이름').onChangeText('비법 국수'); render(); input('메뉴 이름').onSubmitEditing();
+    aiFetching = status === 'fetching'; aiFailed = status === 'error'; page = render();
+    assert.ok(pressables.find((props) => textOf(props.children) === '다음').disabled);
+    assert.equal(calls.filter(([name]) => name === 'select').length, 0);
+  }
 
   // Catalog-missing store identity is collected inside step 1, one input per
   // screen (#593): name, then Naver map link. No road address, no "다시 검색하기".
   reset();
   registerRun = () => ({ itemId: 'pending-place-item', pickId: 'needs-review-pick', published: false, replacedPickId: null, retried: false });
   // Starting over from search must not carry the previous store's link (Codex review on #596).
-  render(); input('매장명 검색').onChangeText('옛 냉면집'); render(); press('찾는 매장이 없어요'); render();
+  openStoreSearch(); input('매장명 검색').onChangeText('옛 냉면집'); render(); press('찾는 매장이 없어요'); render();
   press('다음'); render(); input('네이버 지도 링크').onChangeText('https://naver.me/oldstore'); render();
   press('이전 단계'); render(); press('이전 단계'); render();
   input('매장명 검색').onChangeText('새 냉면집'); render(); press('찾는 매장이 없어요'); render();
@@ -326,23 +385,23 @@ async function main() {
   assert.ok(pressables.find((props) => textOf(props.children) === '다음')?.disabled, 'No link, no next');
   press('이전 단계'); page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /매장 이름을 알려 주세요/);
+  assert.match(page, /매장명을 입력해주세요/);
   assert.doesNotMatch(page, /도로명 주소/);
   assert.doesNotMatch(page, /다시 검색하기/);
   assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'), 'The link has its own screen');
   input('등록 요청 이름').onChangeText('새 냉면집');
   render(); press('다음'); page = render();
   assert.equal(step(page), '1');
-  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
   assert.ok(!inputs.some((props) => props.accessibilityLabel === '등록 요청 이름'), 'The name input is not repeated on the link screen');
   press('이전 단계'); page = render();
-  assert.match(page, /매장 이름을 알려 주세요/, 'Back from the link returns to the name');
+  assert.match(page, /매장명을 입력해주세요/, 'Back from the link returns to the name');
   press('다음'); render();
   input('네이버 지도 링크').onChangeText('https://naver.me/newstore');
   render(); press('다음'); page = render();
   assert.equal(step(page), '2');
-  input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
-  page = render(); assert.equal(step(page), '3'); press('사진 선택'); await flush(); render(); press('다음'); render();
+  input('메뉴 이름').onChangeText('평양냉면'); render(); press('다음'); await flush();
+  page = render(); assert.equal(step(page), '3'); press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
   const newSave = calls.find(([name]) => name === 'register')[1];
   assert.equal(newSave.channel, 'offline');
@@ -373,6 +432,14 @@ async function main() {
   await chooseExistingOffline(); page = render();
   assert.match(page, /저장하면 이 메뉴의 매장 원픽이 바뀌어요/);
   assert.doesNotMatch(page, /기록으로 남아요/);
+  input('원픽 한줄평').onChangeText('다시 먹고 싶은 맛'); render(); press('원픽 등록하기');
+  page = render();
+  assert.match(page, /기존 원픽을/);
+  assert.equal(calls.filter(([name]) => name === 'register').length, 0, 'replacement requires confirmation');
+  press('돌아가기'); render();
+  assert.equal(input('원픽 한줄평').value, '다시 먹고 싶은 맛');
+  press('원픽 등록하기'); render(); press('원픽 바꾸기'); await flush();
+  assert.equal(calls.find(([name]) => name === 'register')[1].expectedPreviousPickId, 'visible-old-pick');
 
   // PICK_CHANGED_ELSEWHERE needs a second explicit submit with the same request id.
   reset();
@@ -386,7 +453,7 @@ async function main() {
     return { itemId: 'item-1', pickId: 'pick-after-confirm', published: true, replacedPickId: 'changed-elsewhere', retried: false };
   };
   await chooseExistingOffline(); render(); input('원픽 한줄평').onChangeText('다시 확인'); render();
-  press('원픽 등록하기'); await flush();
+  press('원픽 등록하기'); render(); press('원픽 바꾸기'); await flush();
   assert.equal(destination, undefined, 'a failed save stays on the registration screen');
   assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), false);
   page = render();
@@ -410,14 +477,22 @@ async function main() {
     linkPlace('cat-sb-1', '스타벅스', '강남우성'),
     linkPlace('cat-sb-2', '스타벅스', '강남역'),
   ]);
-  render(); press('네이버 지도 링크로 찾기'); page = render();
-  assert.match(page, /네이버 지도 링크를 넣어 주세요/);
-  assert.ok(pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled, 'No link, no lookup');
+  render(); page = render();
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
+  assert.ok(pressables.find((props) => textOf(props.children) === '매장명 가져오기')?.disabled, 'No link, no lookup');
   input('매장 찾기 네이버 지도 링크').onChangeText('https://blog.naver.com/x'); page = render();
   assert.match(page, /네이버 지도 링크를 확인해주세요/);
-  assert.ok(pressables.find((props) => textOf(props.children) === '매장 찾기')?.disabled, 'Only Naver map links are looked up');
+  assert.ok(pressables.find((props) => textOf(props.children) === '매장명 가져오기')?.disabled, 'Only Naver map links are looked up');
+  const naverShare = '[네이버지도]\n머시기쪽갈비 신림점\n서울 관악구 신림동길 23-1 1층 101, 102호\nhttps://naver.me/FvTtTqVA';
+  input('매장 찾기 네이버 지도 링크').onChangeText(naverShare); page = render();
+  assert.equal(input('매장 찾기 네이버 지도 링크').value, 'https://naver.me/FvTtTqVA',
+    'Naver share text is normalized to its allowlisted map URL');
+  assert.ok(!pressables.find((props) => textOf(props.children) === '매장명 가져오기')?.disabled,
+    'A valid URL extracted from Naver share text enables lookup');
+  assert.equal(service.extractNaverMapUrl(naverShare), 'https://naver.me/FvTtTqVA');
+
   input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/starbucks'); render();
-  press('매장 찾기'); page = render();
+  press('매장명 가져오기'); page = render();
   assert.equal(calls.find(([name]) => name === 'link')[1].url, 'https://naver.me/starbucks');
   assert.match(page, /링크와 같은 매장을 찾았어요/);
   assert.match(page, /스타벅스 · 강남우성/);
@@ -427,8 +502,6 @@ async function main() {
   assert.match(page, /2 \/ 4 · 스타벅스 · 강남우성/);
   press('이전 단계'); page = render();
   assert.match(page, /링크와 같은 매장을 찾았어요/, 'Back from step 2 keeps the link result');
-  press('이전 단계'); page = render();
-  assert.match(page, /상호명을 검색해 주세요/, 'Back from the link screen returns to the name search');
 
   // Several similar rows and no exact one: the person picks, nothing is preselected.
   reset();
@@ -436,9 +509,9 @@ async function main() {
     linkPlace('cat-sb-1', '스타벅스', '강남우성'),
     linkPlace('cat-sb-2', '스타벅스', '강남역'),
   ]);
-  render(); press('네이버 지도 링크로 찾기'); render();
-  input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/reserve'); render(); press('매장 찾기'); page = render();
-  assert.match(page, /맞는 매장을 골라 주세요/);
+  render();
+  input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/reserve'); render(); press('매장명 가져오기'); page = render();
+  assert.match(page, /맞는 매장을 골라주세요/);
   assert.ok(!pressables.some((props) => textOf(props.children) === '다음'), 'No automatic choice without a unique match');
   press('스타벅스 선택'); page = render();
   assert.equal(step(page), '2');
@@ -446,30 +519,69 @@ async function main() {
   // No catalog row: the store is registered with the link's name and the link itself.
   reset();
   registerRun = () => ({ itemId: 'pending-link-item', pickId: 'link-pick', published: false, replacedPickId: null, retried: false });
-  linkResponse = (input) => linkResult(input.url, '골목 냉면', []);
-  render(); press('네이버 지도 링크로 찾기'); render();
-  input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/golmok'); render(); press('매장 찾기'); page = render();
-  assert.match(page, /골목 냉면은\(는\) 아직 목록에 없어요/);
-  press('새 매장으로 등록'); page = render();
+  linkResponse = (input) => linkResult(input.url, '이고집만두', []);
+  render();
+  input('매장 찾기 네이버 지도 링크').onChangeText('[네이버지도]\n이고집만두\n충남 천안시 동남구 태조산길 258\nhttps://naver.me/x1uzYNK5'); render(); press('매장명 가져오기'); page = render();
   assert.equal(step(page), '2');
-  assert.match(page, /2 \/ 4 · 골목 냉면/);
-  input('메뉴 이름').onChangeText('평양냉면'); render(); press('면 › 평양냉면'); render(); press('다음'); await flush();
-  render(); press('사진 선택'); await flush(); render(); press('다음'); render();
+  assert.match(page, /2 \/ 4 · 이고집만두/);
+  assert.doesNotMatch(page, /목록에 없어요|새 매장으로 등록/);
+  assert.ok(!calls.some(([name]) => name === 'register' || name === 'select'), 'Lookup does not write a store or Pick');
+  press('이전 단계'); page = render();
+  assert.equal(step(page), '1', 'Back does not automatically bounce into the menu again');
+  assert.match(page, /이고집만두의 메뉴를 등록할 수 있어요/);
+  press('다음'); page = render();
+  assert.equal(step(page), '2');
+  input('메뉴 이름').onChangeText('평양냉면'); render(); press('다음'); await flush();
+  render(); press('사진 고르기'); await flush(); render(); press('다음'); render();
   input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
   const linkSave = calls.find(([name]) => name === 'register')[1];
-  assert.equal(linkSave.newPlace.name, '골목 냉면');
-  assert.equal(linkSave.newPlace.mapUrl, 'https://naver.me/golmok');
+  assert.equal(linkSave.newPlace.name, '이고집만두');
+  assert.equal(linkSave.newPlace.mapUrl, 'https://naver.me/x1uzYNK5');
 
-  // The name could not be read: fall back to the name step with the link kept.
+  // A slow response cannot advance after edit, back, cancel, fallback or account change.
+  for (const abandon of ['edit', 'back', 'cancel', 'fallback', 'account', 'logout']) {
+    reset(); deferLink = true;
+    linkResponse = (input) => linkResult(input.url, '이고집만두', []);
+    render(); render();
+    input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/x1uzYNK5'); render(); press('매장명 가져오기');
+    if (abandon === 'edit') input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/other');
+    if (abandon === 'back') press('이전 단계');
+    if (abandon === 'cancel') press('원픽 등록 취소');
+    if (abandon === 'fallback') press('URL 없음');
+    if (abandon === 'account') auth.user = { id: 'other-owner' };
+    if (abandon === 'logout') auth.user = null;
+    render(); finishLink(); page = render();
+    assert.notEqual(step(page), '2', `${abandon}: stale lookup must not advance`);
+    assert.ok(!calls.some(([name]) => name === 'register' || name === 'select'));
+  }
+
+  // The name could not be read: only the name is asked; the pasted link is not asked again.
   reset();
   linkResponse = (input) => linkResult(input.url, null, []);
-  render(); press('네이버 지도 링크로 찾기'); render();
-  input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/unknown'); render(); press('매장 찾기'); page = render();
+  render();
+  input('매장 찾기 네이버 지도 링크').onChangeText('https://naver.me/unknown'); render(); press('매장명 가져오기'); page = render();
   assert.match(page, /링크에서 매장 이름을 읽지 못했어요/);
   press('매장 이름 입력하기'); page = render();
-  assert.match(page, /매장 이름을 알려 주세요/);
-  input('등록 요청 이름').onChangeText('이름 모를 집'); render(); press('다음'); render();
-  assert.equal(input('네이버 지도 링크').value, 'https://naver.me/unknown', 'The pasted link is kept for the new store');
+  assert.match(page, /매장명을 입력해주세요/);
+  press('이전 단계'); page = render();
+  assert.match(page, /링크에서 매장 이름을 읽지 못했어요/, 'Back from the name returns to the link result');
+  press('매장 이름 입력하기'); render();
+  input('등록 요청 이름').onChangeText('이름 모를 집'); render(); press('다음'); page = render();
+  assert.equal(step(page), '2', 'The link screen is not shown again');
+  assert.ok(!inputs.some((props) => props.accessibilityLabel === '네이버 지도 링크'));
+  assert.match(page, /2 \/ 4 · 이름 모를 집/);
+  input('메뉴 이름').onChangeText('평양냉면'); render(); press('다음'); await flush();
+  render(); press('사진 고르기'); await flush(); render(); press('다음'); render();
+  input('원픽 한줄평').onChangeText('면이 좋아요'); render(); press('원픽 등록하기'); await flush();
+  const namedSave = calls.find(([name]) => name === 'register')[1];
+  assert.equal(namedSave.newPlace.name, '이름 모를 집');
+  assert.equal(namedSave.newPlace.mapUrl, 'https://naver.me/unknown');
+
+  // The ordinary "찾는 매장이 없어요" path still asks the name, then the link.
+  reset();
+  openStoreSearch(); input('매장명 검색').onChangeText('없는 집'); render(); press('찾는 매장이 없어요'); render();
+  press('다음'); page = render();
+  assert.match(page, /네이버 지도 링크를 입력해주세요/);
 
   for (const ok of ['https://naver.me/abc', 'https://map.naver.com/p/entry/place/1', 'https://m.place.naver.com/restaurant/1']) assert.ok(service.isNaverMapUrl(ok), ok);
   for (const bad of ['http://naver.me/abc', 'https://naver.me.evil.com/x', 'https://blog.naver.com/x', 'https://naver.me/a b']) assert.ok(!service.isNaverMapUrl(bad), bad);
@@ -477,3 +589,4 @@ async function main() {
   console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

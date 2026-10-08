@@ -33,11 +33,12 @@ assert.match(profile, /프로필을 찾을 수 없어요[\s\S]{0,200}label: '홈
 assert.ok(profile.includes('const returnHref = profileReturnHref(returnTo);'));
 assert.ok(profile.includes('if (router.canGoBack()) { router.back(); return; }'),
   'public profile header back first uses real history when available');
-assert.ok(profile.includes("navigation.addListener('beforeRemove'"),
-  'native back removal is intercepted for explicit profile origins');
-assert.ok(profile.includes("actionType !== 'GO_BACK' && actionType !== 'POP' && actionType !== 'POP_TO_TOP'"));
+assert.ok(!profile.includes("navigation.addListener('beforeRemove'"),
+  'native stack back/swipe must not be intercepted with beforeRemove');
+assert.ok(!profile.includes('event.preventDefault()'),
+  'native swipe-back must not cancel an in-flight native pop');
 assert.ok(profile.includes('router.dismissTo(returnHref);'),
-  'native hardware and swipe back dismiss to the explicit origin instead of stale Profile-stack history');
+  'safe edge swipe restores the validated origin after its own gesture completes');
 assert.ok(profile.includes("router.replace(returnHref ?? '/');"),
   'cold public-profile links fall back Home when there is no app history');
 assert.ok(!profile.includes("const goBack = () => router.replace"),

@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { OnePick, OnePickType } from '@/constants/onepick';
+import { Icon, type IconName } from '@/components/ui/icon';
+import { OnePick, OnePickIcon, OnePickLayout, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotificationCount } from '@/hooks/useNotifications';
 
@@ -23,16 +24,19 @@ export default function AppTabs() {
   const notificationCount = useNotificationCount(auth.user?.id, !auth.isLoading && !auth.error && Boolean(auth.user));
   const hasUnreadNotifications = !notificationCount.isError && (notificationCount.data ?? 0) > 0;
 
+  const safeBottom = Math.max(insets.bottom, OnePickLayout.safeAreaBottom);
+  const reservedBottom = safeBottom + OnePickLayout.tabBarSafeAreaGap + OnePickLayout.tabBarHeight + OnePickLayout.tabBarContentGap;
+
   return (
     <View style={styles.tabs}>
-      <View style={styles.slot}><Slot /></View>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.slot, { paddingBottom: reservedBottom }]}><Slot /></View>
+      <View style={[styles.bar, { bottom: safeBottom + OnePickLayout.tabBarSafeAreaGap }]}>
         <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
           style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
-          <View style={styles.registerIcon}><Text style={styles.plus}>+</Text></View>
-          <Text style={[styles.label, styles.activeLabel]}>원픽 등록</Text>
+          <View style={[styles.icon, styles.registerIcon]}><RegisterIcon /></View>
+          <Text style={[styles.label, styles.registerLabel]}>원픽 등록</Text>
         </Pressable>
         <TabLink href="/notifications" icon="notifications" label="알림" active={isActive(pathname, '/notifications')} unread={hasUnreadNotifications} />
         <TabLink href="/profile" icon="profile" label="프로필" active={isActive(pathname, '/profile')} />
@@ -41,13 +45,20 @@ export default function AppTabs() {
   );
 }
 
-function Icon({ name, active }: { name: TabIcon; active?: boolean }) {
-  return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke={active ? OnePick.actionPrimary : OnePick.textTertiary}
-    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {name === 'home' ? <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" fill={active ? OnePick.actionPrimary : 'none'} />
-      : name === 'explore' ? <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>
-      : name === 'notifications' ? <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-      : <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 6 0 0 1 16 0v2" /></>}
+// User decision: only Home uses a filled active icon; other active tabs keep outline shapes.
+// Tab icons are the shared 24px (icon/size/md) UI icons; inactive icons use text/tertiary.
+const TAB_ICON: Record<TabIcon, IconName> = { home: 'home', explore: 'explore', notifications: 'bell', profile: 'profile' };
+function TabIconMark({ name, active }: { name: TabIcon; active?: boolean }) {
+  return <Icon name={TAB_ICON[name]} size="md" color={active ? OnePick.actionPrimary : OnePick.textTertiary} filled={name === 'home' && Boolean(active)} />;
+}
+
+// Register is an action, not a selectable tab: 32px ink outline circle with a drawn plus.
+// Figma Add Button (287:261): 32px white circle, 1.5 ink border; the plus is the shared
+// Icon/Plus at icon/size/sm (16) centered in the circle. The 32 circle itself is unchanged.
+function RegisterIcon() {
+  return <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke={OnePick.actionPrimary} strokeLinecap="round" aria-hidden="true">
+    <circle cx="16" cy="16" r="15.25" fill={OnePick.bgDefault} strokeWidth="1.5" />
+    <path d="M16 11.33v9.34M11.33 16h9.34" strokeWidth={OnePickIcon.strokeWidth} />
   </svg>;
 }
 
@@ -57,21 +68,34 @@ function TabLink({ href, icon, label, active, unread = false }: { href: Href; ic
     <Pressable accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: active }}
       onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}
       style={StyleSheet.flatten([styles.tab, pressed && styles.pressed])}>
-      <View style={[styles.icon, active && styles.active]}><Icon name={icon} active={active} />{unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}</View>
+      <View style={[styles.icon, active && styles.active]}><TabIconMark name={icon} active={active} />{unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}</View>
       <Text style={[styles.label, active && styles.activeLabel]}>{label}</Text>
     </Pressable>
   </Link>;
 }
 
 const styles = StyleSheet.create({
-  tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.background },
+  tabs: { flex: 1, minHeight: 0, backgroundColor: OnePick.bgDefault },
   slot: { flex: 1, minHeight: 0 },
-  bar: { flexShrink: 0, flexDirection: 'row', backgroundColor: OnePick.surface, borderTopWidth: 1, borderTopColor: OnePick.border, paddingTop: 8 },
-  tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  bar: {
+    position: 'absolute',
+    left: OnePickLayout.tabBarHorizontalGutter,
+    right: OnePickLayout.tabBarHorizontalGutter,
+    height: OnePickLayout.tabBarHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: OnePick.bgDefault,
+    borderWidth: 1,
+    borderColor: OnePick.borderDefault,
+    borderRadius: OnePickLayout.tabBarRadius,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  tab: { flex: 1, minWidth: 44, minHeight: OnePickLayout.tabBarContentHeight, alignItems: 'center', justifyContent: 'center', gap: 4 },
   icon: { width: 56, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  // Figma 30-1: white circle with a dark outline and a black plus.
-  registerIcon: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.8, borderColor: OnePick.actionPrimary, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.surface },
-  plus: { color: OnePick.actionPrimary, fontSize: 20, lineHeight: 22, fontWeight: '500' },
   active: { backgroundColor: 'transparent' },
   unreadDot: {
     position: 'absolute',
@@ -84,5 +108,8 @@ const styles = StyleSheet.create({
   },
   label: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   activeLabel: { color: OnePick.actionPrimary },
+  // Figma 30-1 Add: the register label is always text/primary.
+  registerIcon: { height: 32 },
+  registerLabel: { color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });

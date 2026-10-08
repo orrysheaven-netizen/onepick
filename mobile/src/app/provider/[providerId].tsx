@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { StateCard } from '@/components/ui';
+import { Icon, StateCard } from '@/components/ui';
 import { useBrandBranches, useBrandProfile, useProviderProfile } from '@/hooks/useProviderProfile';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
@@ -44,7 +44,7 @@ export default function ProviderProfileScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
             style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-            <Text style={styles.backText}>‹</Text>
+            <Icon name="back" />
           </Pressable>
 
           {brandQuery.isPending ? <ActivityIndicator accessibilityLabel="브랜드 프로필 불러오는 중" style={styles.loading} color={OnePick.brand} /> : null}
@@ -71,7 +71,7 @@ export default function ProviderProfileScreen() {
                     <Text style={styles.menuName}>{item.categoryName}</Text>
                     <Text style={styles.pickCount}>원픽 {item.pickCount.toLocaleString()}</Text>
                   </View>
-                  <Text style={styles.chevron}>›</Text>
+                  <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
                 </Pressable>)}
               </View>
             </View> : null}
@@ -91,7 +91,7 @@ export default function ProviderProfileScreen() {
                         {branch.subtitle ? <Text style={styles.subtitle}>{branch.subtitle}</Text> : null}
                         <Text style={styles.pickCount}>원픽 {branch.pickCount.toLocaleString()} · 메뉴 {branch.menuCount.toLocaleString()}</Text>
                       </View>
-                      <Text style={styles.chevron}>›</Text>
+                      <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
                     </Pressable>)}
                   </View>
                 : branchesQuery.isPending ? <ActivityIndicator accessibilityLabel="지점 목록 불러오는 중" color={OnePick.brand} />
@@ -113,7 +113,7 @@ export default function ProviderProfileScreen() {
       <View style={styles.storeHeader}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
           style={({ pressed }) => [styles.storeHeaderSide, pressed && styles.pressed]}>
-          <Text style={styles.storeBackText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text accessibilityRole="header" numberOfLines={1} style={styles.storeHeaderTitle}>{query.data?.name ?? '매장'}</Text>
         <View style={styles.storeHeaderSide} />
@@ -175,10 +175,10 @@ export default function ProviderProfileScreen() {
                 <Text style={styles.storePickCount}>원픽 {item.pickCount.toLocaleString()}</Text>
                 {item.latestReview ? <Text numberOfLines={1} style={styles.storeReview}>“{item.latestReview}”</Text> : null}
               </View>
-              <Text style={styles.storeChevron}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.storeChevron} />
             </Pressable>)}
-          </View> : <StateCard compact title="아직 공개된 원픽이 없어요."
-            text={query.data.kind === 'offline_branch' ? '이 매장에서 메뉴 원픽이 생기면 여기에 표시돼요.' : '이 판매처에서 메뉴 원픽이 생기면 여기에 표시돼요.'}
+          </View> : <StateCard compact title={query.data.kind === 'offline_branch' ? '이 매장의 첫 원픽을 골라보세요.' : '아직 공개된 원픽이 없어요.'}
+            text={query.data.kind === 'offline_branch' ? '여기서 먹은 메뉴를 원픽으로 고르면 이 페이지에 모여요.' : '이 판매처에서 메뉴 원픽이 생기면 여기에 표시돼요.'}
             action={query.data.kind === 'offline_branch' ? {
               label: '이곳에서 원픽 등록하기',
               variant: 'primary',
@@ -194,7 +194,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 48 },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   storeHeader: {
     height: 56,
     flexDirection: 'row',
@@ -203,7 +202,6 @@ const styles = StyleSheet.create({
     backgroundColor: OnePick.bgDefault,
   },
   storeHeaderSide: { width: 48, minHeight: 44, justifyContent: 'center' },
-  storeBackText: { ...OnePickType.headline, color: OnePick.textPrimary },
   storeHeaderTitle: { ...OnePickType.headline, flex: 1, minWidth: 0, color: OnePick.textPrimary, textAlign: 'center' },
   storeContent: {
     width: '100%',
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
   storeMenuName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   storePickCount: { ...OnePickType.caption, color: OnePick.muted },
   storeReview: { ...OnePickType.caption, color: OnePick.textSecondary },
-  storeChevron: { ...OnePickType.title, color: OnePick.textTertiary, marginRight: 30 },
+  storeChevron: { marginRight: 30  },
   loading: { marginVertical: 36 },
   identity: { alignItems: 'center', paddingVertical: 18 },
   brandLogo: { width: 72, height: 72, marginBottom: 12 },
@@ -303,6 +301,5 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, minWidth: 0 },
   menuName: { ...OnePickType.bodyMedium, color: OnePick.text },
   pickCount: { ...OnePickType.caption, color: OnePick.muted, marginTop: 3 },
-  chevron: { color: OnePick.hint, fontSize: 24 },
   pressed: { opacity: 0.65 },
 });

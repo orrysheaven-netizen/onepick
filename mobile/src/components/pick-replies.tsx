@@ -11,6 +11,7 @@ import {
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
@@ -146,7 +147,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
           {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag mine={author.id === user?.id} /> : null}
         </View> : <Text style={styles.commentAuthor}>사용자</Text>}
 
-        <Text style={[styles.commentBody, deleted && styles.deletedBody]}>{deleted ? '삭제된 댓글입니다.' : comment.body}</Text>
+        <Text style={[styles.commentBody, deleted && styles.deletedBody]}>{deleted ? '삭제된 댓글이에요.' : comment.body}</Text>
 
         {!deleted && user && author && author.id !== user.id ? <View style={styles.commentSafety}>
           <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
@@ -164,18 +165,18 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
         </Pressable> : null}
 
         {canDelete ? (confirmingDeleteId === comment.id ? <View style={styles.deleteConfirm}>
-          <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 답글이 있으면 대화 자리는 남습니다.</Text>
+          <Text style={styles.deleteConfirmText}>이 댓글을 삭제할까요? 답글이 있으면 대화 자리는 남아요.</Text>
           {deleteComment.isError ? <Text accessibilityRole="alert" style={styles.commentError}>댓글을 삭제하지 못했어요. 다시 시도해주세요.</Text> : null}
           <View style={styles.deleteActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 확인" disabled={deleteComment.isPending}
+            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제하기" disabled={deleteComment.isPending}
               onPress={() => void handleCommentDelete(comment.id)}
               style={({ pressed }) => [styles.deleteButton, deleteComment.isPending && styles.commentButtonDisabled, pressed && styles.pressed]}>
-              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
+              {deleteComment.isPending ? <ActivityIndicator color={OnePick.onAccent} size="small" /> : <Text style={styles.deleteButtonText}>댓글 삭제하기</Text>}
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 취소" disabled={deleteComment.isPending}
+            <Pressable accessibilityRole="button" accessibilityLabel="댓글 삭제 확인 닫기" disabled={deleteComment.isPending}
               onPress={() => { setConfirmingDeleteId(null); deleteComment.reset(); }}
               style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
-              <Text style={styles.textActionLabel}>취소</Text>
+              <Text style={styles.textActionLabel}>{DIALOG_CLOSE_LABEL}</Text>
             </Pressable>
           </View>
         </View> : <Pressable accessibilityRole="button" accessibilityLabel="내 댓글 삭제" disabled={deleteComment.isPending}
@@ -221,7 +222,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
               ) : null}
 
               {!compact && !commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
-                <Text style={styles.emptyComments}>{canComment ? '아직 댓글이 없어요. 첫 의견을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
+                <Text style={styles.emptyComments}>{canComment ? '첫 댓글을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
               {commentsQuery.data?.map((entry) => <View key={entry.comment.id}>
@@ -270,7 +271,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                       multiline
                       onChangeText={(value) => { if (!submittingComment.current) setCommentBody(value); }}
                       placeholder={replyingTo ? '답글을 남겨보세요.' : '이 원픽에 대해 이야기해보세요.'}
-                      placeholderTextColor={OnePick.hint}
+                      placeholderTextColor={OnePick.textSecondary}
                       style={styles.commentInput}
                       value={commentBody}
                     />
@@ -311,7 +312,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                   </Pressable>
                 )
               ) : compact ? null : (
-                <Text style={styles.historyCommentNotice}>현재 댓글을 남길 수 없는 한줄평입니다.</Text>
+                <Text style={styles.historyCommentNotice}>지금은 댓글을 남길 수 없는 한줄평이에요.</Text>
               )}
             </View>
 

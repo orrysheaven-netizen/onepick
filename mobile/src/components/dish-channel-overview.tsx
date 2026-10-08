@@ -5,6 +5,7 @@ import { channelLabel } from '@/lib/home/homeChannels';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import type { DishChannelOverview as Overview } from '@/repositories/interfaces/readRepository';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 const CHANNELS: readonly PickChannel[] = ['offline', 'online', 'recipe'];
 
@@ -42,11 +43,11 @@ export function DishChannelOverview({ overview, onSelectItem, onRegister, visibl
                   <Text numberOfLines={2} style={styles.name}>{item.name}</Text>
                   <Text style={styles.meta}>{item.pickCount}명이 원픽</Text>
                 </View>
-                <Text style={styles.arrow}>›</Text>
+                <Icon name="chevronRight" size="sm" color={OnePick.textSecondary} />
               </Pressable>
             )) : (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>아직 {overview.categoryName} {label} 원픽이 없어요.</Text>
+                <Text style={styles.emptyText}>{onRegister ? `${overview.categoryName} ${label}의 첫 원픽을 골라보세요.` : `아직 ${overview.categoryName} ${label} 원픽이 없어요.`}</Text>
                 {onRegister ? <Pressable accessibilityRole="button" accessibilityLabel={`${overview.categoryName} ${label} 원픽 등록하기`}
                   onPress={() => onRegister(overview.categoryId, channel)} style={({ pressed }) => [styles.register, pressed && styles.pressed]}>
                   <Text style={styles.registerText}>첫 원픽 등록하기 ›</Text>
@@ -71,7 +72,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   name: { color: OnePick.text, fontSize: 14, fontWeight: '700' },
   meta: { color: OnePick.muted, fontSize: 12, marginTop: 2 },
-  arrow: { color: OnePick.muted, fontSize: 20 },
   empty: { paddingVertical: 6 },
   emptyText: { color: OnePick.muted, fontSize: 12, lineHeight: 18 },
   register: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },
