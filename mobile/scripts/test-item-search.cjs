@@ -60,6 +60,7 @@ async function main() {
     '@/errors/appError': { AppError: Error },
     '@/repositories/mappers/itemMapper': { mapItemRow: (row) => ({ ...row, categoryId: row.category_id }) },
     '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() },
   });
   const repository = new SupabaseItemRepository({
     rpc: async (fn, args) => {
