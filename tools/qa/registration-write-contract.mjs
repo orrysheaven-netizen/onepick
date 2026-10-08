@@ -39,7 +39,7 @@ export function createWriteGuard(userId, categoryId) {
   // Re-review this allowlist whenever a listed database function gains side effects.
   const readRpcs = new Set(['search_store_catalog_page', 'current_user_is_admin',
     'home_pick_feed_page', 'item_review_page', 'notification_unread_count',
-    'item_brands', 'search_items']);
+    'item_brands', 'search_items', 'store_menu_options']);
   const only = (body, keys) => body && typeof body === 'object' && !Array.isArray(body)
     && Object.keys(body).every(key => keys.includes(key));
   return {

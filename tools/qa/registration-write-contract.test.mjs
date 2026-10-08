@@ -49,6 +49,12 @@ test('manual main first attempt with explicit confirmation and existing secrets 
     assert.throws(() => assertExecution({ ...env, ...change }));
   }
 });
+test('menu options load before writes are armed without permitting mutations', () => {
+  const g = createWriteGuard(user, category);
+  assert.equal(g.admit(write('store_menu_options', {})), 'read');
+  assert.throws(() => g.admit(write('stage_user_place_item', stage)));
+  assert.throws(() => g.admit(write('unknown_menu_rpc', {})));
+});
 test('unarmed, arbitrary hosts, real business staging and repeated attempts are rejected', () => {
   const g = createWriteGuard(user, category);
   assert.throws(() => g.admit(write('stage_user_place_item', stage)));
