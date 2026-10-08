@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { isPublicKey } from './setup-qa-profile.mjs';
 import { SITE, API, STORE, MENU, REVIEW, uuid, requireCondition as need,
   assertExecution, assertSessionBudget, createWriteGuard, enterRegistration,
-  PICK_COLUMNS, assertStoredFixture, safeFailureCode } from './registration-write-contract.mjs';
+  PICK_COLUMNS, assertStoredFixture, safeFailureCode, safeRequestKind } from './registration-write-contract.mjs';
 
 async function main() {
   assertExecution(process.env);
@@ -12,6 +12,7 @@ async function main() {
   const browser = await chromium.launch();
   let session, key, guard, registration, fault = false;
   let phase = 'preflight', failureCode = null;
+  let firstBlockedRequest = null;
   const completed = [];
   // Only fixed labels, enumerated codes and booleans reach the summary. No raw errors, URLs, identity,
   // response bodies, screenshots, trace or storageState artifacts are produced.
@@ -54,7 +55,6 @@ async function main() {
     const categories = await request(`/rest/v1/categories?name=eq.${encodeURIComponent(MENU)}&is_visible=eq.true&select=id`);
     need(Array.isArray(categories) && categories.length === 1 && uuid(categories[0].id), 'CATEGORY_AMBIGUOUS');
     const categoryId = categories[0].id;
-    guard = createWriteGuard(user.id, categoryId, { readOnly });
     completed.push(readOnly ? '전용 일반 QA 계정·현재 배포 확인' : '전용 일반 QA 계정·빈 원픽·현재 배포 확인');
 
     const verify = async (expected = null) => {
@@ -73,6 +73,9 @@ async function main() {
       registration = await verify();
       completed.push('기존 테스트 원픽 1건·사진 참조 확인');
     }
+    guard = createWriteGuard(user.id, categoryId, {
+      readOnly, existingItemId: readOnly ? registration.item_id : null,
+    });
 
     const context = await browser.newContext({ viewport: { width: 390, height: 844 },
       locale: 'ko-KR', serviceWorkers: 'block' });
@@ -100,6 +103,7 @@ async function main() {
         await route.fulfill({ response });
       } catch (error) {
         failureCode ??= safeFailureCode(error);
+        firstBlockedRequest ??= { phase, kind: safeRequestKind(r.url()) };
         fault = true;
         await route.abort('blockedbyclient').catch(() => {});
       }
@@ -110,6 +114,7 @@ async function main() {
     await page.evaluate(([k, v]) => localStorage.setItem(k, v),
       [`sb-${new URL(API).hostname.split('.')[0]}-auth-token`, JSON.stringify(session)]);
     if (readOnly) {
+      phase = 'detail-navigation';
       await page.goto(`${SITE}/item/${registration.item_id}`, { waitUntil: 'domcontentloaded' });
     } else {
       const png = await page.evaluate(() => {
@@ -136,7 +141,9 @@ async function main() {
     completed.push('저장 데이터 재조회 확인');
     phase = 'reload';
     await page.reload({ waitUntil: 'networkidle', timeout: 30_000 });
+    phase = 'detail-title';
     await page.getByText(STORE, { exact: false }).first().waitFor({ state: 'visible', timeout: 30_000 });
+    phase = 'detail-review';
     await page.getByText(REVIEW, { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
     phase = 'photo-display';
     await page.getByRole('img', { name: STORE, exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
@@ -160,6 +167,7 @@ async function main() {
     const success = phase === 'complete' && cleanupOk;
     const report = [readOnly ? '## 기존 원픽 읽기 검증' : '## 원픽 등록 쓰기 QA', '', `- 결과: ${success ? '통과' : '실패 / 수동 확인 필요'}`,
       `- 종료 단계: ${phase}`, `- 실패 코드: ${failureCode ?? (success ? 'NONE' : 'SESSION_CLEANUP_FAILED')}`, `- 세션 폐기: ${cleanupOk ? '완료' : '실패'}`,
+      ...(firstBlockedRequest ? [`- 최초 차단 단계: ${firstBlockedRequest.phase}`, `- 차단 요청 종류: ${firstBlockedRequest.kind}`] : []),
       ...completed.map(s => `- ${s}`),
       '- 테스트 데이터는 자동 삭제하거나 관리자 승인하지 않아요.',
       readOnly ? '- 이번 실행은 기존 테스트 데이터만 읽어요. 신규 등록·업로드·교체·삭제하지 않아요.'
@@ -170,3 +178,4 @@ async function main() {
   }
 }
 main().catch(() => { console.error('Registration QA stopped. No credentials or raw responses are logged.'); process.exitCode = 1; });
+
