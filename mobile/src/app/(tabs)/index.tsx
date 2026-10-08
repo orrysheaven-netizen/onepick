@@ -87,8 +87,8 @@ export default function HomeScreen() {
   const ready = !isLoading && !sessionError && Boolean(data);
   const showRanking = homeEnabled && !followDefaultPending && discovery === 'popular';
 
-  // ---- Figma 30E early-MVP Home (#758 / #762) --------------------------------------------
-  // The food menu list Explore browses, in catalog order. Every 30E rule stays inside it.
+  // ---- Current Home integration (#762) --------------------------------------------
+  // The food menu list Explore browses, in catalog order.
   const menuCategories = useMemo(() => {
     const leafIds = browseScope(categoryCatalog, { chips: false, groupSlug: OnePickMvp.browseGroupSlug }).leafIds ?? [];
     const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
@@ -281,7 +281,7 @@ export default function HomeScreen() {
             answerCount={menuCountsQuery.data ? menuCountsQuery.data.get(questionCategory.id) ?? 0 : null}
             answered={Boolean(myAnswer)} footer={footer}
             onAnswer={() => startPick(questionCategory)}
-            onViewAnswer={() => { if (myAnswer) openItem(myAnswer.pick.itemId); }}
+            onBrowseAnswers={() => router.push({ pathname: '/menu/[slug]', params: { slug: questionCategory.slug } })}
             onRegister={() => startPick()} onShareFirstPick={shareFirstPick} /> : null}
           {banner ? <HomeReplyBanner count={banner.count} onPress={openReplyBanner} /> : null}
           {menuCountsFailed ? <StateCard compact tone="danger" title="메뉴별 원픽 수를 불러오지 못했어요."
@@ -416,4 +416,5 @@ const styles = StyleSheet.create({
   footerText: { ...OnePickType.body, color: OnePick.textSecondary, flex: 1 },
   pressed: { opacity: 0.65 },
 });
+
 

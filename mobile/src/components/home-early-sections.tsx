@@ -1,12 +1,12 @@
-// Figma 30E early-MVP Home sections (#758 / #762). Presentational only: Home decides what to show
+// Current Home integration (Figma 1058:9018, #762). Presentational only: Home decides what to show
 // with lib/home/earlyHome and passes callbacks that reuse existing routes.
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar, Button, Chip, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeParticipant, QuestionFooter } from '@/lib/home/earlyHome';
-import { homeQuestionTitle } from '@/lib/home/questionTitle';
+import { homeQuestionTitle, homeQuestionSubtitle } from '@/lib/home/questionTitle';
 import type { Category } from '@/types/domain/category';
 
 /** 834:4749 — shown only while unread replies exist. */
@@ -22,30 +22,34 @@ export function HomeReplyBanner({ count, onPress }: { count: number; onPress: ()
 
 type QuestionCardProps = {
   category: Category;
+  /** Public nickname from #804; never use username or OAuth metadata as a name. */
+  nickname?: string | null;
   /** null while the shared menu counts are still loading. */
   answerCount: number | null;
   answered: boolean;
   footer: QuestionFooter;
   onAnswer: () => void;
-  onViewAnswer: () => void;
+  onBrowseAnswers: () => void;
   onRegister: () => void;
   onShareFirstPick: () => void;
 };
 
-/** 834:4755 (Category Card 305:799) — today's question with the viewer's Pick status underneath. */
-export function HomeQuestionCard({ category, answerCount, answered, footer, onAnswer, onViewAnswer, onRegister, onShareFirstPick }: QuestionCardProps) {
+/** 1070:8278 — one question, with registration or same-menu discovery by Pick status. */
+export function HomeQuestionCard({ category, nickname, answerCount, answered, footer, onAnswer, onBrowseAnswers, onRegister, onShareFirstPick }: QuestionCardProps) {
   const footerLabel = footer.kind === 'first-pick-done'
     ? '원픽 완료 · 친구에게 공유해요'
     : '다른 원픽을 남겨요';
   return (
     <View style={styles.card}>
-      <Text style={styles.cardEyebrow} numberOfLines={1}>{homeQuestionTitle(category.name)}</Text>
-      <Text accessibilityRole="header" style={styles.cardTitle}>{`당신의 ${category.name} 원픽은?`}</Text>
-      {answerCount !== null ? <Text style={styles.cardCount}>{`${answerCount.toLocaleString()}명이 답했어요`}</Text> : null}
+      <Text accessibilityRole="header" style={styles.cardTitle}>{homeQuestionTitle()}</Text>
+      <Text style={styles.cardSubtitle}>{homeQuestionSubtitle(category.name, nickname)}</Text>
+      {category.imageUrl ? <Image source={{ uri: category.imageUrl }} accessibilityLabel={`${category.name} 사진`}
+        resizeMode="cover" style={styles.cardImage} /> : null}
+      {answerCount !== null ? <Text style={styles.cardCount}>{`${answerCount.toLocaleString()}명이 ${category.name} 원픽을 남겼어요.`}</Text> : null}
       <View style={styles.cardGap} />
-      <Button fullWidth label={answered ? '내 원픽을 봐요' : `내 ${category.name} 원픽을 남겨요`}
-        accessibilityLabel={answered ? `내 ${category.name} 원픽 보기` : `${category.name} 원픽 답하기`}
-        onPress={answered ? onViewAnswer : onAnswer} />
+      <Button fullWidth label={answered ? `다른 ${category.name} 원픽도 구경해요` : `내 ${category.name} 원픽을 남겨요`}
+        accessibilityLabel={answered ? `다른 ${category.name} 원픽도 구경해요` : `${category.name} 원픽 답하기`}
+        onPress={answered ? onBrowseAnswers : onAnswer} />
       <Pressable accessibilityRole="button" accessibilityLabel={footerLabel}
         onPress={footer.kind === 'first-pick-done' ? onShareFirstPick : onRegister}
         style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}>
@@ -108,9 +112,9 @@ const styles = StyleSheet.create({
   bannerText: { ...OnePickType.bodyMedium, flex: 1, minWidth: 0, color: OnePick.textPrimary },
   // 305:799: white card, 1px border/default, radius lg, padding 24, 8 between rows.
   card: { gap: OnePickSpace.sm, padding: OnePickSpace.xxl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
-  // Rotating casual title (lib/home/questionTitle); readable copy, so secondary not tertiary.
-  cardEyebrow: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
-  cardTitle: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
+  cardTitle: { ...OnePickType.pageTitle, color: OnePick.textSecondary, textAlign: 'center' },
+  cardSubtitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  cardImage: { width: '100%', aspectRatio: 2, borderRadius: OnePickRadius.md },
   cardCount: { ...OnePickType.body, color: OnePick.textSecondary },
   cardGap: { height: OnePickSpace.sm },
   // Text button 284:263: 40 visual height, 44 touch area.
@@ -129,4 +133,5 @@ const styles = StyleSheet.create({
   inviteRow: { flexDirection: 'row', gap: 10 },
   inviteButton: { flex: 1 },
 });
+
 

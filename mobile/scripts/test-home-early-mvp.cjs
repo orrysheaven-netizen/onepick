@@ -386,32 +386,44 @@ test('Loading and error keep the discovery slot honest', () => {
   const loading = home({ countsQuery: query(undefined) });
   assert.doesNotMatch(loading.text(), /아직 아무도 안 골랐어요|최근 7일 원픽 많은 순/, 'Unknown total shows neither section');
   assert.equal(loading.calls.itemRanking[2], false, 'Unknown total does not speculate by fetching the ranking');
-  assert.doesNotMatch(loading.text(), /명이 답했어요/, 'Answer count waits for the shared counts');
+  assert.doesNotMatch(loading.text(), /명이 .* 원픽을 남겼어요/, 'Answer count waits for the shared counts');
   const failed = home({ countsQuery: query(undefined, { isError: true, isPending: false }) });
   assert.match(failed.text(), /메뉴별 원픽 수를 불러오지 못했어요/);
   const questionFailed = home({ questionQuery: query(undefined, { isError: true, isPending: false }) });
   assert.match(questionFailed.text(), /오늘의 질문을 불러오지 못했어요/);
-  assert.doesNotMatch(questionFailed.text(), /당신의/);
+  assert.doesNotMatch(questionFailed.text(), /먹으러 어디 가요/);
 });
 
-test('Today’s question: DB daily menu only, answer count, 답하기 / 내 답 보기', () => {
+test('Today’s question: DB daily menu only, answer count, 등록 / 다른 원픽 구경', () => {
   const none = home({ question: null });
-  assert.doesNotMatch(none.text(), /오늘의 질문|당신의/, 'No eligible daily menu → no question card');
+  assert.doesNotMatch(none.text(), /오늘의 원픽|먹으러 어디 가요/, 'No eligible daily menu → no question card');
   const closed = home({ question: 'movie' });
-  assert.doesNotMatch(closed.text(), /당신의/, 'A category outside the open food menus is not asked');
+  assert.doesNotMatch(closed.text(), /먹으러 어디 가요/, 'A category outside the open food menus is not asked');
   const open = home({ counts: countsOf({ naengmyeon: 4 }) });
-  assert.match(open.text(), /당신의 냉면 원픽은\?/);
+  assert.match(open.text(), /냉면 먹으러 어디 가요\?/);
   const titleModule = load('lib/home/questionTitle.ts');
-  assert.match(open.text(), new RegExp(titleModule.homeQuestionTitle('냉면').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'Rotating casual title sits on the question card');
-  assert.match(open.text(), /4명이 답했어요/);
+  assert.match(open.text(), new RegExp(titleModule.homeQuestionTitle().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'Fixed title sits on the question card');
+  assert.match(open.text(), /4명이 냉면 원픽을 남겼어요\./);
   assert.match(open.text(), /다른 원픽을 남겨요/, '0 Picks');
   deepEq(open.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } });
   assert.equal(open.press('다른 원픽을 남겨요'), '/pick/new');
   const answered = home({ currentPicks: [row('me', 'naengmyeon', '2026-10-05T00:00:00Z', { id: 'n1' }), row('me', 'ramen', '2026-10-04T00:00:00Z', { id: 'r1' })] });
   assert.match(answered.text(), /다른 원픽을 남겨요/, '1+ Picks');
-  deepEq(answered.press('내 냉면 원픽 보기'), { pathname: '/item/[itemId]', params: { itemId: 'item-naengmyeon-me' } }, 'Answered → existing item detail');
+  deepEq(answered.press('다른 냉면 원픽도 구경해요'), { pathname: '/menu/[slug]', params: { slug: 'naengmyeon' } }, 'Answered → same-menu people Picks, not own detail');
   const zeroAnswers = home({ counts: countsOf({ ramen: 1 }) });
-  assert.match(zeroAnswers.text(), /0명이 답했어요/, 'A menu nobody answered shows 0, not a made-up number');
+  assert.match(zeroAnswers.text(), /0명이 냉면 원픽을 남겼어요\./, 'A menu nobody answered shows 0, not a made-up number');
+});
+
+test('Question image and count stay tied to the selected daily menu', () => {
+  const category = catalog.find((c) => c.id === 'naengmyeon');
+  category.imageUrl = 'https://example.test/naengmyeon.jpg';
+  try {
+    const selected = home({ counts: countsOf({ naengmyeon: 12 }) });
+    assert.equal(selected.view.find('Image', (p) => p.accessibilityLabel === '냉면 사진').source.uri, category.imageUrl);
+    assert.match(selected.text(), /12명이 냉면 원픽을 남겼어요\./);
+    const other = home({ question: 'gopchang' });
+    assert.equal(other.view.find('Image', (p) => p.source?.uri === category.imageUrl), undefined);
+  } finally { category.imageUrl = null; }
 });
 
 test('First Pick: success shows the completion line once; cancel/failure never do', () => {
@@ -505,7 +517,7 @@ test('Signed-out Home: no reply/invite, question still asks, login handled by re
   guest.view.find('RefreshControl').onRefresh();
   assert.equal(guest.calls.replyRefetch, undefined, 'Signed-out refresh never requests notifications');
   assert.doesNotMatch(guest.text(), /새 답글|친구 초대 링크/);
-  assert.match(guest.text(), /당신의 냉면 원픽은\?/);
+  assert.match(guest.text(), /냉면 먹으러 어디 가요\?/);
   assert.match(guest.text(), /다른 원픽을 남겨요/);
   const member = home();
   assert.ok(member.view.find('HomeInviteRow') === undefined, 'Invite row is the real component, not a stub');
@@ -547,4 +559,5 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
 Promise.all(asyncTests).then(repositoryChecks).then(() => {
   console.log(`Early-MVP Home (30E) checks passed: ${passed}. Mock data only; live DB wiring is verified separately.`);
 }).catch((error) => { console.error(error); process.exitCode = 1; });
+
 
