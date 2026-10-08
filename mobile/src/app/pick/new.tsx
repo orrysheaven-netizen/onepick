@@ -177,6 +177,13 @@ export default function NewPickScreen() {
   const [expectedPreviousPickId, setExpectedPreviousPickId] = useState<string | null | undefined>(undefined);
   const busy = useRef(false);
   const requestIdRef = useRef<string | null>(null);
+  const linkRequestRef = useRef(0);
+  const linkOwnerRef = useRef(user?.id);
+  if (linkOwnerRef.current !== user?.id) {
+    linkOwnerRef.current = user?.id;
+    linkRequestRef.current += 1;
+  }
+  useEffect(() => () => { linkRequestRef.current += 1; }, []);
   // Account whose draft this screen has loaded; null until the session resolves.
   const [hydratedFor, setHydratedFor] = useState<string | null>(null);
   // Saved step 3/4 to return to after the menu selection is re-checked on the server.
@@ -191,6 +198,7 @@ export default function NewPickScreen() {
   const drafts = pickDraftStore();
 
   const resetForm = () => {
+    linkRequestRef.current += 1;
     setConfirmReplacement(false);
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
     setLinkEntry(!entryProviderId); setEntryLink(''); setNameOnlyFromLink(false);
@@ -364,6 +372,7 @@ export default function NewPickScreen() {
   };
   const goBack = () => {
     if (saving || busy.current) return;
+    linkRequestRef.current += 1;
     setConfirmReplacement(false);
     setResumeStep(null);
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
@@ -402,7 +411,18 @@ export default function NewPickScreen() {
   };
   const findByLink = () => {
     if (!validEntryLink || linkLookup.isPending) return;
-    linkLookup.mutate({ url: entryLink.trim() });
+    const url = entryLink.trim();
+    const request = ++linkRequestRef.current;
+    linkLookup.mutate({ url }, { onSuccess: (result) => {
+      if (request !== linkRequestRef.current || result.kind !== 'place') return;
+      const name = result.resolvedName?.trim().replace(/\s+/g, ' ') ?? '';
+      // Missing from the catalog is a new store, not a registration dead end.
+      // Prepare it once for this lookup; the existing final save writes newPlace.
+      // Keep candidate confirmation when a catalog match might already exist.
+      if (name && name.length <= 100 && !result.needsName && result.places.length === 0) {
+        pickStore({ kind: 'new', name, channel: 'offline', mapUrl: url });
+      }
+    } });
   };
   // No catalog match: register the store under the name read from the link, with the link itself.
   const registerFromLink = () => {
@@ -547,6 +567,7 @@ export default function NewPickScreen() {
 
   const cancel = () => {
     if (saving || busy.current || done) return;
+    linkRequestRef.current += 1;
     drafts.clear();
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -606,7 +627,7 @@ export default function NewPickScreen() {
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
                 <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
-                  value={entryLink} onChangeText={(value) => { setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
+                  value={entryLink} onChangeText={(value) => { linkRequestRef.current += 1; setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
                   onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
                   placeholder="https://naver.me/…" placeholderTextColor={OnePick.textSecondary} />
                 {entryLink.trim() && !validEntryLink
@@ -623,7 +644,7 @@ export default function NewPickScreen() {
                   ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해주세요.'
                   : linkMatches.length > 0
                     ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라주세요.`
-                    : linkName ? `${linkName}은(는) 아직 목록에 없어요. 새 매장으로 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
+                    : linkName ? `${linkName}의 메뉴를 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
                 {(linkSelected ? [linkSelected] : linkMatches).map((candidate) => <Pressable key={candidate.catalogId}
                   accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
                   style={({ pressed }) => [styles.resultCard, candidate === linkSelected && styles.resultCardSelected, pressed && styles.flowPressed]}>
@@ -715,12 +736,12 @@ export default function NewPickScreen() {
                 ? <>
                   <FlowButton label="매장명 가져오기" disabled={!validEntryLink} loading={linkLookup.isPending} onPress={findByLink} />
                   {!linkLookup.isPending ? <FlowButton variant="text" label="URL 없음"
-                    onPress={() => { setLinkEntry(false); linkLookup.reset(); }} /> : null}
+                    onPress={() => { linkRequestRef.current += 1; setLinkEntry(false); linkLookup.reset(); }} /> : null}
                 </>
                 : <>
                   {linkSelected ? <FlowButton label="다음" onPress={() => pickStore(linkSelected)} /> : null}
                   <FlowButton variant={linkSelected || linkMatches.length > 0 ? 'secondary' : 'primary'}
-                    label={linkSelected || linkMatches.length > 0 ? '찾는 매장이 없어요.' : linkName ? '새 매장으로 등록' : '매장 이름 입력하기'}
+                    label={linkSelected || linkMatches.length > 0 ? '찾는 매장이 없어요.' : linkName ? '다음' : '매장 이름 입력하기'}
                     onPress={registerFromLink} />
                 </>
               : !requesting && providerPrefillStore
