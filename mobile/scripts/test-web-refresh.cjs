@@ -34,7 +34,7 @@ function fixture(kind, platform = 'web') {
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-current-pick-row': 'ProfileCurrentPickRow', 'profile-identity': 'ProfileIdentity', 'profile-tabs': 'ProfileTabs', 'profile-records': 'ProfileRecords',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
-    'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
+    'profile-social-links': 'ProfileSocialLinks', 'profile-my-comments': 'ProfileMyComments',
     'profile-taste-composition': 'ProfileTasteComposition', 'sign-out-button': 'SignOutButton',
   };
   const screenPath = kind === 'profile'

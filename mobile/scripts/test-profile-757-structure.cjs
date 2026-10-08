@@ -90,7 +90,9 @@ assert.match(records, /label: '반려'/); assert.match(records, /label: '검토 
 assert.match(records, /<Text style=\{styles\.sectionTitle\}>지난 원픽<\/Text>/);
 
 // Pick row (#757): whole row is one button; badge + category line, then name, then review; content height.
-assert.match(row, /accessibilityLabel=\{`\$\{label\} 원픽 상세 보기`\}\s*onPress=\{\(\) => onOpenPick\(item\.pick\.id\)\}/);
+assert.match(row, /accessibilityLabel=\{accessibilityLabel\}\s*accessibilityHint="원픽 상세를 열어요"\s*onPress=\{\(\) => onOpenPick\(item\.pick\.id\)\}/);
+// Review follow-up: screen readers hear the one-line review and the owner's photo-review notice too.
+assert.match(row, /const accessibilityLabel = \[`\$\{label\} 원픽`, item\.pick\.oneLineReview \? `한줄평 \$\{item\.pick\.oneLineReview\}` : null, photoReviewText\]/);
 assert.equal((row.match(/<Pressable/g) ?? []).length, 1, 'No nested buttons inside a profile Pick row');
 assert.match(row, /\{channel \? <ChannelBadge channel=\{channel\} \/> : null\}\s*\{categoryName \? <Text numberOfLines=\{1\} style=\{styles\.category\}>/);
 const metaIndex = row.indexOf('<View style={styles.meta}>');

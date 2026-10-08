@@ -13,8 +13,8 @@ const connections = read('src/components/follow-connections-view.tsx');
 
 assert.match(constants, /profileFollowConnections: true/,
   'Public follow counts/list use their own approved exposure gate');
-assert.match(constants, /followCounts: false/,
-  'Legacy own-profile counts remain independently hidden');
+assert.doesNotMatch(constants, /^\s*followCounts:/m,
+  'Legacy own-profile count gate is removed (#757); ProfileIdentity shows the public counts');
 
 assert.ok(profile.includes('useLocalSearchParams<{ username?: string; connections?: string; returnTo?: string }>()'),
   'Public profile keeps username, connections and safe return origin in one route contract');
