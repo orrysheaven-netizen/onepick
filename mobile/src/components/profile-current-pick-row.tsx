@@ -39,16 +39,17 @@ export function ProfileCurrentPickRow({ item, isFood, showPhotoReview = false, o
   const photoReviewText = !waitsForPhoto ? null
     : item.item?.photoPendingReview ? PROFILE_PHOTO_REVIEW_COPY.pending : PROFILE_PHOTO_REVIEW_COPY.rejected;
   const label = categoryName && categoryName !== name ? `${categoryName} ${name}` : name;
-  // Screen readers get what sighted users see: the visible one-line review and, for the
-  // owner, the photo-review status (`notice`), not only the row's title.
-  const accessibilityLabel = [`${label} 원픽`, item.pick.oneLineReview ? `한줄평 ${item.pick.oneLineReview}` : null, photoReviewText]
-    .filter(Boolean).join('. ');
+  // The label keeps the stable "… 원픽 상세 보기" suffix the logged-in QA locates rows by.
+  // Screen readers then hear what sighted users see — the one-line review and, for the
+  // owner, the photo-review status (`notice`) — through the hint.
+  const accessibilityHint = [item.pick.oneLineReview ? `한줄평 ${item.pick.oneLineReview}` : null, photoReviewText]
+    .filter(Boolean).join('. ') || undefined;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityHint="원픽 상세를 열어요"
+      accessibilityLabel={`${label} 원픽 상세 보기`}
+      accessibilityHint={accessibilityHint}
       onPress={() => onOpenPick(item.pick.id)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <PickPhoto
