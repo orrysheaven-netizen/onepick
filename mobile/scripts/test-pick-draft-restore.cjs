@@ -319,7 +319,7 @@ const count = (name) => calls.filter(([n]) => n === name).length;
 // Store -> menu -> photo -> review typed on the last step (not submitted).
 async function writeUntilReview() {
   await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
-  input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render();
   press('다음'); await flush(); await render();
   press('사진 고르기'); await flush(); await render(); press('다음'); await render();
   input('원픽 한줄평').onChangeText('육수가 깔끔해요'); return render();
@@ -417,7 +417,7 @@ async function screenTests() {
   reset();
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: true, pending: false };
   await render(); press('URL 없음'); await render(); input('매장명 검색').onChangeText('을밀대'); await render(); press('을밀대 선택'); await render();
-  input('메뉴 이름').onChangeText('평양냉면'); await render(); press('면 › 평양냉면'); await render();
+  input('메뉴 이름').onChangeText('평양냉면'); await render();
   press('다음'); await flush(); await render();
   input('원픽 한줄평').onChangeText('또 가고 싶어요'); await render();
   mount(); page = await render(); page = await render();
@@ -459,6 +459,15 @@ async function screenTests() {
   assert.equal(input('매장명 검색').value, '을밀대');
   assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
     'restored step-1 draft may search normally');
+
+  // A legacy manual category is never trusted when restoring a later step.
+  reset();
+  draftStore.save('owner', fields({ manualCategory: true, categoryQuery: '잘못된 분류',
+    menu: { categoryId: 'legacy-wrong-category', name: '평양냉면' } }));
+  mount(); await render(); page = await render();
+  assert.equal(calls.find(([name]) => name === 'select')[1].categoryId, 'cat-naengmyeon');
+  assert.equal(count('register'), 0);
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
 
   // 9. Explicit cancel clears the draft.
   reset();
@@ -509,3 +518,4 @@ async function main() {
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+
