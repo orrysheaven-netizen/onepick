@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { API, SITE, STORE, MAP, REVIEW, assertExecution, assertSessionBudget, createWriteGuard, PICK_COLUMNS, assertStoredFixture, safeFailureCode } from './registration-write-contract.mjs';
+import { API, SITE, STORE, MAP, REVIEW, assertExecution, assertSessionBudget, createWriteGuard, PICK_COLUMNS, assertStoredFixture, safeFailureCode, safeRequestKind } from './registration-write-contract.mjs';
 const user = '11111111-1111-4111-8111-111111111111';
 const category = '22222222-2222-4222-8222-222222222222';
 const item = '33333333-3333-4333-8333-333333333333';
@@ -124,6 +124,48 @@ test('read-only recovery cannot arm, register, upload or refresh even with write
   assert.equal(g.admit(write('item_review_page', {})), 'read');
 });
 
+test('photo-credit read is restricted to the verified fixture and exact RPC payload', () => {
+  const g = createWriteGuard(user, category, { readOnly: true, existingItemId: item });
+  const req = write('item_photo_credit', { p_item_id: item });
+  assert.equal(g.admit(req), 'read');
+  assert.equal(g.admit(req), 'read', 'reload may repeat a read');
+  for (const body of [undefined, null, [], {}, { p_item_id: pick },
+    { p_item_id: item, extra: true }]) {
+    assert.throws(() => g.admit({ ...req, body }), /PHOTO_CREDIT_NOT_ALLOWED/);
+  }
+  for (const method of ['PATCH', 'PUT', 'DELETE']) assert.throws(() => g.admit({ ...req, method }));
+  for (const url of [`${SITE}/rest/v1/rpc/item_photo_credit`,
+    `${API}/rest/v1/rpc/item_photo_credit_extra`, `${API}/rest/v1/rpc/admin_approve_item`]) {
+    assert.throws(() => g.admit({ ...req, url }));
+  }
+  assert.throws(() => g.arm(), /READ_ONLY_MODE/);
+  for (const mutation of [write('stage_user_place_item', stage), write('register_item_pick', register),
+    image('fixture.jpg'), { url: `${API}/rest/v1/picks`, method: 'DELETE' },
+    { url: `${API}/auth/v1/token?grant_type=refresh_token`, method: 'POST' }]) {
+    assert.throws(() => g.admit(mutation));
+  }
+  assert.throws(() => createWriteGuard(user, category, { existingItemId: item }), /INVALID_ID/);
+  assert.throws(() => createWriteGuard(user, category, { readOnly: true, existingItemId: 'bad' }), /INVALID_ID/);
+  assert.throws(() => createWriteGuard(user, category, { readOnly: true }).admit(req));
+  assert.throws(() => createWriteGuard(user, category).admit(req));
+  assert.equal(prepared().admit(req), 'read', 'registration mode only admits its own staged item');
+  assert.throws(() => prepared().admit(write('item_photo_credit', { p_item_id: pick })));
+});
+
+test('request diagnostics expose only fixed categories, never URLs or query secrets', () => {
+  for (const [url, expected] of [
+    [`${API}/rest/v1/rpc/item_photo_credit?secret=PRIVATE`, 'PHOTO_CREDIT_RPC'],
+    [`${API}/rest/v1/rpc/PRIVATE`, 'OTHER_RPC'],
+    [`${API}/auth/v1/token?refresh_token=PRIVATE`, 'AUTH_REQUEST'],
+    [`${API}/storage/v1/object/PRIVATE`, 'STORAGE_REQUEST'],
+    [`${API}/rest/v1/PRIVATE`, 'TABLE_REQUEST'],
+    [`${API}/functions/v1/PRIVATE`, 'OTHER_API_REQUEST'],
+    [`${SITE}/PRIVATE`, 'SITE_REQUEST'], ['https://private.invalid/PRIVATE', 'OUTSIDE_ORIGIN'],
+    ['PRIVATE', 'INVALID_URL'],
+  ]) assert.equal(safeRequestKind(url), expected);
+  assert.equal(safeFailureCode(new Error('PHOTO_CREDIT_NOT_ALLOWED')), 'PHOTO_CREDIT_NOT_ALLOWED');
+});
+
 test('recovery execution still requires manual main first attempt and existing QA secrets', () => {
   const env = { GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/main',
     GITHUB_REPOSITORY: 'orrysheaven-netizen/onepick', GITHUB_RUN_ATTEMPT: '1',
@@ -163,3 +205,4 @@ test('failure diagnostics never echo arbitrary error messages or response data',
   }
   assert.equal(safeFailureCode(null), 'UNCLASSIFIED_FAILURE');
 });
+
