@@ -524,6 +524,7 @@ async function main() {
   input('매장 찾기 네이버 지도 링크').onChangeText('[네이버지도]\n이고집만두\n충남 천안시 동남구 태조산길 258\nhttps://naver.me/x1uzYNK5'); render(); press('매장명 가져오기'); page = render();
   assert.equal(step(page), '2');
   assert.match(page, /2 \/ 4 · 이고집만두/);
+  assert.match(page, /이고집만두 매장을 선택했어요\./);
   assert.doesNotMatch(page, /목록에 없어요|새 매장으로 등록/);
   assert.ok(!calls.some(([name]) => name === 'register' || name === 'select'), 'Lookup does not write a store or Pick');
   press('이전 단계'); page = render();

@@ -762,6 +762,7 @@ export default function NewPickScreen() {
         {step === 2 && store ? <>
           <View style={styles.body}>
             <Text style={styles.stepMeta}>2 / 4 · {storeDisplayName}</Text>
+            <Text style={styles.helper} accessibilityLiveRegion="polite">{storeDisplayName} 매장을 선택했어요.</Text>
             <Text style={styles.title}>어떤 메뉴인가요?</Text>
             <View style={styles.fieldBlock}>
               <FieldLabel label="메뉴명" />
