@@ -7,7 +7,7 @@ do $flow$
 #variable_conflict use_variable
 declare
   admin uuid := gen_random_uuid(); alice uuid := gen_random_uuid(); bob uuid := gen_random_uuid();
-  grp uuid := gen_random_uuid(); menu uuid := gen_random_uuid();
+  grp uuid := gen_random_uuid(); menu uuid := gen_random_uuid(); menu2 uuid := gen_random_uuid(); second_request uuid;
   request_item uuid; saved_pick uuid; saved_photo text;
   res jsonb; raised boolean; v_item public.items%rowtype;
 begin
@@ -28,6 +28,10 @@ begin
   from unnest(array[alice,bob]) u cross join (values ('full.jpg',1024),('thumb.jpg',100)) f(name,size);
 
 
+  insert into public.categories(id,parent_id,name,slug,status,is_visible,is_pickable)
+  values(menu2,grp,'추가만두','approval840-extra-'||menu2::text,'open',true,true);
+  insert into public.category_catalog_sources(category_id,mode,is_enabled,place_catalog_enabled)
+  values(menu2,'internal',true,true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   perform set_config('request.jwt.claim.sub',alice::text,true);
   set local role authenticated;
@@ -74,6 +78,7 @@ begin
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   set local role authenticated;
   perform public.revise_item_request(request_item,p_link_url=>'https://naver.me/approval840-fixed');
+  second_request := (public.stage_user_place_item(menu2,'승인후생성만두','','https://naver.me/approval840-fixed')).id;
   reset role;
   assert (select map_url='https://naver.me/approval840-fixed' from private.user_place_requests where item_id=request_item), 'Correction changes the request link';
   assert not exists(select 1 from public.places where map_url='https://naver.me/approval840-fixed'), 'Correction still creates no store';
@@ -100,6 +105,22 @@ begin
   assert not exists(select 1 from private.user_place_requests where item_id=request_item), 'Approved request is consumed';
   assert (select image_path=saved_photo from public.items where id=request_item), 'Approval keeps the photo';
   assert (select item_id=request_item and status='active' and one_line_review='만두가 맛있어요' from public.picks where id=saved_pick), 'Approval preserves and publishes the same Pick and review';
+  -- Another menu request must remain reusable after the first approval creates
+  -- the shared canonical store. Otherwise a retry silently stages a new item.
+  perform set_config('request.jwt.claim.sub',alice::text,true);
+  perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
+  set local role authenticated;
+  assert (public.stage_user_place_item(menu2,'승인후생성만두','','https://naver.me/approval840-fixed')).id=second_request,
+    'Retry reuses the existing request even after another menu materializes the store';
+  reset role;
+  perform set_config('request.jwt.claim.sub',admin::text,true);
+  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
+  set local role authenticated;
+  perform public.admin_review_pending_item(second_request,'active');
+  reset role;
+  assert (select count(*) from public.places where map_url='https://naver.me/approval840-fixed')=1,
+    'Approving a second menu reuses the same canonical store';
+
 end;
 $flow$;
 $test$, '#840 stores are materialized only on MFA admin approval; request correction, privacy, rollback and Pick/photo preservation');

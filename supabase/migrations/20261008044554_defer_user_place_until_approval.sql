@@ -182,6 +182,23 @@ begin
     hashtextextended('user-place:' || v_normalized || ':' || v_map, 0)
   );
 
+  -- Serialize identities without locking an existing item here. Review and
+  -- link correction lock the item first; staging never mutates that item.
+  select i.* into v_item
+  from private.user_place_requests r join public.items i on i.id = r.item_id
+  where r.normalized_name = v_normalized and r.map_url = v_map
+    and i.category_id = p_category_id
+  order by i.created_at, i.id limit 1;
+  if found then
+    if v_item.status = 'pending' then
+      if v_item.created_by is distinct from v_user then
+        raise exception 'ITEM_ALREADY_PENDING' using errcode = 'P0001';
+      end if;
+      return v_item;
+    end if;
+    raise exception 'ITEM_NOT_ELIGIBLE' using errcode = 'P0001';
+  end if;
+
   -- The same normalized name with the exact same map link is the same store.
   -- The link is not expanded (no external lookup), so another short link to the
   -- same store makes a second pending request; review resolves duplicates.
@@ -195,22 +212,6 @@ begin
   for update;
 
   if not found then
-    -- Serialize identities without locking an existing item here. Review and
-    -- link correction lock the item first; staging never mutates that item.
-    select i.* into v_item
-    from private.user_place_requests r join public.items i on i.id = r.item_id
-    where r.normalized_name = v_normalized and r.map_url = v_map
-      and i.category_id = p_category_id
-    order by i.created_at, i.id limit 1;
-    if found then
-      if v_item.status = 'pending' then
-        if v_item.created_by is distinct from v_user then
-          raise exception 'ITEM_ALREADY_PENDING' using errcode = 'P0001';
-        end if;
-        return v_item;
-      end if;
-      raise exception 'ITEM_NOT_ELIGIBLE' using errcode = 'P0001';
-    end if;
     if (select count(*) from public.items
       where created_by = v_user and created_at > now() - interval '1 day') >= 20 then
       raise exception 'RATE_LIMITED' using errcode = 'P0001';
