@@ -1,0 +1,106 @@
+node_id	type	name	descendants	instances
+1017:7487	section	Archive · 75 원픽 등록 · 구형 시안	72	59
+3:8	symbol	Avatar / 36	0	0
+3:12	symbol	Social / Action Row	0	0
+3:16	symbol	Media / Square 64	0	0
+8:370	frame	06 Brand Direction — Official Assets	50	0
+13:34	frame	후속 · 05B. 원픽 등록 — 온라인	69	1
+13:98	frame	후속 · 05C. 원픽 등록 — 레시피	69	1
+16:94	frame	후속 · 07C2. 등록 상태 — 온라인 빈 상태	20	1
+18:86	frame	상태 참고 · 10B. 알림 빈 상태	15	0
+35:20	frame	MVP · 17. 매장 프로필	71	13
+41:20	frame	후속 · 18. 온라인 제공처	59	3
+44:20	frame	후속 · 19. 레시피 채널	56	3
+58:20	frame	MVP · 22. 수정 필요 보조 흐름	81	5
+73:20	frame	후속 · 27. 프로필 편집 확장 — 65 인라인 편집 이후	168	5
+92:20	frame	Archive · 2026-10-08 · 구 홈 30 (MVP 30 → Current · 홈 · 기본 피드 v3로 대체 · 참고용)	206	96
+95:20	frame	Archive · 2026-10-08 · 구 탐색 31 (MVP 31 → Current state · 탐색 4종으로 대체 · 참고용 · Follow-up은 별도 프레임으로 분리)	45	20
+107:20	frame	정책 참고 · 32. 댓글 삭제	5	0
+119:75	frame	정책 참고 · 33. 작성자 원픽 깃발	5	0
+124:31	frame	정책 참고 · 34. 제목 체계 — 매장명 + 메뉴명	222	11
+129:84	frame	MVP · 36. 아이템 상세	108	48
+134:161	frame	정책 참고 · 38. 전 화면 공통 — 왼쪽 가장자리 뒤로가기	5	0
+136:161	frame	MVP · 39. 앱 안 알림	38	19
+142:161	frame	MVP · 40. 다른 사용자 프로필	80	41
+143:161	frame	MVP · 41. 팔로워·팔로잉 목록	126	22
+148:161	frame	MVP · 42. 프로필 빈 상태	54	12
+150:161	frame	MVP · 43. 메뉴 검색 — 입력 전·결과·결과 없음	43	24
+152:161	frame	후속 · 44. 라멘 메뉴별 원픽 — 매장·온라인·레시피	227	4
+158:161	frame	MVP · 45. 메뉴 상세 — 대표 원픽 기준 미달 · 원픽 0명	33	10
+192:161	frame	상태 참고 · 54. 사진 등록 — 75의 3 / 4 단계	11	0
+206:171	frame	후속 · 57. 온라인 매장 · 레시피 — 내부 소개	111	6
+218:201	frame	MVP · 61. 원픽 변경 확인 — 36 위 팝업	72	23
+220:186	frame	상태 참고 · 62. 한줄평 수정 — 36·65 공통	116	7
+222:191	frame	정책 참고 · 63. 한줄평 삭제 — 댓글 보존	169	10
+224:202	frame	상태 참고 · 64. 원픽 해제 — 36·65 공통	116	9
+226:212	frame	MVP · 65. 내 프로필	132	32
+236:212	frame	MVP · 67. 댓글 목록 · 프로필 진입	108	10
+238:212	frame	MVP · 68. 설정	191	36
+245:217	frame	정책 참고 · 70. 프랜차이즈 — 지점·브랜드 전체	113	3
+250:217	frame	후속 · 71. 브랜드 프로필 — 프랜차이즈 확장	108	11
+263:253	frame	후속 · 73. 온라인 매장·레시피 — 새 아이템 개별 링크 필수	61	2
+430:997	frame	Archive 후보 · 후속 74 레시피 사진 — 레시피 채널 후속	63	2
+299:253	frame	[지피티] MVP · 75. 원픽 등록 — 네이버 링크부터 시작 · 확정	258	79
+579:3088	frame	MVP · 76. 회원가입 — 아이디 상태 + 가입 첫 화면 비교·실험 포함	77	3
+606:3447	section	[최종결정] 가입 여정 — 행동 선택 → 인증 → 아이디 → 원래 작업	106	41
+644:3513	frame	30-1 테마 선택 — MVP 맛집 기본	6	0
+656:3474	frame	30-1B 메뉴 검색 팝업	5	2
+656:3489	frame	30-1C 메뉴 검색결과 — 라멘 예시	6	3
+730:4000	frame	검토 시안 — 매장 기호 2안	14	0
+733:4000	frame	매장 건물형 — 추가 시안 A1 A2 A3	20	0
+735:4000	frame	매장 기호 — 검정색 채움 시안 C1 C2 C3	20	0
+738:4000	frame	D안 — 검정 포크·스푼 기호	10	0
+741:4000	frame	비교·실험 · 원형 스푼·포크 배지 — 3안	30	0
+747:4204	frame	비교·실험 · 원픽 수 강조 — 3안	39	0
+800:4413	frame	MVP INDEX · 구현 기준 화면	55	0
+813:4480	frame	Archive · 사용 제외 · 2026-10-08 · Review · 홈 · 30E 극초기 홈 · 유저 10명 이하	68	22
+866:4584	frame	Archive · 사용 제외 · 2026-10-08 · Review · 홈 · 30F 극초기 원픽 유도형	127	50
+871:4841	frame	Archive · 사용 제외 · 2026-10-08 · 30F 제안 정리 (GPT 공유용)	24	0
+875:4841	frame	30F GPT 검토 의견 (2026-10-06)	29	0
+886:4973	frame	Archive · 사용 제외 · 2026-10-08 · Comparison · 홈 · 30G 극초기 미션형	137	40
+894:5136	frame	30F 홈 문구 정리 (GPT 공유 시안)	102	42
+894:5137	frame	30F 홈 / 시안 구성 요소	8	0
+900:5469	frame	관리자 / 오늘의 질문 관리 (30F 연결 시안)	111	35
+945:5650	symbol	30F / Feed Card / 콘텐츠 표기 통일 시안	0	0
+945:5659	frame	30F 홈 콘텐츠 표기 통일 / 390×844 시안 · GPT 2026-10-06	7	6
+979:7112	section	Prototype · 75 원픽 등록 — 클릭 테스트	239	92
+985:7114	symbol	30F / Feed Card / 간격 정리 시안	0	0
+985:7125	frame	30F 홈 콘텐츠 표기 통일 / 간격 정리 / 390×844 시안 · GPT 2026-10-07	7	6
+987:7249	symbol	30F / Feed Card / 간격 정리 재작업 v2	0	0
+987:7260	frame	30F 홈 콘텐츠 표기 통일 / 간격 정리 재작업 v2 / 390×844 · GPT 2026-10-07	7	6
+993:7228	symbol	30F / Feed Card / 간격·위계 정리 v3	0	0
+993:7239	frame	Current · 홈 · 기본 피드 · v3 + 6~8번 반영 · 390×844	7	6
+1011:7739	frame	Comparison · 홈 · Floating Tab v1	83	32
+1013:8307	frame	Floating Tab Bar	5	0
+1016:7078	frame	Comparison · 홈 · v3 + Floating Tab 적용본	8	7
+1016:7194	frame	Comparison · 탐색 · 기본 메뉴 목록 + Floating Tab	21	16
+1016:7323	frame	[최종결정] A 원픽 등록 선택 / Floating Tab 적용본	29	20
+1016:7549	frame	39-2 앱 안 알림 — 읽지 않은 항목 있음 / Floating Tab 적용본	9	8
+1016:7672	frame	40-1 duck 프로필 — 공개 프로필 · 원픽만 (#757) / Floating Tab 적용본	13	11
+1023:7637	frame	Archive · 테마 선택 폐기 · 2026-10-08 · Current state v3 · 홈 · 테마 선택	15	6
+1023:7653	frame	Current state v3 · 홈 · 검색 팝업	14	8
+1023:7668	frame	Current state v3 · 홈 · 검색 결과	15	9
+1024:7831	frame	Current state v3 · 홈 · 팔로잉 로딩	6	4
+1024:7921	frame	Current state v3 · 홈 · 팔로잉 오류	6	4
+1024:8011	frame	Current state v3 · 홈 · 팔로잉 빈 상태	6	4
+1025:7995	frame	Current state v3 · 홈 · 팔로잉 선택	8	7
+1025:8069	frame	Current state v3 · 홈 · 전체 선택	8	7
+1025:8143	frame	Current state v3 · 홈 · 세션 오류	6	4
+1025:8233	frame	Current state v3 · 홈 · 첫 원픽 0개	6	4
+1027:8277	frame	Content Scope Tab	2	0
+1034:8275	frame	Current state · 탐색 · inline 검색 결과	29	3
+1034:8346	frame	Current state · 탐색 · 카테고리 로딩	8	3
+1035:8357	frame	Current state · 탐색 · 검색 중	34	3
+1035:8405	frame	Current state · 탐색 · 검색 실패	37	3
+1035:8456	frame	Current state · 탐색 · 검색 결과 없음	37	3
+1041:8518	section	Typography Study · 비교 시안 (전역 미적용) · 2026-10-07	196	6
+1043:8619	section	31 · 탐색 · CURRENT	0	0
+1043:8620	section	31 · 탐색 · FOLLOW-UP	0	0
+1043:8621	section	31 · 탐색 · COMPARISON	0	0
+1047:8633	section	Spacing Study · 홈 피드 좌우 여백 비교 (전역 미적용) · 2026-10-07	293	9
+1051:8768	section	Semantic Gray Study · 회색 위계 비교 (전역 미적용) · 2026-10-07	182	6
+1053:9116	frame	Verify · 홈 · 긴 데이터 검증 · v3 + 6~8번 반영 · 390×844	9	8
+1053:9226	frame	Verify · 홈 · 긴 데이터 전체 펼침 (클립 해제)	5	5
+1058:9018	frame	[지피티] 홈 · 구성 통합본 · 2026-10-08	62	24
+1061:9119	frame	[지피티] 홈 미션 · 원픽 등록 전후 비교 · 2026-10-08	136	48
+1097:8304	frame	후속 · 31-2·31-3 탐색 — 온라인·레시피 메뉴별 원픽 (Follow-up, 구 31 보드에서 분리 2026-10-08)	168	2
