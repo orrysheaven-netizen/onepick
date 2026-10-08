@@ -6,6 +6,7 @@ import { Avatar, Button, Chip, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeParticipant, QuestionFooter } from '@/lib/home/earlyHome';
+import { homeQuestionTitle } from '@/lib/home/questionTitle';
 import type { Category } from '@/types/domain/category';
 
 /** 834:4749 — shown only while unread replies exist. */
@@ -38,6 +39,7 @@ export function HomeQuestionCard({ category, answerCount, answered, footer, onAn
     : '다른 원픽을 남겨요';
   return (
     <View style={styles.card}>
+      <Text style={styles.cardEyebrow} numberOfLines={1}>{homeQuestionTitle(category.name)}</Text>
       <Text accessibilityRole="header" style={styles.cardTitle}>{`당신의 ${category.name} 원픽은?`}</Text>
       {answerCount !== null ? <Text style={styles.cardCount}>{`${answerCount.toLocaleString()}명이 답했어요`}</Text> : null}
       <View style={styles.cardGap} />
@@ -106,6 +108,8 @@ const styles = StyleSheet.create({
   bannerText: { ...OnePickType.bodyMedium, flex: 1, minWidth: 0, color: OnePick.textPrimary },
   // 305:799: white card, 1px border/default, radius lg, padding 24, 8 between rows.
   card: { gap: OnePickSpace.sm, padding: OnePickSpace.xxl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
+  // Rotating casual title (lib/home/questionTitle); readable copy, so secondary not tertiary.
+  cardEyebrow: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
   cardTitle: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   cardCount: { ...OnePickType.body, color: OnePick.textSecondary },
   cardGap: { height: OnePickSpace.sm },

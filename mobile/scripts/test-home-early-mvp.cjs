@@ -290,6 +290,7 @@ const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
 const jsxRuntime = { jsx, jsxs: jsx, Fragment: 'Fragment' };
 const sections = load('components/home-early-sections.tsx', {
   'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': constants,
+  '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'),
 });
 
 function home(options = {}) {
@@ -400,6 +401,8 @@ test('Today’s question: DB daily menu only, answer count, 답하기 / 내 답 
   assert.doesNotMatch(closed.text(), /당신의/, 'A category outside the open food menus is not asked');
   const open = home({ counts: countsOf({ naengmyeon: 4 }) });
   assert.match(open.text(), /당신의 냉면 원픽은\?/);
+  const titleModule = load('lib/home/questionTitle.ts');
+  assert.match(open.text(), new RegExp(titleModule.homeQuestionTitle('냉면').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'Rotating casual title sits on the question card');
   assert.match(open.text(), /4명이 답했어요/);
   assert.match(open.text(), /다른 원픽을 남겨요/, '0 Picks');
   deepEq(open.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } });
