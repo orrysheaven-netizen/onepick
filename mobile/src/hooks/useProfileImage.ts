@@ -25,7 +25,18 @@ export function useProfileImage(profileUserId: string, currentUrl: string | null
         || (queryKey[0] === 'notifications' && queryKey[2] === 'list'),
     });
   };
-  const change = useMutation({ mutationFn: () => profileImageService.chooseAndSave(profileUserId, currentUrl), onSuccess });
-  const clear = useMutation({ mutationFn: () => profileImageService.clear(profileUserId, currentUrl), onSuccess });
+  // Starting one action clears the other's failure notice, so a failed 바꾸기 does not
+  // keep showing after a successful 삭제하기 (and the reverse). react-query only resets a
+  // mutation's error on its own next run.
+  const change = useMutation({
+    mutationFn: () => profileImageService.chooseAndSave(profileUserId, currentUrl),
+    onMutate: () => clear.reset(),
+    onSuccess,
+  });
+  const clear = useMutation({
+    mutationFn: () => profileImageService.clear(profileUserId, currentUrl),
+    onMutate: () => change.reset(),
+    onSuccess,
+  });
   return { change, clear, isPending: change.isPending || clear.isPending, error: change.error ?? clear.error };
 }

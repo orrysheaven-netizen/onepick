@@ -52,6 +52,15 @@ async function main() {
       assert.equal(filter({ queryKey: key }), false, key.join('/'));
   }
   assert.equal(hook.clear.onSuccess, hook.change.onSuccess, 'clear uses the same cache update');
-  console.log('Profile image cache checks passed: change/clear, cancellation, other profiles and bounded invalidation.');
+  // A failed 바꾸기 notice must not survive a later successful 삭제하기 (and the reverse):
+  // starting either action resets the other mutation's error state.
+  const resets = { change: 0, clear: 0 };
+  hook.change.reset = () => resets.change++;
+  hook.clear.reset = () => resets.clear++;
+  hook.change.onMutate();
+  assert.deepEqual(resets, { change: 0, clear: 1 }, 'starting 바꾸기 clears the 삭제하기 error');
+  hook.clear.onMutate();
+  assert.deepEqual(resets, { change: 1, clear: 1 }, 'starting 삭제하기 clears the 바꾸기 error');
+  console.log('Profile image cache checks passed: change/clear, cancellation, other profiles, bounded invalidation and cross-action error reset.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
