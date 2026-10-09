@@ -183,7 +183,7 @@ async function main() {
     }),
     '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/components/profile-pick-groups': { ProfilePickGroups: () => null }, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, 
-    '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/profile-follow-counts': { ProfileFollowCounts: () => null }, '@/components/report-action': { ReportAction: () => null },
+    '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     '@/hooks/useRegisterPick': { useRegistrationCategories: () => ({ data: [] }) },

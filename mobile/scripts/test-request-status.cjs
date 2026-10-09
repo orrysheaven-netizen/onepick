@@ -90,7 +90,6 @@ async function main() {
     '@/components/profile-ai-panel': { ProfileAiPanel: () => null },
     '@/components/profile-bio-editor': { ProfileBioEditor: (props) => { bioProps = props; return null; } },
     '@/components/profile-social-links': { ProfileSocialLinks: (props) => { socialProps = props; return null; } },
-    '@/components/profile-follow-counts': { ProfileFollowCounts: () => null },
     '@/components/sign-out-button': { SignOutButton: () => null },
     '@/components/profile-photo-control': { ProfilePhotoControl: ({ children }) => children(null) },
     '@/errors/appError': { AppError },
