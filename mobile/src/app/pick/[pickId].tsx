@@ -108,7 +108,7 @@ export default function PickDetailScreen() {
   // Comments are open only to members who picked the same menu (server rule); a viewer
   // without that Pick, e.g. right after signing up from here, is sent to pick it first.
   const canPickFirst = Boolean(user && focused && !focused.pick.canComment && !focused.pick.isDeleted
-    && itemQuery.data?.canChoose && itemQuery.data.myPickStatus.type !== 'selected_this');
+    && itemQuery.data?.canChoose && itemQuery.data.myPickStatus.type === 'not_selected');
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
