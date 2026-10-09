@@ -215,7 +215,8 @@ async function main() {
   openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
   assert.equal(step(page), '2');
   assert.equal(input('메뉴 이름').value, '라멘');
-  assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
+  assert.match(page, /매장 메뉴명으로 고쳐 써도 돼요/);
+  assert.doesNotMatch(page, /카테고리는 앱이 자동으로 분류해요/);
   assert.match(page, /메뉴를 확인했어요/);
   input('메뉴 이름').onChangeText('쇼유라멘'); page = render();
   press('이전 단계'); page = render();
