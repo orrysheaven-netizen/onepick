@@ -54,6 +54,7 @@
     "preview:web": "serve dist --single --listen tcp://127.0.0.1:4173 --no-clipboard",
     "preview:web:release": "serve dist-release --single --listen tcp://127.0.0.1:4174 --no-clipboard",
     "check:web": "node scripts/check-web-export.cjs",
+    "check:native": "node scripts/check-native-build.cjs",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-tests.cjs",
