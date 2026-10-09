@@ -7,6 +7,7 @@ export function mapProfileRow(row: ProfileRow): Profile {
   return {
     id: row.id,
     username: row.username,
+    nickname: row.nickname,
     profileImageUrl: row.profile_image_url,
     bio: row.bio,
     onboardingCompleted: row.onboarding_completed,

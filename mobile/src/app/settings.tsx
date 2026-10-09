@@ -61,6 +61,15 @@ export default function SettingsScreen() {
 
         {user ? (
           <>
+            <Text style={styles.sectionLabel}>프로필</Text>
+            <View style={styles.card}>
+              <Pressable accessibilityRole="link" accessibilityLabel="닉네임 수정"
+                onPress={() => router.push('/settings/nickname')}
+                style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>닉네임 수정</Text>
+                <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+              </Pressable>
+            </View>
             {OnePickFeatures.followNotifications ? <>
             <Text style={styles.sectionLabel}>알림</Text>
             <View style={styles.card}>

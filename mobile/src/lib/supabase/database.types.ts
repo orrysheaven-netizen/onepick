@@ -1143,6 +1143,7 @@ export type Database = {
           onboarding_completed: boolean
           profile_image_url: string | null
           updated_at: string
+          nickname: string | null
           username: string
         }
         Insert: {
@@ -1152,6 +1153,7 @@ export type Database = {
           onboarding_completed?: boolean
           profile_image_url?: string | null
           updated_at?: string
+          nickname?: string | null
           username: string
         }
         Update: {
@@ -1161,6 +1163,7 @@ export type Database = {
           onboarding_completed?: boolean
           profile_image_url?: string | null
           updated_at?: string
+          nickname?: string | null
           username?: string
         }
         Relationships: []
