@@ -49,4 +49,40 @@ $$;
 comment on function private.pick_thread_visible(public.picks, uuid) is
   'Review visibility helper. Current/ended reviews require a public item; a pending item is visible only to its creator for that creator''s own needs_review Pick.';
 
+-- Visibility of the owner's private pending review must not expand comment-write
+-- permissions. Comments remain writable only after the backing item is public.
+create or replace function private.comment_write_allowed(p_pick_id uuid, p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select p_user is not null and exists (
+    select 1 from public.picks p
+    where p.id = p_pick_id
+      and p.review_deleted_at is null
+      and private.pick_thread_visible(p, p_user)
+      and exists (
+        select 1 from public.items i
+        where i.id = p.item_id
+          and i.category_id = p.category_id
+          and i.status in ('active', 'discontinued')
+      )
+      and (
+        p.user_id = p_user
+        or exists (
+          select 1 from public.picks q
+          where q.user_id = p_user
+            and q.item_id = p.item_id
+            and q.status = 'active'
+            and q.channel is not distinct from p.channel
+        )
+      )
+  );
+$;
+
+comment on function private.comment_write_allowed(uuid, uuid) is
+  'Comment writes require a visible review on an active/discontinued item; private pending review visibility is read/manage only.';
+
 commit;
