@@ -308,3 +308,35 @@ test('publisher rejects stale or future windows before accessing GitHub', async 
   );
   assert.equal(client.issues.length, 0);
 });
+
+test('publisher accepts all 24 SQL hours when report generation crosses the UTC hour', async () => {
+  const client = githubTestClient();
+  // SQL executes at 05:59:59Z; generatedAt is written after the boundary.
+  // The oldest completed window ends at 2026-10-08T06:00:00Z.
+  const alerts = Array.from({ length: 24 }, (_, index) => exampleAlert(index - 19));
+  const report = testReport(alerts, '2026-10-09T06:00:10.000Z');
+  assert.deepEqual(await publishAlerts(report, testOptions(client)),
+    { newlyPublished: 24, skippedDuplicates: 0 });
+  assert.equal(client.issues.length, 1);
+  assert.deepEqual(await publishAlerts(report, testOptions(client)),
+    { newlyPublished: 0, skippedDuplicates: 24 });
+});
+
+test('publisher still rejects windows outside the bounded query-hour lookback', async () => {
+  const client = githubTestClient();
+  const generatedAt = '2026-10-09T06:00:10.000Z';
+  await assert.rejects(
+    publishAlerts(testReport([exampleAlert(-20)], generatedAt), testOptions(client)),
+    /outside the bounded completed-hour lookback/,
+  );
+  await assert.rejects(
+    publishAlerts(testReport([exampleAlert(6)], generatedAt), testOptions(client)),
+    /outside the bounded completed-hour lookback/,
+  );
+  const scattered = [exampleAlert(-19), exampleAlert(5)];
+  await assert.rejects(
+    publishAlerts(testReport(scattered, generatedAt), testOptions(client)),
+    /Lookback exceeded 24 completed hours/,
+  );
+  assert.equal(client.issues.length, 0);
+});

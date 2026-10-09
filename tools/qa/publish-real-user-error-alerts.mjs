@@ -64,12 +64,15 @@ function entryText(alert,workflowUrl){
 export async function publishAlerts(report,{requestFn,repository,workflowUrl}){
  const generatedAtMs=Date.parse(report.generatedAt);
  if(!Number.isFinite(generatedAtMs))throw new Error("Invalid evaluation timestamp");
+ // A query can finish before the UTC hour turns while report generation finishes after it.
+ // Anchor the bounded lookback to the completed UTC-hour boundary, not the extra seconds.
+ const generatedHourMs=Math.floor(generatedAtMs/HOUR_MS)*HOUR_MS;
  const groups=new Map(),allWindows=new Set();
  for(const original of report.alerts??[]){
    const code=String(original.errorCode??"");
    if(!SAFE_CODE.test(code))throw new Error("Invalid error code in report");
    const start=normalizedHour(original.windowStart),end=normalizedHour(original.windowEnd),endMs=Date.parse(end);
-   if(endMs-Date.parse(start)!==HOUR_MS||endMs>generatedAtMs||generatedAtMs-endMs>=MAX_WINDOWS*HOUR_MS){
+   if(endMs-Date.parse(start)!==HOUR_MS||endMs>generatedAtMs||endMs<generatedHourMs-MAX_WINDOWS*HOUR_MS){
      throw new Error("Alert outside the bounded completed-hour lookback");
    }
    allWindows.add(end);
@@ -78,6 +81,10 @@ export async function publishAlerts(report,{requestFn,repository,workflowUrl}){
    groups.get(code).set(end,alert);
  }
  if(allWindows.size>MAX_WINDOWS)throw new Error("Lookback exceeded 24 completed hours");
+ if(allWindows.size){
+   const ends=[...allWindows].map(Date.parse);
+   if(Math.max(...ends)-Math.min(...ends)>=MAX_WINDOWS*HOUR_MS)throw new Error("Lookback exceeded 24 completed hours");
+ }
  const issues=(await pagedRead(requestFn,"/issues?state=all&labels=qa-alert")).filter(issue=>!issue.pull_request);
  let newlyPublished=0,skippedDuplicates=0;
  for(const [code,windowAlerts] of groups){
