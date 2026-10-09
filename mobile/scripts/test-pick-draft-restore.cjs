@@ -245,7 +245,7 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStore, menuOptionsQuery, aiQuery;
+let auth, calls, detail, selectResult, selectFails, slotFails, choosePhotoResult, draftStore, menuOptionsQuery, aiQuery;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
@@ -260,7 +260,7 @@ const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBa
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
   '@/hooks/useRegisterPick': {
     useChoosePhoto: () => mutation('choosePhoto', () => choosePhotoResult),
-    useReadCurrentPickSlot: () => mutation('currentSlot', () => null),
+    useReadCurrentPickSlot: () => mutation('currentSlot', () => { if (slotFails) throw new AppError('PICK_CHANGED_ELSEWHERE'); return null; }),
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
   },
   '@/hooks/useLinkCategorySuggestions': { useLinkCategorySuggestions: () => ({
@@ -293,7 +293,7 @@ function reset(backend = sessionBackend()) {
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
-  selectFails = false;
+  selectFails = false; slotFails = false;
   choosePhotoResult = { ...photo };
   menuOptionsQuery = menusLoaded();
   aiQuery = { data: undefined, isPending: true, isFetching: false, isError: false };
@@ -671,6 +671,33 @@ async function screenTests() {
   assert.equal(input('메뉴 이름').value, '다른 메뉴');
   press('다음'); await flush(); page = await render();
   assert.equal(stepOf(page), '3', 'editing cannot skip the photo step');
+
+  // 14. A failed current Pick slot read keeps the saved review step until retry.
+  reset();
+  await writeUntilReview();
+  slotFails = true;
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'failed current-slot lookup stays on menu');
+  assert.equal(draftStore.load('owner').step, 5, 'slot failure retains review target');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
+  const slotsAfterFailure = count('currentSlot');
+  slotFails = false;
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'successful retry returns to review');
+  assert.equal(count('currentSlot'), slotsAfterFailure + 1, 'current slot queried again');
+  assert.equal(draftStore.load('owner').step, 5);
+  assert.equal(count('register'), 0, 'retry does not automatically register');
+
+  // 15. On success, an old review target must be consumed. With the saved
+  //     photo gone, the actual next step is photo (4), not review (5).
+  reset();
+  await writeUntilReview();
+  draftStore.savePhoto('owner', null);
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '3', 'missing photo requires photo step');
+  assert.equal(draftStore.load('owner').step, 4, 'success consumed the old review target');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
+  assert.equal(count('register'), 0, 'no automatic registration');
 }
 
 async function signOutTests() {
