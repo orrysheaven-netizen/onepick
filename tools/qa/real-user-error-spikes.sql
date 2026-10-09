@@ -1,53 +1,54 @@
--- Read-only hourly error aggregates. Daily QA retains its own top-60 query.
--- No row limit: all contexts must contribute to each error-code total.
-with window_bounds as (
-  select
-    now() - interval '24 hours' as since,
-    now() - interval '8 days' as week_since,
-    date_trunc('hour', now()) - interval '1 hour' as current_hour_start,
-    date_trunc('hour', now()) as current_hour_end
+-- Read-only error aggregates from the last 24 completed UTC hours.
+-- Every hour is evaluated independently against the preceding seven days.
+with bounds as (
+  select date_trunc('hour', now() at time zone 'UTC') at time zone 'UTC' as hour_end
 ),
-error_code_history as (
+current_locations as (
   select
-    e.error_code,
-    count(*) filter (
-      where extract(hour from e.created_at at time zone 'Asia/Seoul')
-        = extract(hour from b.current_hour_start at time zone 'Asia/Seoul')
-    ) as error_code_same_hour_prev_7d,
-    count(*) as error_code_prev_7d
+    date_trunc('hour', e.created_at at time zone 'UTC') at time zone 'UTC' as hour_start,
+    e.error_code, e.context, e.platform, count(*)::bigint as event_count
   from public.client_error_events e
-  cross join window_bounds b
-  where e.created_at >= b.current_hour_start - interval '7 days'
-    and e.created_at < b.current_hour_start
-  group by e.error_code
+  cross join bounds b
+  where e.created_at >= b.hour_end - interval '24 hours'
+    and e.created_at < b.hour_end
+  group by 1, 2, 3, 4
+),
+previous_code_hours as (
+  select
+    date_trunc('hour', e.created_at at time zone 'UTC') at time zone 'UTC' as hour_start,
+    e.error_code, count(*)::bigint as event_count
+  from public.client_error_events e
+  cross join bounds b
+  where e.created_at >= b.hour_end - interval '8 days'
+    and e.created_at < b.hour_end
+  group by 1, 2
+),
+active_codes as (
+  select distinct hour_start, error_code from current_locations
+),
+code_history as (
+  select
+    a.hour_start, a.error_code,
+    coalesce(sum(p.event_count), 0)::bigint as error_code_prev_7d,
+    coalesce(sum(p.event_count) filter (
+      where extract(hour from p.hour_start at time zone 'Asia/Seoul') =
+            extract(hour from a.hour_start at time zone 'Asia/Seoul')
+    ), 0)::bigint as error_code_same_hour_prev_7d
+  from active_codes a
+  left join previous_code_hours p
+    on p.error_code = a.error_code
+   and p.hour_start >= a.hour_start - interval '7 days'
+   and p.hour_start < a.hour_start
+  group by 1, 2
 )
 select
-       'client_error' as kind,
-       e.context as name,
-       e.error_code as detail,
-       coalesce(e.platform, '-') as platform,
-       count(*) filter (where e.created_at >= b.since) as last_24h,
-       count(*) as last_8d,
-       count(*) filter (
-         where e.created_at >= b.current_hour_start
-           and e.created_at < b.current_hour_end
-       ) as last_complete_hour,
-       count(*) filter (
-         where e.created_at >= b.current_hour_start - interval '7 days'
-           and e.created_at < b.current_hour_end - interval '1 day'
-           and extract(hour from e.created_at at time zone 'Asia/Seoul')
-             = extract(hour from b.current_hour_start at time zone 'Asia/Seoul')
-       ) as same_hour_prev_7d,
-       coalesce(max(h.error_code_same_hour_prev_7d), 0) as error_code_same_hour_prev_7d,
-       coalesce(max(h.error_code_prev_7d), 0) as error_code_prev_7d,
-       b.current_hour_start,
-       b.current_hour_end
-from public.client_error_events e
-cross join window_bounds b
-left join error_code_history h on h.error_code = e.error_code
-where e.created_at >= b.week_since
-group by e.context, e.error_code, e.platform, b.current_hour_start, b.current_hour_end
-having count(*) filter (
-  where e.created_at >= b.current_hour_start and e.created_at < b.current_hour_end
-) > 0
-order by last_complete_hour desc, e.error_code, e.context, e.platform;
+  'client_error' as kind,
+  c.context as name, c.error_code as detail, coalesce(c.platform, '-') as platform,
+  c.event_count as last_complete_hour,
+  h.error_code_same_hour_prev_7d, h.error_code_prev_7d,
+  c.hour_start as current_hour_start,
+  c.hour_start + interval '1 hour' as current_hour_end
+from current_locations c
+join code_history h
+  on h.hour_start = c.hour_start and h.error_code = c.error_code
+order by c.hour_start, c.error_code, c.context, c.platform;
