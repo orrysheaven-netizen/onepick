@@ -10,8 +10,9 @@ declare
   rem_u uuid := gen_random_uuid(); hid_u uuid := gen_random_uuid(); nr_u uuid := gen_random_uuid();
   susp_u uuid := gen_random_uuid(); blk_u uuid := gen_random_uuid();
   food_group uuid := gen_random_uuid(); menu uuid := gen_random_uuid();
-  item_x uuid := gen_random_uuid(); item_y uuid := gen_random_uuid();
+  item_x uuid := gen_random_uuid(); item_y uuid := gen_random_uuid(); pending_item uuid := gen_random_uuid();
   cur_pick uuid := gen_random_uuid(); rep_pick uuid := gen_random_uuid(); rem_pick uuid := gen_random_uuid();
+  pending_pick uuid := gen_random_uuid();
   hid_pick uuid := gen_random_uuid(); nr_pick uuid := gen_random_uuid(); susp_pick uuid := gen_random_uuid();
   blk_pick uuid := gen_random_uuid(); rep_now_pick uuid := gen_random_uuid();
   got uuid[]; row_json jsonb; n integer; last_row jsonb; page uuid[]; walked uuid[] := '{}'; guard integer := 0; raised boolean;
@@ -28,6 +29,8 @@ begin
   insert into public.items(id,category_id,name,normalized_name,status) values
     (item_x,menu,'IRP 국집 X','irp x','active'),
     (item_y,menu,'IRP 국집 Y','irp y','active');
+  insert into public.items(id,category_id,name,normalized_name,status,created_by)
+    values(pending_item,menu,'IRP 검수대기 국집','irp pending','pending',nr_u);
 
   -- Every state a review on item X can be in. Ended rows are inserted directly
   -- (ended_at is required by picks_time_state_consistent).
@@ -39,7 +42,8 @@ begin
     (hid_pick, hid_u, menu, item_x, 'online', 'hidden',       'hidden',       now() - interval '4 days', now() - interval '3 hours'),
     (nr_pick,  nr_u,  menu, item_x, 'online', 'needs review', 'needs_review', now() - interval '2 hours', null),
     (susp_pick,susp_u,menu, item_x, 'offline','suspended',    'active',       now() - interval '6 hours', null),
-    (rep_now_pick, rep_u, menu, item_y, 'online', 'replaced by this', 'active', now() - interval '2 hours', null);
+    (rep_now_pick, rep_u, menu, item_y, 'online', 'replaced by this', 'active', now() - interval '2 hours', null),
+    (pending_pick, nr_u, menu, pending_item, 'offline', 'pending owner review', 'needs_review', now() - interval '1 hour', null);
   update public.picks set replaced_by_pick_id = rep_now_pick where id = rep_pick;
   insert into private.user_moderation(user_id,reason,suspended_at) values(susp_u,'IRP fixture',now());
 
@@ -111,6 +115,8 @@ begin
   assert raised, 'A cursor without is_current is rejected with 22023';
   select count(*) into n from public.item_review_page(item_y);
   assert n=1, 'Only Picks of the requested item are returned';
+  select count(*) into n from public.item_review_page(pending_item);
+  assert n=0, 'Guests cannot see a needs_review Pick whose backing item is pending';
   -- RLS is unchanged: the table itself still hides ended Picks from guests.
   select count(*) into n from public.picks where item_id=item_x and status in ('replaced','removed');
   assert n=0, 'Direct reads of ended Picks stay closed to guests';
@@ -124,6 +130,8 @@ begin
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(item_x) with ordinality as t(r, ord);
   assert got=array[cur_pick,rem_pick,rep_pick], 'Blocked members are left out for the viewer who blocked them: '||coalesce(got::text,'null');
+  select count(*) into n from public.item_review_page(pending_item);
+  assert n=0, 'Another signed-in member cannot see the owner-only pending review';
   select count(*) into n from public.picks where user_id=rep_u;
   assert n=1, 'The table still shows only rep_u''s active Pick to another member';
   reset role;
@@ -134,6 +142,12 @@ begin
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(item_x) with ordinality as t(r, ord);
   assert got=array[nr_pick,cur_pick,blk_pick,rem_pick,rep_pick], 'Own needs_review Pick is included in the current group: '||coalesce(got::text,'null');
+  select array_agg((r->>'id')::uuid order by ord) into got
+    from public.item_review_page(pending_item) with ordinality as t(r, ord);
+  assert got=array[pending_pick], 'Owner sees their own needs_review review while the item is still pending: '||coalesce(got::text,'null');
+  select r into row_json from public.item_review_page(pending_item) r where r->>'id'=pending_pick::text;
+  assert (row_json->>'can_manage')::boolean and not (row_json->>'can_comment')::boolean,
+    'Pending owner review stays manageable but comment writes remain closed: '||row_json::text;
   reset role;
 
   assert (select prosecdef from pg_proc where oid='public.item_review_page(uuid,boolean,timestamptz,uuid,integer)'::regprocedure), 'The reader is security definer (RLS stays closed)';
