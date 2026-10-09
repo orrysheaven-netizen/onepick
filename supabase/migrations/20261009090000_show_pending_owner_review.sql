@@ -57,7 +57,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $function$
   select p_user is not null and exists (
     select 1 from public.picks p
     where p.id = p_pick_id
@@ -80,7 +80,7 @@ as $
         )
       )
   );
-$;
+$function$;
 
 comment on function private.comment_write_allowed(uuid, uuid) is
   'Comment writes require a visible review on an active/discontinued item; private pending review visibility is read/manage only.';
