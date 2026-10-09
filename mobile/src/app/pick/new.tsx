@@ -225,7 +225,9 @@ export default function NewPickScreen() {
     setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
     // Item, photo requirement and the current Pick slot come from the server again:
     // later steps resume only after the menu step's own checks pass (never auto-submit).
-    if (draft.step >= 4 && draft.store && draft.menu) { setStep(2); setResumeStep(draft.step); }
+    // A prior restore may have saved menu:null while awaiting classification.
+    // Keep the target using the typed name, not an untrusted saved category.
+    if (draft.step >= 4 && draft.store && (draft.menu || draft.menuQuery.trim())) { setStep(2); setResumeStep(draft.step); }
     else setStep(draft.step >= 4 ? (draft.store ? 2 : 1) : draft.step);
   };
   // Load once per resolved account. Nothing is read while the session is still being
@@ -457,9 +459,11 @@ export default function NewPickScreen() {
     if (!user || !store || !effectiveMenu || busy.current) return;
     // A restored review step stays there only when no photo is missing.
     const photoStep = (next: 4 | 5): Step => (resume === 5 && next === 4 && photo ? 5 : next);
-    setResumeStep(null);
+    // Consume the target only after success, not on failed lookups or
+    // while waiting for an explicit brand-scope choice.
     setMenu(effectiveMenu);
     if (!effectiveMenu.categoryId) {
+      setResumeStep(null);
       setExpectedPreviousPickId(null);
       setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
       setPickScope('branch'); setStep(photoStep(4));
@@ -470,6 +474,7 @@ export default function NewPickScreen() {
     try {
       if (store.kind === 'new') {
         await readCurrentSlotSnapshot(effectiveMenu.categoryId);
+        setResumeStep(null);
         setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(photoStep(4));
         return;
       }
@@ -486,6 +491,7 @@ export default function NewPickScreen() {
       setItemId(target.itemId);
       setItemHadPhoto(target.hasPhoto);
       setItemPending(target.pending);
+      setResumeStep(null);
       setStep(target.hasPhoto ? 5 : photoStep(4));
     } catch { /* Each mutation exposes its own error under the menu controls. */ }
     finally { busy.current = false; }
@@ -499,7 +505,6 @@ export default function NewPickScreen() {
   useEffect(() => {
     if (resumeStep === null || !user || step !== 2 || !classificationSettled || !classifiedMenu) return;
     const target = resumeStep;
-    setResumeStep(null);
     if (store) void confirmMenu(target);
   }, [resumeStep, user, step, store, classificationSettled, classifiedMenu?.categoryId]);
 
