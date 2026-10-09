@@ -577,6 +577,100 @@ async function screenTests() {
   assert.equal(stepOf(page), '4', 'a later successful load still resumes the classified restore');
   assert.equal(count('select'), selectsAtFailedRestore + 1);
   assert.equal(calls.filter(([name]) => name === 'select').at(-1)[1].categoryId, 'cat-naengmyeon');
+
+  // 11. (#858) Two cold restores before classification keep the review target
+  //     despite the first restore's menu:null auto-save.
+  reset();
+  await writeUntilReview();
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  assert.equal(draftStore.load('owner').menu, null, 'old category not trusted');
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5, 'review step survives another restore');
+  menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4', 'classification resumes review');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+  assert.equal(count('register'), 0, 'no automatic submit');
+
+  // 11b. Three cold restores with an unknown menu require a manual choice.
+  reset();
+  draftStore.save('owner', fields({ menuQuery: '비법 국수', menu: { categoryId: null, name: '비법 국수' } }));
+  draftStore.savePhoto('owner', photo);
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  mount(); page = await render(); page = await render();
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  menuOptionsQuery = menusLoaded();
+  page = await render();
+  input('메뉴 이름').onSubmitEditing();
+  aiQuery = { data: { suggestions: [], needsNewCategory: false }, isPending: false, isFetching: false, isError: false };
+  page = await render();
+  assert.equal(stepOf(page), '2', 'unclassified does not auto-confirm');
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'manual confirmation resumes the review');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+
+  // 11c. Failed menu load followed by another cold restore, then recovery.
+  reset();
+  await writeUntilReview();
+  mount(); menuOptionsQuery = menusFailed();
+  page = await render(); page = await render();
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+
+  // 12. Failed server selection must not consume the step before retry.
+  reset();
+  await writeUntilReview();
+  selectFails = true;
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+  selectFails = false;
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'retry returns to saved review');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+
+  // 12b. A brand-scope wait keeps the step; changing scope still requires
+  //      a fresh photo as before, without losing the review.
+  reset();
+  await writeUntilReview();
+  selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false,
+    brand: { itemId: 'brand-1', name: '을밀대', hasPhoto: false, pending: false } };
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  press('이 지점'); page = await render();
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '3', 'scope change still requires a photo');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
+
+  // 13. Editing the restored name cancels the old resume target.
+  reset();
+  await writeUntilReview();
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  input('메뉴 이름').onChangeText('다른 메뉴');
+  page = await render();
+  assert.equal(draftStore.load('owner').step, 2);
+  mount(); menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(input('메뉴 이름').value, '다른 메뉴');
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '3', 'editing cannot skip the photo step');
 }
 
 async function signOutTests() {
