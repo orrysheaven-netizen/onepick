@@ -33,7 +33,7 @@ select ok(has_column_privilege('anon','public.profiles','nickname','SELECT'),
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa040000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}',true);
 select set_config('request.jwt.claim.sub','fa040000-0000-4000-8000-000000000001',true);
-select lives_ok($$update public.profiles set nickname='오리 🍜' where id='fa040000-0000-4000-8000-000000000001'$$,
+select lives_ok($$$update public.profiles set nickname='오리 🍜' where id='fa040000-0000-4000-8000-000000000001'$$,
   'ordinary owner can save a Unicode nickname without admin MFA');
 select is((select nickname from public.profiles where id='fa040000-0000-4000-8000-000000000001'),'오리 🍜',
   'nickname round-trips');
@@ -42,19 +42,19 @@ select is((select username from public.profiles where id='fa040000-0000-4000-800
 with changed as (update public.profiles set nickname='forged' where id='fa040000-0000-4000-8000-000000000002' returning id)
 select is((select count(*)::integer from changed),0,
   'another visible user cannot be edited');
-select lives_ok($update public.profiles set nickname=repeat('가',15) where id='fa040000-0000-4000-8000-000000000001'$,
+select lives_ok($$update public.profiles set nickname=repeat('가',15) where id='fa040000-0000-4000-8000-000000000001'$$,
   'approved 15-character nickname is accepted');
 select is((select char_length(nickname) from public.profiles where id='fa040000-0000-4000-8000-000000000001'),15,
   '15-character nickname is stored intact');
-select throws_ok($update public.profiles set nickname=repeat('가',16) where id='fa040000-0000-4000-8000-000000000001'$,
+select throws_ok($$update public.profiles set nickname=repeat('가',16) where id='fa040000-0000-4000-8000-000000000001'$$,
   '23514',null,'16-character nickname is rejected by DB');
 select is((select char_length(nickname) from public.profiles where id='fa040000-0000-4000-8000-000000000001'),15,
   'rejected update preserves previous nickname');
-select throws_ok($update public.profiles set nickname=repeat('가',1001) where id='fa040000-0000-4000-8000-000000000001'$,
+select throws_ok($$update public.profiles set nickname=repeat('가',1001) where id='fa040000-0000-4000-8000-000000000001'$$,
   '23514',null,'oversized nickname is rejected');
-select lives_ok($update public.profiles set nickname='🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜' where id='fa040000-0000-4000-8000-000000000001'$,
+select lives_ok($$update public.profiles set nickname='🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜' where id='fa040000-0000-4000-8000-000000000001'$$,
   '15 single-codepoint emoji are accepted');
-select lives_ok($$update public.profiles set nickname=null where id='fa040000-0000-4000-8000-000000000001'$$,
+select lives_ok($$$update public.profiles set nickname=null where id='fa040000-0000-4000-8000-000000000001'$$,
   'owner can clear their nickname');
 select is((select nickname from public.profiles where id='fa040000-0000-4000-8000-000000000001'),null::text,
   'clearing leaves nickname unset');
@@ -66,7 +66,7 @@ select set_config('request.jwt.claims','{"sub":"fa040000-0000-4000-8000-00000000
 select set_config('request.jwt.claim.sub','fa040000-0000-4000-8000-000000000002',true);
 select is((select nickname from public.profiles where id='fa040000-0000-4000-8000-000000000002'),null::text,
   'attempted cross-account update left the target unchanged');
-select lives_ok($$update public.profiles set nickname='같은 이름' where id='fa040000-0000-4000-8000-000000000002'$$,
+select lives_ok($$$update public.profiles set nickname='같은 이름' where id='fa040000-0000-4000-8000-000000000002'$$,
   'different users may choose the same display name');
 reset role;
 
@@ -76,7 +76,7 @@ select set_config('request.jwt.claims','{"sub":"fa040000-0000-4000-8000-00000000
 select set_config('request.jwt.claim.sub','fa040000-0000-4000-8000-000000000005',true);
 select lives_ok($$insert into public.profiles(id,username,onboarding_completed) values ('fa040000-0000-4000-8000-000000000005','nickname_new',true)$$,
   'existing signup works without nickname');
-select lives_ok($$update public.profiles set nickname='새 사용자' where id='fa040000-0000-4000-8000-000000000005'$$,
+select lives_ok($$$update public.profiles set nickname='새 사용자' where id='fa040000-0000-4000-8000-000000000005'$$,
   'new account can set nickname after profile creation');
 reset role;
 
@@ -109,9 +109,9 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"fa040000-0000-4000-8000-000000000003","role":"authenticated","aal":"aal1"}',true);
 select set_config('request.jwt.claim.sub','fa040000-0000-4000-8000-000000000003',true);
-select throws_ok($$update public.profiles set nickname='정지 중 수정' where id='fa040000-0000-4000-8000-000000000003'$$,
+select throws_ok($$$update public.profiles set nickname='정지 중 수정' where id='fa040000-0000-4000-8000-000000000003'$$,
   '42501','USER_SUSPENDED','suspended owner cannot change nickname');
-select throws_ok($$update public.profiles set nickname=null where id='fa040000-0000-4000-8000-000000000003'$$,
+select throws_ok($$$update public.profiles set nickname=null where id='fa040000-0000-4000-8000-000000000003'$$,
   '42501','USER_SUSPENDED','suspended owner cannot clear nickname');
 reset role;
 
@@ -122,7 +122,7 @@ select is((select nickname from public.profiles where id='fa040000-0000-4000-800
   'anon can read an already-public profile nickname');
 select is((select count(*)::integer from public.profiles where id='fa040000-0000-4000-8000-000000000003'),0,
   'anon cannot read suspended profile nickname');
-select throws_ok($$update public.profiles set nickname='anon edit' where id='fa040000-0000-4000-8000-000000000002'$$,
+select throws_ok($$$update public.profiles set nickname='anon edit' where id='fa040000-0000-4000-8000-000000000002'$$,
   '42501',null,'anon cannot write nickname');
 reset role;
 
