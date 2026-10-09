@@ -42,17 +42,17 @@ select is((select username from public.profiles where id='fa040000-0000-4000-800
 with changed as (update public.profiles set nickname='forged' where id='fa040000-0000-4000-8000-000000000002' returning id)
 select is((select count(*)::integer from changed),0,
   'another visible user cannot be edited');
-select lives_ok($$$update public.profiles set nickname=repeat('가',15) where id='fa040000-0000-4000-8000-000000000001'$$,
+select lives_ok($$update public.profiles set nickname=repeat('가',15) where id='fa040000-0000-4000-8000-000000000001'$$,
   'approved 15-character nickname is accepted');
 select is((select char_length(nickname) from public.profiles where id='fa040000-0000-4000-8000-000000000001'),15,
   '15-character nickname is stored intact');
-select throws_ok($$$update public.profiles set nickname=repeat('가',16) where id='fa040000-0000-4000-8000-000000000001'$$,
+select throws_ok($$update public.profiles set nickname=repeat('가',16) where id='fa040000-0000-4000-8000-000000000001'$$,
   '23514',null,'16-character nickname is rejected by DB');
 select is((select char_length(nickname) from public.profiles where id='fa040000-0000-4000-8000-000000000001'),15,
   'rejected update preserves previous nickname');
-select throws_ok($$$update public.profiles set nickname=repeat('가',1001) where id='fa040000-0000-4000-8000-000000000001'$$,
+select throws_ok($$update public.profiles set nickname=repeat('가',1001) where id='fa040000-0000-4000-8000-000000000001'$$,
   '23514',null,'oversized nickname is rejected');
-select lives_ok($$$update public.profiles set nickname='🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜' where id='fa040000-0000-4000-8000-000000000001'$$,
+select lives_ok($$update public.profiles set nickname='🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜🍜' where id='fa040000-0000-4000-8000-000000000001'$$,
   '15 single-codepoint emoji are accepted');
 select lives_ok($$update public.profiles set nickname=null where id='fa040000-0000-4000-8000-000000000001'$$,
   'owner can clear their nickname');
