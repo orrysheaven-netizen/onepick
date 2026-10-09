@@ -18,8 +18,25 @@ comment on column public.profiles.nickname is
 grant update (nickname) on public.profiles to authenticated;
 
 
--- Explicit profile response projection: only stable app profile fields and nickname.
--- Do not use to_jsonb(profile_row): future table columns must not leak into RPC JSON.
+-- Public profile field contract for SECURITY DEFINER RPC responses.
+--
+-- Every profile object embedded in item_review_page, pick_comment_page /
+-- private.comment_json and my_comment_page is built here and nowhere else.
+-- The contract is exactly these eight keys, no more:
+--   id, username, profile_image_url, bio, onboarding_completed,
+--   created_at, updated_at            (the seven pre-existing public.profiles
+--                                      columns, i.e. what to_jsonb(pr) returned
+--                                      before this migration)
+--   nickname                          (added by this migration)
+-- Adding a column to public.profiles does NOT add it to this JSON. A future
+-- column becomes public only by an explicit edit of this function plus a
+-- matching assertion in supabase/tests/129_profile_nickname_rpc_contract.sql.
+-- Never use to_jsonb(profile_row) in these RPCs again.
+--
+-- Who sees a nickname is unchanged: this helper only shapes the row the caller
+-- is already allowed to see. Suspended/blocked authors and deleted tombstones
+-- are filtered by the existing pick_thread_visible / comment_visible /
+-- deleted_at logic in the calling SECURITY DEFINER functions, which stays as is.
 create or replace function private.public_profile_json(p public.profiles)
 returns jsonb
 language sql
@@ -39,6 +56,8 @@ as $onepick_profile_body$
   );
 $onepick_profile_body$;
 revoke all on function private.public_profile_json(public.profiles) from public, anon, authenticated;
+comment on function private.public_profile_json(public.profiles) is
+  'Public profile field contract for RPC JSON: id, username, profile_image_url, bio, onboarding_completed, created_at, updated_at, nickname. New profiles columns are not exposed unless added here and in tests/129.';
 
 -- Preserve the existing SECURITY DEFINER visibility and tombstone logic.
 -- Only replace the unconstrained profile-row JSON serializer.

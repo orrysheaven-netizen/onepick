@@ -9,7 +9,16 @@
 - 프로필 생성은 기존 INSERT 컬럼을 그대로 사용한다. 닉네임은 생성 후 본인 프로필 UPDATE로 설정·수정·해제(NULL)한다.
 - authenticated에 `UPDATE (nickname)`만 추가한다. 기존 `profiles_self_update`의 USING/WITH CHECK와 `reject_suspended_profile_update`를 그대로 적용한다. anon 쓰기나 테이블 전체 UPDATE는 허용하지 않는다.
 - 기존 프로필 SELECT 권한·RLS를 그대로 따른다. 공개 프로필은 anon도 읽을 수 있고, 로그인 사용자의 상호 차단·정지 계정 비공개와 관리자 MFA 예외는 기존 정책대로 유지된다.
-- UUID, username, 공개 프로필 URL, username 검색, 팔로우 커서와 기존 RPC 반환 필드를 변경하지 않는다. 새 SECURITY DEFINER/RPC/스냅샷을 추가하지 않는다.
+- UUID, username, 공개 프로필 URL, username 검색, 팔로우 커서를 변경하지 않는다. 새 공개 RPC·스냅샷·정책을 추가하지 않는다. 기존 RPC 반환 키는 모두 유지하고 프로필 객체에 `nickname` 키 하나만 추가한다(아래 "공개 필드 계약").
+- 마이그레이션 파일은 `supabase/migrations/20261009093500_add_public_profile_nickname.sql`이다. main의 2026-10-08 마이그레이션(`20261008004458`, `20261008044554`, `20261008052019`)보다 뒤 번호라 운영 DB 적용 순서가 자연스럽게 맞는다(`--include-all`에 의존하지 않음).
+
+## 공개 필드 계약 (SECURITY DEFINER RPC)
+
+- `item_review_page`의 `profile`, `pick_comment_page`/`private.comment_json`의 `author`, `my_comment_page`의 `pick.profile`·`comment.author`는 모두 `private.public_profile_json(profiles)` 한 곳에서 만든다. 이 함수는 SECURITY INVOKER이고 anon/authenticated는 직접 EXECUTE할 수 없다. 기존 SECURITY DEFINER 함수 3개(`private.comment_json`, `my_comment_page`, `item_review_page`)는 가시성·tombstone 로직을 그대로 두고 `to_jsonb(pr)` 직렬화 한 줄만 이 helper 호출로 바꿨다.
+- 반환 키는 정확히 8개다: `id`, `username`, `profile_image_url`, `bio`, `onboarding_completed`, `created_at`, `updated_at`(이 마이그레이션 이전 `to_jsonb(pr)`가 돌려주던 기존 7개 컬럼 그대로) + `nickname`. 앱 호환성을 위해 기존 키는 제거·개명하지 않는다.
+- `public.profiles`에 컬럼을 추가해도 RPC JSON에는 자동으로 포함되지 않는다. 공개하려면 `private.public_profile_json`을 명시적으로 수정하고 `supabase/tests/129_profile_nickname_rpc_contract.sql`의 기대 키 목록을 함께 갱신해야 한다. 이 RPC들에서 `to_jsonb(profile_row)`를 다시 쓰지 않는다.
+- 닉네임을 "누가" 보는지는 바뀌지 않는다. helper는 호출자가 이미 볼 수 있는 행만 직렬화하며, 정지(`private.user_is_suspended`)·상호 차단(`private.users_blocked`, 정방향·역방향 모두)·삭제(tombstone: `profile`/`author`/`user_id` NULL) 보호는 기존 `pick_thread_visible`/`comment_visible`/`deleted_at` 로직이 그대로 담당한다. 정지·차단된 작성자의 닉네임은 리뷰 목록, 댓글 목록, 내 댓글의 어느 JSON에도 나타나지 않아야 한다(테스트 129가 응답 전체 텍스트를 검사한다).
+- 기존 동작 중 유지한 것: anon(비로그인)에게는 회원 간 차단이 적용되지 않는다(차단은 두 당사자 사이에서만 비공개). `my_comment_page`의 `pick.profile`은 리뷰가 삭제되지 않은 한 리뷰 주인의 프로필을 돌려주며 `thread_visible`로 가시성을 별도 전달한다 — 이 PR은 그 동작을 바꾸지 않는다.
 
 ## 앱 연결
 
@@ -24,7 +33,8 @@
 ## 검증·배포
 
 - `supabase/tests/128_public_profile_nickname.sql`: 본인 저장/해제, 다른 사용자 수정 차단, 기존 가입 흐름, 중복·Unicode·15자 허용/16자 거부, anon 읽기/쓰기, 차단·정지 사용자 보호를 검사한다.
-- `supabase/tests/129_profile_nickname_rpc_contract.sql`: 리뷰·댓글·내 댓글의 필드 allowlist, 공개 닉네임, 정지·차단·삭제 작성자 보호와 helper 직접 호출 제한을 검증한다.
+- `supabase/tests/129_profile_nickname_rpc_contract.sql`: helper 직접 호출 제한, helper 반환 키 8개 고정, 리뷰·댓글·내 댓글의 프로필 키 allowlist와 공개 닉네임, 정지 작성자(리뷰·최상위 댓글·답글·`reply_count`), 차단 작성자(정방향·역방향, 리뷰·최상위 댓글·답글), 삭제 댓글 tombstone(작성자·본문·닉네임 없음, 살아 있는 답글 유지), 삭제 리뷰 tombstone, 그리고 anon/차단자/피차단자 응답 전체에 숨겨진 닉네임 문자열이 없는지를 검증한다.
+- 테스트 번호: main에 `125`, `127`이 있고 `126`은 #737(`126_profile_images.sql`)이 쓰므로 이 PR은 `128`, `129`를 쓴다.
 - 전체 Database Tests CI와 Claude 독립 리뷰를 통과한 뒤 사용자 병합 승인 → 공식 DB dry-run → 별도 운영 적용 승인 순서로 진행한다.
 - 앱 릴리스는 운영 DB 컬럼 적용 후 진행한다. 컬럼이 없는 환경에서 새 컬럼을 조회하면 API 오류가 나므로 배포 순서를 지킨다.
 - 롤백은 우선 앱의 새 필드 사용을 되돌린다. 저장된 닉네임을 보존하기 위해 컬럼을 즉시 삭제하지 않는다. 권한 회수나 파괴적 데이터 변경은 별도 검토·승인한다.
