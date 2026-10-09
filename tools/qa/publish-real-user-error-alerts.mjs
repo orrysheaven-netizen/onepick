@@ -134,5 +134,4 @@ if (invokedDirectly) main().catch((err) => {
   console.error(`Real-user alert publication failed: ${String(err?.message || err).slice(0,160)}`);
 
   process.exitCode = 1;
-
-}
+});
