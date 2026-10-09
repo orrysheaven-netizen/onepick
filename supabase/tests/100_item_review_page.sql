@@ -145,6 +145,9 @@ begin
   select array_agg((r->>'id')::uuid order by ord) into got
     from public.item_review_page(pending_item) with ordinality as t(r, ord);
   assert got=array[pending_pick], 'Owner sees their own needs_review review while the item is still pending: '||coalesce(got::text,'null');
+  select r into row_json from public.item_review_page(pending_item) r where r->>'id'=pending_pick::text;
+  assert (row_json->>'can_manage')::boolean and not (row_json->>'can_comment')::boolean,
+    'Pending owner review stays manageable but comment writes remain closed: '||row_json::text;
   reset role;
 
   assert (select prosecdef from pg_proc where oid='public.item_review_page(uuid,boolean,timestamptz,uuid,integer)'::regprocedure), 'The reader is security definer (RLS stays closed)';
