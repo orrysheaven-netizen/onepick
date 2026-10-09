@@ -26,7 +26,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $
+as $onepick_profile_body$
   select jsonb_build_object(
     'id', p.id,
     'username', p.username,
@@ -37,7 +37,7 @@ as $
     'updated_at', p.updated_at,
     'nickname', p.nickname
   );
-$;
+$onepick_profile_body$;
 revoke all on function private.public_profile_json(public.profiles) from public, anon, authenticated;
 
 -- Preserve the existing SECURITY DEFINER visibility and tombstone logic.
@@ -48,7 +48,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $onepick_profile_body$
   select jsonb_build_object(
     'id', c.id,
     'pick_id', c.pick_id,
@@ -70,7 +70,7 @@ as $
       and not private.user_is_suspended(c.user_id),
     'can_delete', p_viewer is not null and c.deleted_at is null and c.user_id = p_viewer
   );
-$;
+$onepick_profile_body$;
 
 create or replace function public.my_comment_page(
   p_after_time timestamptz default null,
@@ -82,7 +82,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $onepick_profile_body$
 declare
   v_viewer uuid := auth.uid();
 begin
@@ -122,7 +122,7 @@ begin
   order by cm.created_at desc, cm.id desc
   limit least(greatest(coalesce(p_limit, 20), 1), 100);
 end;
-$;
+$onepick_profile_body$;
 
 create or replace function public.item_review_page(
   p_item_id uuid,
@@ -136,7 +136,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $onepick_profile_body$
 declare
   v_viewer uuid := auth.uid();
 begin
@@ -226,6 +226,6 @@ begin
   order by r.is_current desc, r.started_at desc, r.id desc
   limit least(greatest(coalesce(p_limit, 20), 1), 100);
 end;
-$;
+$onepick_profile_body$;
 
 commit;
