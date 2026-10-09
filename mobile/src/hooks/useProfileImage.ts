@@ -30,12 +30,12 @@ export function useProfileImage(profileUserId: string, currentUrl: string | null
   // mutation's error on its own next run.
   const change = useMutation({
     mutationFn: () => profileImageService.chooseAndSave(profileUserId, currentUrl),
-    onMutate: () => clear.reset(),
+    onMutate: (): void => { clear.reset(); },
     onSuccess,
   });
   const clear = useMutation({
     mutationFn: () => profileImageService.clear(profileUserId, currentUrl),
-    onMutate: () => change.reset(),
+    onMutate: (): void => { change.reset(); },
     onSuccess,
   });
   return { change, clear, isPending: change.isPending || clear.isPending, error: change.error ?? clear.error };
