@@ -56,6 +56,18 @@ export interface RegisterItemPickResult {
   retried: boolean;
 }
 
+export interface RegisterUnclassifiedPickInput {
+  menuName: string;
+  oneLineReview: string;
+  requestId: string;
+  catalogId?: string | null;
+  placeName?: string;
+  mapUrl?: string;
+  imagePath: string;
+  thumbnailPath: string;
+  imageSourceUrl?: string;
+}
+
 export interface RecentPicksInput {
   excludeUserId?: string;
   categoryId?: string;
@@ -74,7 +86,9 @@ export interface PickRepository {
   changePick(input: ChangePickInput): Promise<Pick>;
   registerPick(input: RegisterPickRecordInput): Promise<Pick>;
   registerItemPick(input: RegisterItemPickInput): Promise<RegisterItemPickResult>;
+  registerUnclassifiedPick(input: RegisterUnclassifiedPickInput): Promise<RegisterItemPickResult>;
   updateReview(input: UpdatePickReviewInput): Promise<Pick>;
-  removePick(categoryId: string, channel?: PickChannel | null): Promise<void>;
+  removePick(categoryId: string, channel?: PickChannel | null, pickId?: string): Promise<void>;
   deleteReview(pickId: string): Promise<void>;
 }
+

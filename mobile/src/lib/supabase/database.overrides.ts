@@ -329,6 +329,13 @@ export type AppDatabase = Omit<Database, 'public'> & {
         };
         Returns: Json;
       };
+      register_unclassified_menu_pick: {
+        Args: { p_menu_name: string; p_one_line_review: string; p_request_id: string;
+          p_catalog_id?: string; p_place_name?: string; p_map_url?: string;
+          p_image_path?: string; p_thumbnail_path?: string; p_image_source_url?: string };
+        Returns: Json;
+      };
+      remove_pick_by_id: { Args: { p_pick_id: string }; Returns: undefined };
       store_menu_options: {
         Args: never;
         Returns: { category_id: string; name: string; group_name: string | null; place_enabled: boolean }[];

@@ -29,7 +29,9 @@ export interface AttachItemPhotoInput {
 
 export interface ImmediatePickRegistrationInput {
   userId: string;
-  categoryId: string;
+  categoryId: string | null;
+  /** Original dish name when automatic classification did not resolve a category. */
+  menuName?: string;
   channel: PickChannel;
   oneLineReview: string;
   requestId: string;
@@ -157,8 +159,27 @@ export class RegistrationService {
     if (!input.userId) throw new AppError('AUTH_REQUIRED');
     const review = input.oneLineReview.trim();
     if (!review || review.length > 100) throw new AppError('REVIEW_INVALID');
-    if (!input.categoryId) throw new AppError('CATEGORY_NOT_PICKABLE');
     if (!input.requestId) throw new AppError('INTERNAL_ERROR');
+
+    if (!input.categoryId) {
+      const menuName = input.menuName?.trim().replace(/\s+/g, ' ') ?? '';
+      if (!menuName || menuName.length > 40) throw new AppError('CATEGORY_NOT_PICKABLE');
+      if (input.channel !== 'offline' || input.brandId || input.providerId || input.itemId
+        || (!input.catalogId && !input.newPlace)) throw new AppError('ITEM_SELECTION_REQUIRED');
+      if (!input.photo) throw new AppError('PHOTO_REQUIRED');
+      await this.photoRepository.cleanupUnused(input.userId).catch(() => {});
+      const uploaded = await this.photoRepository.upload(input.userId, input.photo);
+      try {
+        return await this.pickRepository.registerUnclassifiedPick({
+          menuName, oneLineReview: review, requestId: input.requestId,
+          catalogId: input.catalogId, placeName: input.newPlace?.name,
+          mapUrl: input.newPlace?.mapUrl, ...uploaded, imageSourceUrl: input.photo.sourceUrl,
+        });
+      } finally {
+        // Attached files are protected by Storage RLS, including a lost RPC response.
+        await this.photoRepository.removeUnused([uploaded.imagePath, uploaded.thumbnailPath]).catch(() => {});
+      }
+    }
 
     // A store missing from the provider catalog must retain place identity.
     // stage_user_place_item creates the hidden place/catalog/provider-linked item;
@@ -332,3 +353,4 @@ export class RegistrationService {
     throw new AppError('ITEM_NOT_ELIGIBLE');
   }
 }
+
