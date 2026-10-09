@@ -7,6 +7,7 @@ import { BrandsPanel } from '@/components/admin/data/brands-panel';
 import { CategoriesPanel } from '@/components/admin/data/categories-panel';
 import { ChannelLinkPanel } from '@/components/admin/data/channel-link-panel';
 import { EditorialPanel } from '@/components/admin/data/editorial-panel';
+import { FeedbackEmailPanel } from '@/components/admin/data/feedback-email-panel';
 import { ItemsPanel } from '@/components/admin/data/items-panel';
 import { LinkSuggestionsPanel } from '@/components/admin/data/link-suggestions-panel';
 import { PendingPanel } from '@/components/admin/data/pending-panel';
@@ -33,6 +34,7 @@ export default function AdminDataScreen() {
 
       {/* Remount on tab change so each panel starts from its own fresh load. */}
       <View key={tab}>
+        {tab === 'feedback' && <FeedbackEmailPanel />}
         {tab === 'categories' && <CategoriesPanel />}
         {tab === 'brands' && <BrandsPanel />}
         {tab === 'providers' && <ProvidersPanel />}
@@ -54,3 +56,4 @@ const styles = StyleSheet.create({
   page: { gap: 20 },
   section: { color: OnePick.hint, fontSize: 12, fontWeight: '800', marginBottom: 4 },
 });
+
