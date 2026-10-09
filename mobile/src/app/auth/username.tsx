@@ -7,7 +7,7 @@ import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateProfile } from '@/hooks/useCreateProfile';
 import { getAuthIntent, getPostAuthRoute, type AuthIntent, type AuthReturnParams } from '@/lib/auth/authIntent';
-import { Button } from '@/components/ui';
+import { Button, Icon } from '@/components/ui';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
@@ -80,7 +80,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
       <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기"
           onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
 
         <View style={styles.body}>
@@ -113,7 +113,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
                 }}
                 onSubmitEditing={() => void handleSave()}
                 placeholder="onepick_user"
-                placeholderTextColor={OnePick.textTertiary}
+                placeholderTextColor={OnePick.textSecondary}
                 returnKeyType="done"
                 style={[styles.input, error ? styles.inputError : null]}
                 value={username}
@@ -130,7 +130,7 @@ function UsernameForm({ auth, intent }: { auth: ReturnType<typeof useAuthSession
           <View style={styles.footer}>
             <Button size="lg" fullWidth
               disabled={!valid || createProfile.isPending || phase.current !== 'idle'}
-              label={createProfile.isPending || phase.current === 'saving' ? '아이디 저장 중...' : '이 아이디로 시작'}
+              label={createProfile.isPending || phase.current === 'saving' ? '아이디 저장 중...' : '이 아이디로 시작하기'}
               onPress={() => void handleSave()} />
           </View>
         ) : null}
@@ -143,7 +143,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
   content: { flex: 1, width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter },
   backButton: { width: 44, height: 56, justifyContent: 'center' },
-  backText: { color: OnePick.textPrimary, fontSize: 28, lineHeight: 30 },
   body: { flex: 1, paddingTop: 10 },
   title: { ...OnePickType.pageTitle, color: OnePick.textPrimary, marginBottom: 18 },
   statusText: { ...OnePickType.body, color: OnePick.textSecondary },

@@ -45,14 +45,14 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
             ) : <Text style={styles.username}>사용자</Text>}
           </View>
         </>}
-        {isCurrent ? <CurrentPickFlag /> : null}
+        {isCurrent ? <CurrentPickFlag mine={isMine} /> : null}
         {canManage ? <PickManagementActions onOpen={setManageMode} /> : null}
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
           pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={itemName + ' 한줄평 대화 보기'} onPress={openConversation}
         style={({ pressed }) => pressed && styles.pressed}>
-        {isDeleted ? <Text style={styles.history}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
+        {isDeleted ? <Text style={styles.history}>삭제된 한줄평이에요. 기존 대화만 남아 있어요.</Text>
           : <Text style={[styles.review, isMine && styles.myReview]}>“{pick.oneLineReview}”</Text>}
       </Pressable>
       {canManage ? (

@@ -122,15 +122,15 @@ assert.doesNotMatch(card({ id: 'm1', userId: 'me', status: 'active', oneLineRevi
 // Share actions: icon per card, 신고 only behind ⋯ and never on my own Pick.
 const shareSource = source('components/pick-share-actions.tsx');
 assert.match(shareSource, /accessibilityLabel="이 원픽 공유"/);
-assert.match(shareSource, /<Text style=\{styles\.more\}>⋯<\/Text>/);
+assert.match(shareSource, /<Icon name="more" color=\{OnePick\.textSecondary\} \/>/, '더보기 is the shared 24px More icon, not a ⋯ glyph');
 assert.match(shareSource, /menuOpen && canReport && user \? <View style=\{styles\.menu\}>\s*<ReportAction/);
 assert.match(shareSource, /user\.id !== props\.authorUserId/);
 
 const currentFlagSource = source('components/current-pick-flag.tsx');
-assert.match(currentFlagSource, /accessibilityLabel="현재 원픽"/);
+assert.match(currentFlagSource, /accessibilityLabel=\{mine \? '내 현재 원픽' : '현재 원픽'\}/);
 assert.match(currentFlagSource, /width: 24/);
 assert.match(currentFlagSource, /height: 24/);
-assert.match(currentFlagSource, /OnePick\.brand/, 'Shared flag uses the Figma brand orange');
+assert.match(currentFlagSource, /source=\{mine \? flags\.mine : flags\.other\}/, 'Shared flag: my current Pick orange, anyone else dark gray (Figma 752:4349)');
 assert.doesNotMatch(currentFlagSource, /✓ 이 집 원픽|✓ 원픽/, 'Shared flag stays icon-only');
 
 const reviewCardSource = source('components/item-review-card.tsx');
@@ -138,14 +138,14 @@ assert.doesNotMatch(reviewCardSource, /PickReplies/, 'Item review cards never mo
 assert.match(reviewCardSource, /pathname: '\/pick\/\[pickId\]'/, 'Review body and count use the dedicated conversation route');
 assert.match(reviewCardSource, /params: \{ pickId: pick\.id, itemId \}/, 'Conversation route carries item identity for ended reviews');
 assert.match(reviewCardSource, /pick\.commentCount \?\? 0/, 'Review cards show the server-provided comment count');
-assert.match(reviewCardSource, /<CurrentPickFlag \/>/, 'Review rows use the shared Figma flag');
+assert.match(reviewCardSource, /<CurrentPickFlag mine=\{isMine\} \/>/, 'Review rows use the shared Figma flag');
 
 const conversationSource = source('app/pick/[pickId].tsx');
 assert.match(conversationSource, /useItemDetail\(itemId, user\?\.id, pickId/, 'Conversation detail resolves the review through item_review_page');
 assert.match(conversationSource, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/, 'Reply notifications and exact comment links forward focus into the thread');
 assert.match(conversationSource, /notificationKind === 'reply' && !replyTargetLoaded/, 'Reply read receipt waits for the located comment to load');
 assert.match(conversationSource, /canWrite=\{Boolean\(focused\.pick\.canComment\)\}/, 'Conversation writing follows item_review_page can_comment');
-assert.match(conversationSource, /<CurrentPickFlag \/>/, 'Conversation detail uses the shared icon-only current-Pick flag');
+assert.match(conversationSource, /<CurrentPickFlag mine=\{focused\.pick\.userId === user\?\.id\} \/>/,'Conversation detail uses the shared icon-only current-Pick flag');
 assert.doesNotMatch(conversationSource, /✓ 이 집 원픽|✓ 원픽/, 'Conversation detail has no current-Pick text badge');
 
 // PickReplies keeps its existing CRUD/composer behavior.
@@ -153,7 +153,7 @@ const repliesSource = source('components/pick-replies.tsx');
 assert.match(repliesSource, /useState\(!compact\)/);
 assert.match(repliesSource, /canComment && !composing \?/);
 assert.match(repliesSource, /const canComment = canWrite && !isSessionLoading && !sessionError/);
-assert.match(repliesSource, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag \/> : null/,
+assert.match(repliesSource, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag mine=\{author\.id === user\?\.id\} \/> : null/,
   'Visible comment authors get the flag only when the server says their current Pick matches this item/channel');
 assert.doesNotMatch(repliesSource, /✓ 이 집 원픽|✓ 원픽/, 'Comment authors use no current-Pick text badge');
 

@@ -125,18 +125,18 @@ function checkSavedNavigation() {
 
 async function main() {
   for (const [status, label] of [
-    [{ type: 'not_selected' }, '내 원픽으로 선택'],
-    [{ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' }, '이걸로 바꾸기'],
-    [{ type: 'selected_this', pickId: newPickId, oneLineReview: '이전 한줄평' }, '한줄평 저장'],
+    [{ type: 'not_selected' }, '내 원픽으로 고르기'],
+    [{ type: 'selected_other', pickId: 'old-pick', itemId: 'old-product' }, '원픽 바꾸기'],
+    [{ type: 'selected_this', pickId: newPickId, oneLineReview: '이전 한줄평' }, '한줄평 저장하기'],
   ]) {
     arrange(status); noSuccess(render()); submit(label); await flush();
     assert.equal(attempts.length, 1); assert.equal(attempts[0].oneLineReview, '직접 작성한 나의 이유');
     checkSavedNavigation();
   }
 
-  arrange(); mode = 'pending'; submit('내 원픽으로 선택'); noSuccess(render());
-  assert.equal(button('내 원픽으로 선택').disabled, true);
-  button('내 원픽으로 선택').onPress(); assert.equal(attempts.length, 1);
+  arrange(); mode = 'pending'; submit('내 원픽으로 고르기'); noSuccess(render());
+  assert.equal(button('내 원픽으로 고르기').disabled, true);
+  button('내 원픽으로 고르기').onPress(); assert.equal(attempts.length, 1);
   pending.resolve(result); await flush();
   // Stale/failed metadata reads must not send the user to an older Pick or imply the save failed.
   query.data = undefined; query.isError = true;
@@ -144,14 +144,14 @@ async function main() {
   assert.doesNotMatch(page, /정보를 불러오지 못했어요/);
   checkSavedNavigation();
 
-  arrange(); mode = 'failure'; submit('내 원픽으로 선택'); await flush();
+  arrange(); mode = 'failure'; submit('내 원픽으로 고르기'); await flush();
   noSuccess(render()); assert.equal(input.value, '  직접 작성한 나의 이유  ');
   assert.equal(destinations.length, 0, 'Failure must not navigate to a success target');
   assert.match(render(), /원픽을 저장하지 못했어요/);
-  mode = 'success'; button('내 원픽으로 선택').onPress(); await flush();
+  mode = 'success'; button('내 원픽으로 고르기').onPress(); await flush();
   assert.equal(attempts.length, 2); checkSavedNavigation();
 
-  arrange(); submit('내 원픽으로 선택'); await flush(); render();
+  arrange(); submit('내 원픽으로 고르기'); await flush(); render();
   auth.isLoading = true; noSuccess(render()); auth.isLoading = false;
   auth.error = new Error('session'); page = render(); noSuccess(page);
   assert.match(page, /로그인 상태를 확인하지 못했어요/); button('다시 확인하기').onPress(); assert.equal(retries, 1);
@@ -163,7 +163,7 @@ async function main() {
   assert.equal(destinations.at(-1).route.params.itemId, itemId);
 
   // Remount identity is explicit for both another account and another product.
-  arrange(); submit('내 원픽으로 선택'); await flush(); render();
+  arrange(); submit('내 원픽으로 고르기'); await flush(); render();
   let oldKey = mountedKey; auth.user = { id: 'different-user' }; noSuccess(render()); assert.notEqual(mountedKey, oldKey);
   assert.equal(input.value, '', 'Previous account draft must not be reused');
   oldKey = mountedKey; params = { itemId: 'new-item', categoryId };
@@ -171,7 +171,7 @@ async function main() {
   noSuccess(render()); assert.notEqual(mountedKey, oldKey);
   oldKey = mountedKey; params = { ...params, categoryId: 'other-category' }; noSuccess(render()); assert.notEqual(mountedKey, oldKey);
 
-  arrange(); mode = 'pending'; submit('내 원픽으로 선택'); render();
+  arrange(); mode = 'pending'; submit('내 원픽으로 고르기'); render();
   const oldResult = result; auth.user = { id: 'new-user' }; noSuccess(render());
   pending.resolve(oldResult); await flush(); noSuccess(render());
   assert.doesNotMatch(render(), /서버에서 확인한 나의 한줄평/, 'Late result belongs only to the unmounted old account form');

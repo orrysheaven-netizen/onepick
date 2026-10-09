@@ -11,6 +11,7 @@ import { useImportMusicCatalogItem, useMusicCatalogSearch } from '@/hooks/useMus
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { ImportedMusicItem, MusicCatalogEntry } from '@/types/domain/musicCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -162,7 +163,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 노래 원픽 찾기</Text>
       <Text style={styles.subtitle}>곡명과 가수명으로 찾고, 가장 좋아하는 녹음 버전 하나를 골라보세요.</Text>
       <Text style={styles.notice}>같은 곡의 여러 앨범 수록은 하나의 녹음으로 묶고, 라이브·리믹스·다른 가수의 녹음은 별도로 구분해요.</Text>
@@ -178,12 +179,12 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       <TextInput autoFocus accessibilityLabel="원픽 노래 제목 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={title}
         onChangeText={(value) => { if (!busy.current) { setTitle(value); setSelection(null); } }}
-        placeholder="예: 밤편지" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 밤편지" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       <Text style={styles.label}>가수명 · 선택</Text>
       <TextInput accessibilityLabel="원픽 가수 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={artist}
         onChangeText={(value) => { if (!busy.current) { setArtist(value); setSelection(null); } }}
-        placeholder="예: 아이유" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 아이유" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       {cleanTitle.length === 1 && cleanArtist.length < 2 ? <Text style={styles.stateText}>한 글자 곡명은 가수명을 함께 입력해주세요.</Text> : null}
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>등록된 노래와 MusicBrainz를 함께 찾고 있어요.</Text></View> : null}
@@ -198,7 +199,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 노래 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-          {selection.phase === 'failed' ? musicErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 노래 정보가 준비됐어요.' : '이전 노래 선택을 다시 이어갈 수 있어요.'}
+          {selection.phase === 'failed' ? musicErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 노래 정보를 준비했어요.' : '이전 노래 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
           ? <Pressable onPress={() => continueMusic(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 노래로 계속</Text></Pressable>
@@ -220,7 +221,7 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
           <Text style={styles.itemName}>{item.originalName ?? item.name}</Text>
           {item.creatorName ? <Text style={styles.meta}>{item.creatorName}</Text> : null}
           {item.collectionName ? <Text style={styles.meta}>{item.collectionName}{item.releaseYear ? ` · ${item.releaseYear}` : ''}</Text> : item.releaseYear ? <Text style={styles.meta}>{item.releaseYear}</Text> : null}
-          <Text style={styles.itemAction}>이 노래를 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 노래를 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -234,14 +235,14 @@ function MusicPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSes
           <Text style={styles.itemName}>{entry.title}</Text>
           <Text style={styles.artist}>{entry.artistName}</Text>
           <Text style={styles.meta}>{[entry.releaseTitle, entry.releaseYear, entry.disambiguation].filter(Boolean).join(' · ') || '음반 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '노래 정보를 준비하고 있어요…' : '이 노래를 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '노래 정보를 준비하고 있어요…' : '이 노래를 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 노래를 찾지 못했어요.</Text>
         <Text style={styles.stateText}>곡명 철자나 가수명을 바꿔서 검색해보세요.</Text></View> : null}
 
-      <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용합니다.</Text>
+      <Text style={styles.attribution}>음악 메타데이터: MusicBrainz · 표지가 있는 경우 Cover Art Archive를 사용해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -250,7 +251,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

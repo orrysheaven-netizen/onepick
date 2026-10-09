@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppError } from '@/errors/appError';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useFollowActions, useFollowState } from '@/hooks/useFollow';
 import { OnePick, OnePickType } from '@/constants/onepick';
 
@@ -135,11 +136,11 @@ export function FollowButton({
           </Pressable>
           <Pressable
             accessibilityRole="menuitem"
-            accessibilityLabel="팔로우 취소하지 않기"
+            accessibilityLabel="팔로우 취소 확인 닫기"
             disabled={pending}
             onPress={() => setConfirmingUnfollow(false)}
             style={({ pressed }) => [styles.cancelAction, pressed && styles.pressed]}>
-            <Text style={styles.cancelText}>취소</Text>
+            <Text style={styles.cancelText}>{DIALOG_CLOSE_LABEL}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -151,7 +152,7 @@ export function FollowButton({
 const styles = StyleSheet.create({
   container: { alignItems: 'flex-start' },
   containerFullWidth: { alignSelf: 'stretch', width: '100%' },
-  button: { minHeight: 40, minWidth: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accent, paddingHorizontal: 16 },
+  button: { minHeight: 44, minWidth: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: OnePick.accent, paddingHorizontal: 16 },
   buttonFullWidth: { width: '100%', height: 52, minHeight: 52, backgroundColor: OnePick.actionPrimary },
   buttonFollowing: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border },
   text: { color: OnePick.onAccent, fontSize: 13, fontWeight: '700' },
@@ -159,9 +160,9 @@ const styles = StyleSheet.create({
   textFollowing: { color: OnePick.muted },
   confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   confirmRowFullWidth: { alignSelf: 'stretch', justifyContent: 'flex-end' },
-  confirmAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: OnePick.danger },
+  confirmAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: OnePick.danger },
   confirmText: { color: OnePick.danger, fontSize: 12, fontWeight: '700' },
-  cancelAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10 },
+  cancelAction: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 10 },
   cancelText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 16, marginTop: 6 },
   pressed: { opacity: 0.7 },

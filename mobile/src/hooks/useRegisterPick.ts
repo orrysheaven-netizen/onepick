@@ -61,7 +61,7 @@ export function useRegisterItemPick() {
         eventName: 'pick_created',
         pickId: result.pickId,
         itemId: result.itemId,
-        categoryId: input.categoryId,
+        categoryId: input.categoryId ?? undefined,
         source: 'register_item_pick',
         path: '/pick/new',
       });
@@ -88,3 +88,4 @@ export function useRegisterPick() {
     },
   });
 }
+

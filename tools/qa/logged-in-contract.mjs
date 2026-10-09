@@ -22,28 +22,46 @@ export async function assertPublicProfile(page, timeout = 15_000) {
     .filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }
 
-export async function checkMenuSelection(page, menuName, timeout = 15_000, allowAi = true) {
+export async function checkMenuSelection(page, menuName, timeout = 15_000) {
   await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout });
   await page.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(menuName, { timeout });
-  const escaped = menuName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Preserve the scheduled QA's AI suggestion path; safe mode only accepts exact matches.
-  const chip = page.getByRole('button', { name: new RegExp(`^(?:.+ › )?${escaped}$${allowAi ? '|^AI 추천 ' : ''}`) });
+  const classified = page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true });
   try {
-    await chip.first().click({ timeout });
+    await classified.waitFor({ state: 'visible', timeout });
   } catch (error) {
-    // Only missing choices can be explained by a blocked recommendation.
-    // A disabled/covered chip or Next button must still fail in safety mode.
-    if (await chip.count() === 0) error.code = 'QA_MENU_CHOICE_UNAVAILABLE';
+    // A blocked recommendation can leave classification unavailable. The caller
+    // must also observe an actually blocked request before downgrading to a warning.
+    if (!(await classified.isVisible())) error.code = 'QA_MENU_CLASSIFICATION_UNAVAILABLE';
     throw error;
   }
   // confirmMenu may write: only trial-click the real, enabled Next button.
   await page.getByRole('button', { name: '다음', exact: true }).click({ trial: true, timeout });
 }
 
+function homeSearchDialog(page) {
+  return page.getByRole('heading', { name: '어떤 메뉴를 찾으세요?', exact: true }).locator('..');
+}
+
+export async function openHomeSearch(page, timeout = 15_000) {
+  await page.getByRole('button', { name: '메뉴 검색', exact: true }).click({ timeout });
+  const dialog = homeSearchDialog(page);
+  await dialog.getByRole('textbox', { name: '메뉴명', exact: true }).waitFor({ state: 'visible', timeout });
+  return dialog;
+}
+
+export async function submitHomeSearch(page, searchText, timeout = 15_000) {
+  const dialog = homeSearchDialog(page);
+  await dialog.getByRole('textbox', { name: '메뉴명', exact: true }).fill(searchText, { timeout });
+  await dialog.getByRole('button', { name: '검색하기', exact: true }).click({ timeout });
+  const results = dialog.getByRole('button', { name: / 상세 보기$/ });
+  await results.first().waitFor({ state: 'visible', timeout });
+  return results;
+}
+
 export async function assertNotifications(page, timeout = 15_000) {
   await page.getByRole('heading', { name: '알림', exact: true }).waitFor({ state: 'visible', timeout });
   const rows = page.getByRole('button', { name: /^(새|읽은) 알림, / });
-  const empty = page.getByText('아직 알림이 없어요', { exact: true });
+  const empty = page.getByText(/^아직 알림이 없어요[.!?…]?$/);
   const login = page.getByRole('button', { name: '로그인', exact: true });
   await rows.first().or(empty).or(login).first().waitFor({ state: 'visible', timeout });
   if (await login.isVisible()) throw new Error('알림 화면이 비로그인 상태로 보임');
@@ -128,5 +146,6 @@ export async function assertPickConversation(page, pickId, timeout = 15_000) {
     if (await page.getByText(blocked, { exact: true }).filter({ visible: true }).count()) throw new Error(`원픽 딥링크 오류 화면: ${blocked}`);
   }
   await page.getByRole('button', { name: '이전 화면', exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
-  await page.getByText(/^“.*”$|^삭제된 한줄평입니다/).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
+  await page.getByText(/^“.*”$|^삭제된 한줄평이에요/).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }
+

@@ -100,6 +100,12 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
   return `${column}.${comparison}.${cursor.timestamp},and(${column}.eq.${cursor.timestamp},id.${comparison}.${cursor.id})`;
 }
 
+/** "서울특별시", "강남구" → "서울 강남구" (store regions next to Pick counts). */
+function shortRegion(region1?: string | null, region2?: string | null) {
+  const first = region1?.trim().replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') || null;
+  return [first, region2?.trim() || null].filter(Boolean).join(' ') || null;
+}
+
 export class SupabaseReadRepository implements ReadRepository {
   constructor(private readonly client: AppSupabaseClient, private readonly countClient: AppSupabaseClient = client) {}
 
@@ -295,6 +301,36 @@ export class SupabaseReadRepository implements ReadRepository {
     }));
   }
 
+  async getFoodItemRecentRanking(channel: PickChannel | null = null, limit = 20) {
+    const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 50);
+    // Public aggregate like the menu ranking: personal blocks must not change it.
+    // database.types can lag this RPC, so keep the narrow cast here.
+    const { data, error } = await (this.countClient as any).rpc('food_item_recent_ranking', {
+      p_channel: channel,
+      p_limit: safeLimit,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    return data.map((row: any) => ({
+      itemId: row.item_id,
+      itemName: row.item_name,
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      pickCount: Number(row.pick_count) || 0,
+      rank: Number(row.rank) || 0,
+      isTied: Boolean(row.is_tied),
+      thumbnailUrl: this.cardThumbnailUrl(row),
+    }));
+  }
+
+  async getFoodMenuPickCounts(channel: PickChannel | null = null) {
+    // Public aggregate (like the menu ranking): personal blocks must not change it.
+    const { data, error } = await (this.countClient as any).rpc('food_menu_pick_counts', channel ? { p_channel: channel } : {});
+    if (error) throw mapSupabaseError(error);
+    if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    return new Map<string, number>(data.map((row: any) => [String(row.category_id), Number(row.pick_count) || 0]));
+  }
+
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     // Use the same public count client as item detail: personal blocks must not
     // change the aggregate. Optional channel scope is server-side before limiting.
@@ -388,6 +424,28 @@ export class SupabaseReadRepository implements ReadRepository {
         channels: channels.get(row.item_id) ?? [],
       })),
     };
+  }
+
+  async getSearchItemMeta(itemIds: string[]) {
+    const ids = [...new Set(itemIds)];
+    const meta: Record<string, { pickCount: number; region: string | null }> = {};
+    if (!ids.length) return meta;
+    for (const id of ids) meta[id] = { pickCount: 0, region: null };
+    const [counts, places] = await Promise.all([
+      // Server aggregate avoids PostgREST row limits under-counting popular search results.
+      (this.countClient as any).rpc('search_item_pick_counts', { p_item_ids: ids }),
+      // places/item_places are public reads; an item without a store simply has no region.
+      (this.countClient as any).from('item_places').select('item_id, places(region_1, region_2)').in('item_id', ids),
+    ]);
+    if (counts.error) throw mapSupabaseError(counts.error);
+    if (places.error) throw mapSupabaseError(places.error);
+    for (const row of (counts.data ?? []) as { item_id: string; pick_count: number | string }[]) {
+      if (meta[row.item_id]) meta[row.item_id].pickCount = Number(row.pick_count) || 0;
+    }
+    for (const row of (places?.data ?? []) as { item_id: string; places: { region_1?: string | null; region_2?: string | null } | null }[]) {
+      if (meta[row.item_id]) meta[row.item_id].region = shortRegion(row.places?.region_1, row.places?.region_2);
+    }
+    return meta;
   }
 
   async countActivePicks(itemId: string) {

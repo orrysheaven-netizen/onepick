@@ -12,6 +12,10 @@ export class ExploreService {
 
   getCategories() { return this.categoryRepository.getBrowseCategories(); }
 
+  getFoodMenuPickCounts(channel: PickChannel | null = null) {
+    return this.readRepository.getFoodMenuPickCounts(channel);
+  }
+
   getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     return this.readRepository.getCategoryTopItems(categoryId, channel);
   }

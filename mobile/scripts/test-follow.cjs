@@ -19,6 +19,7 @@ function loadSource(relativePath, imports = {}, jsx = false) {
     exports,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       assert.ok(name in imports, 'Unexpected runtime dependency: ' + name);
       return imports[name];
@@ -132,7 +133,7 @@ async function main() {
   const followButtonSource = fs.readFileSync(path.join(root, 'src/components/follow-button.tsx'), 'utf8');
   assert.match(followButtonSource, /setConfirmingUnfollow\(true\)/);
   assert.match(followButtonSource, />팔로우 취소<\/Text>/);
-  assert.match(followButtonSource, /accessibilityLabel="팔로우 취소하지 않기"/);
+  assert.match(followButtonSource, /accessibilityLabel="팔로우 취소 확인 닫기"/);
   assert.ok(
     followButtonSource.indexOf('if (isSelf) return null;') > followButtonSource.lastIndexOf('useEffect(() =>'),
     'Self-profile early return stays after hooks so hook order cannot change between renders',

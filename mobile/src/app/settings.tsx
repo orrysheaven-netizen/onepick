@@ -9,14 +9,15 @@ import { useBlockedUsers, useSafetyActions } from '@/hooks/useSafety';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useNotificationPreferences, useSetFolloweePickChange } from '@/hooks/useNotifications';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Button, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
+import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 
 function deletionError(error: unknown) {
   if (error instanceof AppError && error.code === 'ACCOUNT_DELETE_FAILED') {
-    return '계정을 삭제하지 못했습니다. 다시 시도해주세요.';
+    return '계정을 삭제하지 못했어요. 다시 시도해주세요.';
   }
-  return '계정을 삭제하지 못했습니다. 네트워크 상태를 확인하고 다시 시도해주세요.';
+  return '계정을 삭제하지 못했어요. 네트워크 상태를 확인하고 다시 시도해주세요.';
 }
 
 export default function SettingsScreen() {
@@ -47,14 +48,14 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Text style={styles.backText}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text style={styles.title}>설정</Text>
 
         {isLoading ? <StateCard loading title="로그인 상태를 확인하고 있어요." /> : null}
 
         {!isLoading && !user ? (
-          <StateCard title="로그인이 필요해요." text="차단 목록과 계정 설정은 로그인 후 관리할 수 있습니다."
+          <StateCard title="로그인이 필요해요." text="차단 목록과 계정 설정은 로그인 후 관리할 수 있어요."
             action={{ label: '로그인', variant: 'primary', onPress: () => router.push('/auth/login') }} />
         ) : null}
 
@@ -66,7 +67,7 @@ export default function SettingsScreen() {
               <View style={styles.switchRow}>
                 <View style={styles.switchCopy}>
                   <Text style={styles.switchLabel}>팔로우한 사람의 원픽 변경</Text>
-                  <Text style={styles.body}>팔로우한 사람이 원픽을 새로 고르거나 바꾸면 알림에 표시합니다. 한줄평만 고친 경우는 알리지 않아요.</Text>
+                  <Text style={styles.body}>팔로우한 사람이 원픽을 새로 고르거나 바꾸면 알림에 표시해요. 한줄평만 고친 경우는 알리지 않아요.</Text>
                 </View>
                 <Switch
                   accessibilityLabel="팔로우한 사람의 원픽 변경 알림"
@@ -76,7 +77,7 @@ export default function SettingsScreen() {
                   trackColor={{ true: OnePick.actionPrimary, false: OnePick.borderDefault }}
                 />
               </View>
-              {preferences.isError ? <Text style={styles.error}>알림 설정을 불러오지 못했어요. 기본값(켜짐)으로 동작합니다.</Text> : null}
+              {preferences.isError ? <Text style={styles.error}>알림 설정을 불러오지 못했어요. 기본값(켜짐)으로 동작해요.</Text> : null}
               {setFolloweePickChange.isError ? <Text style={styles.error}>알림 설정을 저장하지 못했어요. 다시 시도해주세요.</Text> : null}
             </View>
             </> : null}
@@ -87,11 +88,11 @@ export default function SettingsScreen() {
               {blocked.isError ? (
                 <Button variant="ghost" size="sm" style={styles.inlineAction} label="차단 목록 다시 불러오기" onPress={() => void blocked.refetch()} />
               ) : null}
-              {blocked.data?.length === 0 ? <Text style={styles.empty}>차단한 사용자가 없습니다.</Text> : null}
+              {blocked.data?.length === 0 ? <Text style={styles.empty}>차단한 사용자가 없어요.</Text> : null}
               {blocked.data?.map((item) => (
                 <View key={item.blockedUserId} style={styles.blockRow}>
                   <Text style={styles.blockName}>{item.blockedUsername ? `@${item.blockedUsername}` : '비공개 사용자'}</Text>
-                  <Button variant="secondary" size="sm" label="차단 해제" disabled={safety.unblockUser.isPending}
+                  <Button variant="secondary" size="sm" label="차단 해제하기" disabled={safety.unblockUser.isPending}
                     onPress={() => void safety.unblockUser.mutateAsync({
                       blockerUserId: user.id,
                       blockedUserId: item.blockedUserId,
@@ -99,16 +100,16 @@ export default function SettingsScreen() {
                 </View>
               ))}
               {safety.unblockUser.isError ? <Text accessibilityRole="alert" style={styles.error}>차단을 해제하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.</Text> : null}
-              <Text style={styles.body}>차단하면 서로의 프로필, 원픽, 댓글이 로그인 상태에서 보이지 않습니다.</Text>
+              <Text style={styles.body}>차단하면 서로의 프로필, 원픽, 댓글이 로그인 상태에서 보이지 않아요.</Text>
             </View>
 
             <Text style={styles.sectionLabel}>안내</Text>
             <View style={styles.card}>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/privacy')} style={({ pressed }) => [styles.linkRow, styles.linkRowDivider, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>개인정보·YouTube API 안내</Text><Text style={styles.chevron}>›</Text>
+                <Text style={styles.linkText}>개인정보·YouTube API 안내</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
               </Pressable>
               <Pressable accessibilityRole="link" onPress={() => router.push('/legal/terms')} style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>YouTube API 이용조건</Text><Text style={styles.chevron}>›</Text>
+                <Text style={styles.linkText}>YouTube API 이용조건</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
               </Pressable>
             </View>
 
@@ -116,27 +117,27 @@ export default function SettingsScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>계정 삭제</Text>
               <Text style={styles.body}>
-                내 프로필, 원픽 기록, 댓글과 차단 정보가 삭제됩니다. 이미 승인되어 정식 등록된 정보는 서비스 데이터로 유지될 수 있지만 내 계정과의 연결은 제거됩니다.
+                내 프로필, 원픽 기록, 댓글과 차단 정보가 삭제돼요. 이미 승인되어 정식 등록된 정보는 서비스 데이터로 유지될 수 있지만 내 계정과의 연결은 제거돼요.
               </Text>
               {confirmDelete ? (
-                <Text style={styles.confirmText}>계정 삭제는 되돌릴 수 없습니다. 한 번 더 누르면 삭제합니다.</Text>
+                <Text style={styles.confirmText}>계정 삭제는 되돌릴 수 없어요. 한 번 더 누르면 삭제해요.</Text>
               ) : null}
               {deleteAccount.isError ? <Text style={styles.error}>{deletionError(deleteAccount.error)}</Text> : null}
               <View style={styles.actionRow}>
                 {confirmDelete ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="계정 삭제 확인"
+                    accessibilityLabel="계정 삭제하기"
                     disabled={deleteAccount.isPending}
                     onPress={() => void handleDeleteAccount()}
                     style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}>
-                    {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제 확인</Text>}
+                    {deleteAccount.isPending ? <ActivityIndicator color={OnePick.onAccent} /> : <Text style={styles.deleteButtonText}>계정 삭제하기</Text>}
                   </Pressable>
                 ) : (
-                  <Button variant="dangerText" size="sm" label="계정 삭제" onPress={() => void handleDeleteAccount()} />
+                  <Button variant="dangerText" size="sm" label="계정 삭제하기" onPress={() => void handleDeleteAccount()} />
                 )}
                 {confirmDelete && !deleteAccount.isPending ? (
-                  <Button variant="secondary" size="sm" label="취소" onPress={() => setConfirmDelete(false)} />
+                  <Button variant="secondary" size="sm" label={DIALOG_CLOSE_LABEL} onPress={() => setConfirmDelete(false)} />
                 ) : null}
               </View>
             </View>
@@ -165,7 +166,6 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     marginLeft: -OnePickSpace.sm,
   },
-  backText: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
   title: {
     ...OnePickType.pageTitle,
     color: OnePick.textPrimary,
@@ -222,7 +222,6 @@ const styles = StyleSheet.create({
   },
   linkRowDivider: { borderBottomWidth: 1, borderBottomColor: OnePick.borderDefault },
   linkText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  chevron: { ...OnePickType.title, color: OnePick.textTertiary },
   signOut: { alignItems: 'center', marginTop: OnePickSpace.xl },
   deleteButton: {
     minHeight: 40,

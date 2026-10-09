@@ -6,12 +6,15 @@ export const queryKeys = {
     data: (userId?: string) => ['home', userId ?? 'public'] as const,
     menuRanking: (groupCategoryId: string | null = null, channel: string | null = null) =>
       ['home', 'menu-ranking', groupCategoryId ?? 'all', channel ?? 'all-channels'] as const,
+    itemRanking: (channel: string | null = null, limit = 20) =>
+      ['home', 'item-ranking', channel ?? 'all-channels', limit] as const,
     dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
       ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
     myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
   },
   explore: {
     all: ['explore'] as const,
+    menuPickCounts: (channel: string | null = null) => ['explore', 'menu-pick-counts', channel ?? 'all-channels'] as const,
     topItems: (categoryId?: string, channel: string | null = null) =>
       ['explore', categoryId ?? 'all', 'top-items', channel ?? 'all-channels'] as const,
     ranking: (slug?: string, channel: string | null = null, rootSlug: string | null = null) =>

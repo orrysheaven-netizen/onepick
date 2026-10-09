@@ -12,6 +12,16 @@ function normalizeUsername(value: string) {
   return username;
 }
 
+function itemHasVisiblePhoto(item: Item | null | undefined) {
+  if (!item) return false;
+  return [item.imagePath, item.imageUrl, item.thumbnailUrl, item.imageSourceUrl]
+    .some((value) => typeof value === 'string' && value.trim().length > 0);
+}
+
+function visibleCurrentPicks<T extends { item: Item | null }>(rows: T[]) {
+  return rows.filter((row) => itemHasVisiblePhoto(row.item));
+}
+
 export class ProfileService {
   constructor(
     private readonly profileRepository: ProfileRepository,
@@ -50,7 +60,10 @@ export class ProfileService {
       limit: 100,
     });
 
-    return { profile, currentPicks: await this.withMyPendingPhotos(userId, currentPicks) };
+    const withPendingPhotos = await this.withMyPendingPhotos(userId, currentPicks);
+    // Keep my own legacy photo-less current Picks reachable so I can manage or replace them.
+    // Public profiles filter them below.
+    return { profile, currentPicks: withPendingPhotos };
   }
 
   /**
@@ -61,7 +74,7 @@ export class ProfileService {
   private async withMyPendingPhotos<T extends { item: Item | null }>(userId: string, rows: T[]) {
     const itemIds = rows
       .map((row) => row.item)
-      .filter((item): item is Item => Boolean(item && !item.imagePath && !item.imageUrl && !item.thumbnailUrl && !item.imageSourceUrl))
+      .filter((item): item is Item => Boolean(item && !itemHasVisiblePhoto(item)))
       .map((item) => item.id);
     if (!this.itemRepository || itemIds.length === 0) return rows;
     const photos = await this.itemRepository.getMyPendingPhotos(userId, itemIds).catch(() => null);
@@ -124,7 +137,7 @@ export class ProfileService {
 
     return {
       profile,
-      currentPicks,
+      currentPicks: visibleCurrentPicks(currentPicks),
       isMine: currentUserId === profile.id,
     };
   }

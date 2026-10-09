@@ -12,6 +12,7 @@ import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { itemTitle } from '@/lib/items/itemTitle';
 import { observabilityService } from '@/services';
+import { Icon } from '@/components/ui';
 
 type Params = {
   pickId?: string;
@@ -73,6 +74,17 @@ export default function PickDetailScreen() {
     () => itemQuery.data?.picks.find(({ pick }) => pick.id === pickId) ?? null,
     [itemQuery.data?.picks, pickId],
   );
+  const focusedItemHasPhoto = Boolean(itemQuery.data?.item && [
+    itemQuery.data.item.imagePath,
+    itemQuery.data.item.imageUrl,
+    itemQuery.data.item.thumbnailUrl,
+    itemQuery.data.item.imageSourceUrl,
+  ].some((value) => typeof value === 'string' && value.trim().length > 0));
+  const hiddenPhotoLessPick = Boolean(
+    focused
+    && focused.pick.userId !== user?.id
+    && !focusedItemHasPhoto
+  );
 
   useEffect(() => {
     if (!user || !focused || !notificationGroupId || !notificationSnapshot) return;
@@ -108,7 +120,7 @@ export default function PickDetailScreen() {
     <SafeAreaView style={styles.page} edges={['top']}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="이전 화면" onPress={goBack} style={styles.headerSide}>
-          <Text style={styles.back}>‹</Text>
+          <Icon name="back" />
         </Pressable>
         <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{title}</Text>
         <View style={styles.headerSide} />
@@ -122,9 +134,16 @@ export default function PickDetailScreen() {
             <Text style={styles.retryText}>홈으로</Text>
           </Pressable>
         </View>
+        : hiddenPhotoLessPick ? <View style={styles.state}>
+          <Text style={styles.stateTitle}>현재 공개 중인 원픽이 아니에요.</Text>
+          <Text style={styles.stateText}>사진이 있는 원픽만 공개하고 있어요.</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.retry}>
+            <Text style={styles.retryText}>홈으로</Text>
+          </Pressable>
+        </View>
         : failed || !focused ? <View style={styles.state}>
           <Text style={styles.stateTitle}>한줄평을 볼 수 없어요.</Text>
-          <Text style={styles.stateText}>삭제되었거나 공개되지 않은 한줄평일 수 있어요.</Text>
+          <Text style={styles.stateText}>삭제됐거나 공개되지 않은 한줄평일 수 있어요.</Text>
           <Pressable accessibilityRole="button" onPress={() => { if (needsPickLookup) void pickQuery.refetch(); if (itemId) void itemQuery.refetch(); }} style={styles.retry}>
             <Text style={styles.retryText}>다시 불러오기</Text>
           </Pressable>
@@ -135,10 +154,10 @@ export default function PickDetailScreen() {
               <Text style={styles.author}>
                 {focused.profile ? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
               </Text>
-              {focused.pick.isCurrent ? <CurrentPickFlag /> : null}
+              {focused.pick.isCurrent ? <CurrentPickFlag mine={focused.pick.userId === user?.id} /> : null}
             </View>
             {focused.pick.isDeleted
-              ? <Text style={styles.reviewText}>삭제된 한줄평입니다. 기존 대화만 남아 있어요.</Text>
+              ? <Text style={styles.reviewText}>삭제된 한줄평이에요. 기존 대화만 남아 있어요.</Text>
               : <Text style={styles.reviewText}>{'“' + focused.pick.oneLineReview + '”'}</Text>}
           </View>
           <PickReplies
@@ -170,7 +189,6 @@ const styles = StyleSheet.create({
     borderBottomColor: OnePick.borderDefault,
   },
   headerSide: { width: 48, minHeight: 44, justifyContent: 'center' },
-  back: { ...OnePickType.headline, color: OnePick.textPrimary },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   content: { width: '100%', maxWidth: 390, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },

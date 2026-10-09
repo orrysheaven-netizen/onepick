@@ -15,6 +15,7 @@ function loadSource(relativePath, imports = {}) {
     exports,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
       if (name in imports) return imports[name];
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
@@ -121,7 +122,7 @@ async function main() {
   destination = undefined;
   detail.myPickStatus = { type: 'selected_other', currentPickId: 'previous', currentItemId: 'previous-item' };
   render(Item);
-  assert.ok(presses.find((p) => p.accessibilityLabel === '이걸로 원픽 바꾸기'), 'Another Pick in the category keeps the uncolored mark with a change label');
+  assert.ok(presses.find((p) => p.accessibilityLabel === '원픽 바꾸기'), 'Another Pick in the category keeps the uncolored mark with a change label');
   detail.myPickStatus = { type: 'selected_this', pickId: 'mine', oneLineReview: '기존 한줄평' };
   detail.canChoose = false;
 
@@ -153,7 +154,7 @@ async function main() {
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
   const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
-  const changeButton = () => presses.find((p) => p.accessibilityLabel === '이걸로 바꾸기');
+  const changeButton = () => presses.find((p) => p.accessibilityLabel === '원픽 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');
   assert.equal(changeButton().disabled, false);
@@ -223,7 +224,7 @@ async function main() {
   } finally { process.removeListener('unhandledRejection', capture); }
   pick.status = 'needs_review';
   canWrite = false;
-  assert.match(render(Pick), /현재 댓글을 남길 수 없는 한줄평입니다/);
+  assert.match(render(Pick), /지금은 댓글을 남길 수 없는 한줄평이에요/);
   assert.equal(inputs.length, 0);
   pick.status = 'active';
   canWrite = true;
@@ -264,8 +265,8 @@ async function main() {
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
-    '@/components/item-search': { ItemSearch: () => null },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useCategoryTopItems: () => rankingQuery,
+    '@/components/item-search': { ItemSearch: () => null }, '@/components/explore-search-results': { ExploreSearchResults: () => null },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: browseCategories, refetch() {} }), useFoodMenuPickCounts: () => ({ data: new Map(), isError: false, isFetching: false, isRefetching: false, refetch() {} }), useCategoryTopItems: () => rankingQuery,
       useRecentPickedItems: () => ({ data: [], isPending: false, isError: false, isFetching: false, hasNextPage: false, refetch() {} }) },
   });
   const ranking = render(Explore);

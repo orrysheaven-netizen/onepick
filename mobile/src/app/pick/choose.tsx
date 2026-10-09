@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { PickPhotoStep } from '@/components/pick-photo-step';
-import { BrandMark, Button, StateCard } from '@/components/ui';
+import { BrandMark, Button, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
@@ -19,7 +19,7 @@ import { OnePick, OnePickFeatures, OnePickMvp } from '@/constants/onepick';
 function getErrorMessage(error: unknown) {
   if (!(error instanceof AppError)) return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   switch (error.code) {
-    case 'AUTH_REQUIRED': return '로그인이 만료되었거나 확인되지 않았어요. 다시 로그인한 뒤 선택을 이어가주세요.';
+    case 'AUTH_REQUIRED': return '로그인이 만료됐거나 확인되지 않았어요. 다시 로그인한 뒤 선택을 이어가주세요.';
     case 'PROFILE_NOT_FOUND': return '원픽을 남기려면 사용자명을 먼저 정해주세요.';
     case 'CATEGORY_NOT_PICKABLE': return '지금은 이 카테고리에서 원픽을 고를 수 없어요.';
     case 'ITEM_NOT_ELIGIBLE':
@@ -97,12 +97,12 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  const formTitle = pickStatus?.type === 'selected_other' ? '이걸로 원픽을 바꿀까요?'
+  const formTitle = pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
-    if (pickStatus?.type === 'selected_other') return '이걸로 바꾸기';
-    if (pickStatus?.type === 'selected_this') return '한줄평 저장';
-    return '내 원픽으로 선택';
+    if (pickStatus?.type === 'selected_other') return '원픽 바꾸기';
+    if (pickStatus?.type === 'selected_this') return '한줄평 저장하기';
+    return '내 원픽으로 고르기';
   }, [pickStatus]);
 
   const handleSubmit = async () => {
@@ -188,7 +188,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" disabled={saving} onPress={goBack}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
         {isLoading ? <View style={styles.stateArea}><StateCard loading title="정보를 확인하고 있어요." /></View> : null}
         {!isLoading && !isSuccess && (itemQuery.isError || !item || !routeMatchesItem) ? <View style={styles.stateArea}>
           <StateCard tone="danger" title="정보를 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 불러와주세요. 없어졌거나 사용할 수 없는 링크일 수도 있어요."
@@ -208,7 +208,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         {hasItem && item && canChoose && !user ? <View style={styles.panel}>
           {itemPhoto}
           <Text style={styles.panelTitle}>원픽을 고르려면 로그인이 필요해요.</Text>
-          <Text style={styles.panelText}>선택한 원픽을 기억해두고 로그인 뒤 이 화면으로 바로 돌아옵니다.</Text>
+          <Text style={styles.panelText}>선택한 원픽을 기억해두고 로그인 뒤 이 화면으로 바로 돌아와요.</Text>
           <Button size="lg" fullWidth label="로그인하고 계속" onPress={openLogin} style={styles.panelAction} />
           <Button variant="ghost" label="다음에 고르기" onPress={goBack} />
         </View> : null}
@@ -219,16 +219,16 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {itemPhoto}
             <View style={styles.itemCopy}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 이걸로 변경합니다.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정합니다.' : '이걸 새 원픽으로 선택합니다.'}</Text>
+              <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 변경해요.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정해요.' : '이걸 새 원픽으로 선택해요.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.` : '저장하면 이 카테고리의 원픽이 이걸로 바뀌고, 이전 선택은 기록으로 남아요.'}</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 바뀌어요.` : '저장하면 이 카테고리의 원픽이 바뀌어요.'}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
-            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.hint} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
+            placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.textSecondary} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
           {OnePickFeatures.purchaseLinks ? <>
@@ -236,7 +236,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <TextInput accessibilityLabel="산 곳 링크" autoCapitalize="none" autoCorrect={false} editable={!saving}
             inputMode="url" maxLength={2048}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftUrl(value); }}
-            placeholder="https://" placeholderTextColor={OnePick.hint}
+            placeholder="https://" placeholderTextColor={OnePick.textSecondary}
             style={[styles.linkInput, hasUrlDraft && !isValidUrl && styles.reviewInputError]} value={draftUrl ?? ''} />
           <Text style={styles.helperText}>안 남겨도 괜찮아요. 제휴 링크는 저장할 때 추적 정보를 떼고 보관해요.</Text>
           {hasUrlDraft && !isValidUrl ? <Text accessibilityRole="alert" style={styles.reviewError}>https:// 로 시작하는 주소만 남길 수 있어요.</Text> : null}
@@ -253,7 +253,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <View style={styles.inputHeader}><Text style={styles.inputLabel}>살 때 팁</Text><Text style={styles.counter}>{(draftTip ?? '').length}/100</Text></View>
             <TextInput accessibilityLabel="살 때 팁" maxLength={100} multiline editable={!saving}
               onChangeText={(value) => { if (submitPhase.current !== 'saving') setDraftTip(value); }}
-              placeholder="예: 6개입이 낱개보다 싸요." placeholderTextColor={OnePick.hint}
+              placeholder="예: 6개입이 낱개보다 싸요." placeholderTextColor={OnePick.textSecondary}
               style={styles.linkInput} value={draftTip ?? ''} />
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
           </> : null}
@@ -288,7 +288,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <Text style={styles.offerTitle}>내가 고른 {photoCandidate.name}에 사진도 남겨볼까요?</Text>
             <Text style={styles.offerText}>올린 사진은 내 원픽뿐 아니라, 같은 원픽을 고른 사람들의 카드에도 함께 표시돼요. 사진 아래에는 등록자 이름이 남아요.</Text>
             <Text style={styles.offerText}>이름이 잘 보이는 사진이면 충분해요.</Text>
-            <Button variant="secondary" label="사진 등록" accessibilityLabel="내 원픽 사진 등록" onPress={openPhoto} style={styles.offerAction} />
+            <Button variant="secondary" label="사진 등록하기" accessibilityLabel="내 원픽 사진 등록하기" onPress={openPhoto} style={styles.offerAction} />
             <Button variant="ghost" size="sm" label="지금은 넘어가기" onPress={skipPhoto} />
           </View> : null}
         </View> : null}
@@ -305,7 +305,6 @@ const styles = StyleSheet.create({
   markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
   markLabel: { color: OnePick.accentDeep, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5, marginLeft: -10 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 38, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   notice: { backgroundColor: OnePick.accentSoft, borderRadius: 20, padding: 14, marginTop: 12 },
   noticeText: { color: OnePick.accentDeep, fontSize: 14, lineHeight: 20 },

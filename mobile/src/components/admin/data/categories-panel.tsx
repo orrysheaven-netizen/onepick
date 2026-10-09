@@ -198,7 +198,7 @@ function CategoryRow({ category, pathLabel, onSaved, onError }: { category: Admi
       </View>
 
       <Pressable disabled={saving} onPress={save} style={[adminStyles.secondaryButton, saving && { opacity: 0.5 }]}>
-        <Text style={adminStyles.secondaryButtonText}>{saving ? '저장 중' : '저장'}</Text>
+        <Text style={adminStyles.secondaryButtonText}>{saving ? '저장 중' : '저장하기'}</Text>
       </Pressable>
     </View>
   );

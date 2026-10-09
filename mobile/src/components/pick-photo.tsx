@@ -17,8 +17,10 @@ type Props = {
   itemStatus?: string;
   /** Preserve existing-photo protection even when a read model has no usable URL. */
   hasPhoto?: boolean;
-  /** Home feed card frame: a square with the item name as its placeholder. */
+  /** Legacy compact Home feed frame. */
   feed?: boolean;
+  /** Figma Feed Card v3 photo: full-width × 176px, radius 16, cover crop. */
+  feedCard?: boolean;
   /** Profile tile frame: fills the column width at 1:1. */
   square?: boolean;
   /** The item's brand logo: a corner badge on the photo, or the image itself when there is no photo. */
@@ -45,21 +47,36 @@ function LogoBadge({ uri, large, onError }: { uri: string; large: boolean; onErr
 // Every frame is square and fits the whole photo inside it: restaurant photos
 // come in any shape and cropping cut off the dish or the storefront.
 // Image order: the menu photo, then the brand logo, then the name placeholder.
-export function PickPhoto({ uri, label, large = false, size = 86, compactRadius, itemId, itemStatus = 'active', hasPhoto = false, feed = false, square = false, logoUri }: Props) {
+export function PickPhoto({ uri, label, large = false, size = 86, compactRadius, itemId, itemStatus = 'active', hasPhoto = false, feed = false, feedCard = false, square = false, logoUri }: Props) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const [failedLogo, setFailedLogo] = useState<string | null>(null);
   const initial = Array.from(label.trim())[0]?.toUpperCase() ?? '1';
-  const compact = (size === 62 || size === 64) && !large && !feed && !square;
+  const compact = (size === 62 || size === 64) && !large && !feed && !feedCard && !square;
   const canAdd = Boolean(!compact && itemId && !uri && !hasPhoto && ['active', 'discontinued'].includes(itemStatus));
   const failed = Boolean(uri && failedUri === uri);
   const logo = logoUri && failedLogo !== logoUri ? logoUri : null;
   const showPhoto = Boolean(uri && !failed);
-  const badge = showPhoto && logo ? <LogoBadge uri={logo} large={large || square} onError={() => setFailedLogo(logo)} /> : null;
+  const badge = showPhoto && logo ? <LogoBadge uri={logo} large={large || feedCard || square} onError={() => setFailedLogo(logo)} /> : null;
   const logoImage = !showPhoto && logo
     ? <View style={styles.logoFill}>
         <Image source={{ uri: logo }} accessibilityLabel={`${label} 브랜드 로고`} style={styles.image} contentFit="contain" cachePolicy="memory-disk" recyclingKey={logo} onError={() => setFailedLogo(logo)} />
       </View>
     : null;
+  if (feedCard) {
+    return <View style={[styles.frame, styles.feedCard]}>
+      {showPhoto
+        ? <Image source={{ uri: uri! }} accessibilityLabel={label} style={styles.image} contentFit="cover" cachePolicy="memory-disk" recyclingKey={uri!} onError={() => setFailedUri(uri!)} />
+        : logoImage && canAdd ? <>
+          {logoImage}
+          <View style={styles.addOverLogo}><AddPhotoButton itemId={itemId!} label={label} /></View>
+        </>
+        : logoImage ? logoImage
+        : canAdd ? <View style={styles.empty}><AddPhotoButton itemId={itemId!} label={label} /></View>
+        : failed ? <Text style={styles.fallback}>사진을 불러올 수 없어요.</Text>
+        : <View accessibilityLabel={`${label} 이미지 준비 중`} style={styles.compactPlaceholder} />}
+      {badge}
+    </View>;
+  }
   if (feed) {
     return <View style={[styles.frame, styles.feed]}>
       {showPhoto
@@ -100,6 +117,7 @@ const styles = StyleSheet.create({
   thumb64: { width: 64, height: 64, borderRadius: 8 },
   large: { width: '100%', aspectRatio: 1, marginBottom: 14 },
   feed: { width: 86, height: 86, borderRadius: 12 },
+  feedCard: { width: '100%', height: 176, borderRadius: 16 },
   square: { width: '100%', aspectRatio: 1, borderRadius: 12 },
   feedPlaceholder: { width: '100%', height: '100%', justifyContent: 'flex-end', paddingHorizontal: 9, paddingVertical: 9, backgroundColor: OnePick.accent },
   feedPlaceholderName: { color: OnePick.onAccent, fontSize: 12, lineHeight: 16, fontWeight: '800' },

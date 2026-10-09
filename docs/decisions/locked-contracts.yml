@@ -1,0 +1,25 @@
+version: 1
+approval_authority: human_code_owner
+tracking_tag_only: Changes-Decision
+contracts:
+  - id: UI-BOTTOM-001
+    status: locked
+    statement: "Web bottom navigation uses the approved floating five-tab layout: 16px horizontal gutter, 64px bar height, 24px radius, 8px gap above max(device bottom inset, 34px), and at least 8px clear space between scroll content and the floating bar; every tab keeps a minimum 44x44px touch target."
+    executable_checks:
+      - mobile/scripts/test-brand-controls.cjs
+  - id: UI-BG-001
+    status: locked
+    statement: "The default OnePick screen canvas/background is #FFFFFF."
+    executable_checks:
+      - mobile/scripts/test-brand-controls.cjs
+  - id: UX-NAV-001
+    status: locked
+    statement: "Public profile remains inside the Profile tab stack so the established five-tab bottom navigation remains mounted."
+    executable_checks:
+      - mobile/scripts/test-profile-tab-stack.cjs
+  - id: UX-SWIPE-001
+    status: locked
+    statement: "On every OnePick user screen with a real previous screen, a left-to-right back swipe returns to that actual previous screen. If no real previous screen exists, swipe-back is a no-op. The gesture must not terminate the app, show a blank screen, double-navigate, or break existing back-button taps. Admin routes are outside this user-app contract."
+    executable_checks:
+      - mobile/scripts/test-profile-tab-stack.cjs
+      - mobile/scripts/test-dead-end-navigation.cjs

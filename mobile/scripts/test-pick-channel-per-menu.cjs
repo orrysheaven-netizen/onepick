@@ -108,7 +108,7 @@ async function main() {
   assert.match(choose, /routeChannel && !OnePickFeatures\.foodChannelPicker \? OnePickMvp\.publicPickChannel : routeChannel/,
     'Initial MVP normalizes crafted future-channel choose routes to the public channel');
   assert.match(choose, /\.\.\.\(pickChannel \? \{ channel: pickChannel \} : \{\}\)/, 'The choose screen saves under the resolved channel');
-  assert.match(choose, /이 메뉴의 \$\{channelLabel\(pickChannel\)\} 원픽이 이걸로 바뀌고/, 'Replacing names the channel');
+  assert.match(choose, /이 메뉴의 \$\{channelLabel\(pickChannel\)\} 원픽이 바뀌어요/, 'Replacing names the channel');
   const find = fs.readFileSync(path.join(__dirname, '../src/app/pick/find.tsx'), 'utf8');
   assert.match(find, /\.\.\.\(isPlaceCategory \? \{ channel \} : \{\}\)/, '매장/온라인 search passes its channel to the choose screen');
 

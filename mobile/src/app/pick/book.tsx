@@ -11,6 +11,7 @@ import { useItemSearch } from '@/hooks/useItemSearch';
 import { useRegistrationCategories } from '@/hooks/useRegisterPick';
 import type { BookCatalogEntry, ImportedBookItem } from '@/types/domain/bookCatalog';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type Params = {
   categoryId?: string | string[];
@@ -170,10 +171,10 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
 
   return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Text style={styles.backText}>‹</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="돌아가기" onPress={back} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}><Icon name="back" /></Pressable>
       <Text style={styles.title}>나의 책 원픽 찾기</Text>
       <Text style={styles.subtitle}>책 제목을 입력하고, 필요하면 작가 이름을 함께 넣어 가장 정확한 판본을 찾아보세요.</Text>
-      <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있습니다.</Text>
+      <Text style={styles.notice}>작가 이름은 선택 항목이에요. 동명 도서가 많을 때 함께 입력하면 결과를 크게 줄일 수 있어요. 같은 작품도 번역·출판사·판형에 따라 별도 도서로 표시될 수 있어요.</Text>
 
       {!category && !categories.isPending ? <View style={styles.stateCard}>
         <Text style={styles.stateTitle}>책 카테고리를 사용할 수 없어요.</Text>
@@ -186,14 +187,14 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       <TextInput autoFocus accessibilityLabel="원픽 책 제목 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={titleText}
         onChangeText={(value) => { if (!busy.current) { setTitleText(value); setSelection(null); } }}
-        placeholder="예: 아리랑" placeholderTextColor={OnePick.hint} returnKeyType="next" style={styles.input} />
+        placeholder="예: 아리랑" placeholderTextColor={OnePick.textSecondary} returnKeyType="next" style={styles.input} />
       {cleanTitle.length === 1 ? <Text style={styles.stateText}>책 제목은 두 글자 이상 입력해주세요.</Text> : null}
 
       <Text style={styles.authorLabel}>작가 이름 <Text style={styles.optional}>(선택)</Text></Text>
       <TextInput accessibilityLabel="원픽 책 작가 검색" autoCapitalize="none" autoCorrect={false}
         editable={Boolean(category) && !importing} maxLength={100} value={authorText}
         onChangeText={(value) => { if (!busy.current) { setAuthorText(value); setSelection(null); } }}
-        placeholder="예: 조정래" placeholderTextColor={OnePick.hint} returnKeyType="search" style={styles.input} />
+        placeholder="예: 조정래" placeholderTextColor={OnePick.textSecondary} returnKeyType="search" style={styles.input} />
       <Text style={styles.helperText}>작가를 알고 있다면 함께 입력하면 더 정확한 결과를 찾을 수 있어요.</Text>
 
       {isSearching ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>{cleanAuthor ? '책 제목과 작가 이름으로 찾고 있어요.' : '책 제목으로 찾고 있어요.'}</Text></View> : null}
@@ -208,7 +209,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
       {selection?.phase === 'loading' ? <View style={styles.inlineState}><ActivityIndicator /><Text style={styles.stateText}>선택한 책 정보를 준비하고 있어요.</Text></View> : null}
       {selection && selection.phase !== 'loading' ? <View style={styles.stateCard}>
         <Text accessibilityRole={selection.phase === 'failed' ? 'alert' : undefined} style={styles.stateText}>
-          {selection.phase === 'failed' ? bookErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 책 정보가 준비됐어요.' : '이전 책 선택을 다시 이어갈 수 있어요.'}
+          {selection.phase === 'failed' ? bookErrorMessage(selection.error) : selection.phase === 'ready' ? '선택한 책 정보를 준비했어요.' : '이전 책 선택을 다시 이어갈 수 있어요.'}
         </Text>
         {selection.phase === 'ready'
           ? <Pressable onPress={() => continueBook(selection.item, selection.replace)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>선택한 책으로 계속</Text></Pressable>
@@ -231,7 +232,7 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           <Text style={styles.itemName}>{item.name}</Text>
           {item.creatorName ? <Text style={styles.creator}>{item.creatorName}</Text> : null}
           <Text style={styles.meta}>{[item.collectionName, item.releaseYear, item.modelCode].filter(Boolean).join(' · ')}</Text>
-          <Text style={styles.itemAction}>이 책을 원픽으로 선택 ›</Text>
+          <Text style={styles.itemAction}>이 책을 원픽으로 고르기 ›</Text>
         </Pressable>
       </View>)}
 
@@ -246,14 +247,14 @@ function BookPickContent({ auth, params }: { auth: ReturnType<typeof useAuthSess
           {entry.subtitle ? <Text style={styles.subtitleLine}>{entry.subtitle}</Text> : null}
           {entry.authorName ? <Text style={styles.creator}>{entry.authorName}</Text> : null}
           <Text style={styles.meta}>{[entry.publisherName, entry.releaseYear, entry.isbn].filter(Boolean).join(' · ') || '출판 정보 없음'}</Text>
-          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '책 정보를 준비하고 있어요…' : '이 책을 원픽으로 선택 ›'}</Text>
+          <Text style={styles.itemAction}>{selection?.externalId === entry.externalId && importing ? '책 정보를 준비하고 있어요…' : '이 책을 원픽으로 고르기 ›'}</Text>
         </View>
       </Pressable>)}
 
       {noResults ? <View style={styles.stateCard}><Text style={styles.stateTitle}>일치하는 책을 찾지 못했어요.</Text>
         <Text style={styles.stateText}>책 제목을 확인하거나 작가 이름을 빼고 다시 검색해보세요. 그래도 없으면 나중에 다시 찾거나 다른 카테고리를 먼저 골라도 돼요.</Text></View> : null}
 
-      <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인합니다.</Text>
+      <Text style={styles.attribution}>도서 메타데이터·표지: Google Books. 외부 데이터의 표시·이용 조건은 상업 운영 전 다시 확인해요.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -262,7 +263,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.background },
   content: { width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 40 },
   backButton: { width: 44, height: 44, justifyContent: 'center', marginTop: 4, marginLeft: -8 },
-  backText: { color: OnePick.text, fontSize: 36, lineHeight: 40, fontWeight: '300' },
   title: { color: OnePick.text, fontSize: 27, lineHeight: 35, fontWeight: '900', letterSpacing: -0.8, marginTop: 8 },
   subtitle: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   notice: { color: OnePick.muted, fontSize: 12, lineHeight: 18, backgroundColor: OnePick.surface, borderRadius: 14, padding: 14, marginTop: 14 },

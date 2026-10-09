@@ -49,7 +49,7 @@ export function ProfileAiComment({
     <View style={styles.keywords}>{comment.keywords.map((keyword) =>
       <View key={keyword} style={styles.keyword}><Text style={styles.keywordText}>#{keyword}</Text></View>)}
     </View>
-    {comment.isStale ? <Text style={styles.stale}>최근 원픽 변화는 다음 AI 평가 때 반영됩니다.</Text> : null}
+    {comment.isStale ? <Text style={styles.stale}>최근 원픽 변화는 다음 AI 평가 때 반영해요.</Text> : null}
     </View>
   </>;
 }

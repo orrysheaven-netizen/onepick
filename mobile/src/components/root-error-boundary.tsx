@@ -79,7 +79,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
       return (
         <View style={styles.container}>
           <View style={styles.brand}><OnePickBrand compact /></View>
-          <Text style={styles.title}>{this.state.chunkError ? '새 버전이 준비됐어요.' : '화면을 표시하는 중 문제가 발생했어요.'}</Text>
+          <Text style={styles.title}>{this.state.chunkError ? '새 버전이 나왔어요.' : '화면을 표시하는 중 문제가 발생했어요.'}</Text>
           <Text style={styles.description}>
             {this.state.chunkError
               ? '앱이 업데이트됐어요. 새로고침하면 최신 버전으로 이어서 볼 수 있어요.'

@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PickPhoto } from '@/components/pick-photo';
-import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
+import { Button, Chip, Icon, SectionHeader, StateCard } from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ExploreSearchResults } from '@/components/explore-search-results';
 import { ItemSearch } from '@/components/item-search';
-import { useCategoryTopItems, useExploreCategories, useRecentPickedItems } from '@/hooks/useExploreData';
+import { useCategoryTopItems, useExploreCategories, useFoodMenuPickCounts, useRecentPickedItems } from '@/hooks/useExploreData';
 import { browseScope } from '@/lib/categories/browseScope';
 import { browseCategoryGroups } from '@/lib/categories/categoryTree';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
@@ -44,6 +45,29 @@ export default function ExploreScreen() {
     const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
     return scope.leafIds.map((id) => byId.get(id)).filter((category): category is Category => Boolean(category));
   }, [categoryCatalog, scope.leafIds]);
+  // Figma 31 (MVP): group chips over the food menus, menus by current Picks.
+  const [menuGroupId, setMenuGroupId] = useState<string | null>(null);
+  const menuCounts = useFoodMenuPickCounts(OnePickMvp.publicPickChannel, !scope.showChips);
+  const menuGroups = useMemo(() => {
+    const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
+    const ids = [...new Set(menuCategories.map((category) => category.parentId).filter((id): id is string => Boolean(id)))];
+    return ids.map((id) => byId.get(id)).filter((category): category is Category => Boolean(category))
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ko'));
+  }, [categoryCatalog, menuCategories]);
+  const visibleMenus = useMemo(() => {
+    const counts = menuCounts.data;
+    return menuCategories
+      .filter((category) => !menuGroupId || category.parentId === menuGroupId)
+      .map((category, index) => ({ category, index, count: counts?.get(category.id) ?? 0 }))
+      .sort((a, b) => b.count - a.count || a.index - b.index);
+  }, [menuCategories, menuCounts.data, menuGroupId]);
+  // Figma 43: typing in the explore box swaps the menu list for inline results (no separate search screen).
+  const [searchText, setSearchText] = useState(incomingQuery);
+  useEffect(() => { setSearchText(incomingQuery); }, [incomingQuery]);
+  const searchActive = !scope.showChips && searchText.trim().length > 0;
+  const searchMenus = useMemo(() => menuCategories.map((category) => ({ category, count: menuCounts.data?.get(category.id) ?? 0 })),
+    [menuCategories, menuCounts.data]);
+  const menuLoadFailed = categories.isError || (!scope.showChips && menuCounts.isError);
   // External catalogs (movie, book...) are offered only for categories being browsed.
   const inScope = (category?: Category) =>
     category && (scope.leafIds === null || scope.leafIds.includes(category.id)) ? category : undefined;
@@ -89,6 +113,7 @@ export default function ExploreScreen() {
 
   const refresh = () => {
     if (!categories.isFetching) void categories.refetch();
+    if (!scope.showChips && !menuCounts.isFetching) void menuCounts.refetch();
     if (selectedCategoryId && !topItems.isFetching) void topItems.refetch({ cancelRefetch: false });
     if (scope.showChips && !selectedCategoryId && categories.data && !recentItems.isFetching) void recentItems.refetch({ cancelRefetch: false });
   };
@@ -97,24 +122,35 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={categories.isRefetching || topItems.isRefetching || (recentItems.isRefetching && !recentItems.isFetchingNextPage)} onRefresh={refresh} tintColor={OnePick.accent} />}>
+        refreshControl={<RefreshControl refreshing={categories.isRefetching || menuCounts.isRefetching || topItems.isRefetching || (recentItems.isRefetching && !recentItems.isFetchingNextPage)} onRefresh={refresh} tintColor={OnePick.accent} />}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{scope.showChips ? '카테고리 탐색' : '탐색'}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
+          {/* Figma 31: the search box is always there in the MVP; the toggle is chip mode only. */}
+          {scope.showChips ? <Pressable accessibilityRole="button" accessibilityLabel={searchOpen ? '검색 닫기' : '검색 열기'}
             accessibilityState={{ expanded: searchOpen }} onPress={() => setSearchOpen((open) => !open)}
             style={({ pressed }) => [styles.searchButton, searchOpen && styles.searchButtonActive, pressed && styles.pressed]}>
-            {searchOpen ? <Text style={styles.closeSearch}>×</Text> : <View accessible={false} style={styles.magnifier}><View style={styles.magnifierRing} /><View style={styles.magnifierHandle} /></View>}
-          </Pressable>
+            {searchOpen ? <Icon name="close" color={OnePick.actionPrimary} /> : <Icon name="search" color={OnePick.textPrimary} />}
+          </Pressable> : null}
         </View>
-        <Text style={styles.subtitle}>{scope.showChips ? '관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.' : '메뉴를 누르면 그 메뉴를 고른 사람들의 현재 원픽을 볼 수 있어요.'}</Text>
-        {searchOpen ? <View style={styles.searchPanel}>
-          <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
-          <Text style={styles.searchHint}>
-            {hasExternalSearch
-              ? '찾는 항목이 없으면 외부 카탈로그에서 이어서 검색할 수 있어요.'
-              : '원픽에 등록된 항목을 검색해요.'}
-          </Text>
-          <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
+        {scope.showChips ? <Text style={styles.subtitle}>관심 있는 분야부터, 나에게 맞는 원픽을 찾아보세요.</Text> : null}
+        {searchOpen || !scope.showChips ? <View style={styles.searchPanel}>
+          {scope.showChips ? <>
+            <Text style={styles.searchScope}>{selectedCategoryLabel ? `${selectedCategoryLabel}에서 검색` : '전체 항목 검색'}</Text>
+            <Text style={styles.searchHint}>
+              {hasExternalSearch
+                ? '찾는 항목이 없으면 외부 카탈로그에서 이어서 검색할 수 있어요.'
+                : '원픽에 등록된 항목을 검색해요.'}
+            </Text>
+          </> : null}
+          {!scope.showChips ? <View style={styles.searchBox}>
+            <TextInput accessibilityLabel="메뉴나 매장 이름으로 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
+              placeholder="메뉴나 매장 이름으로 검색" placeholderTextColor={OnePick.textSecondary} returnKeyType="search"
+              value={searchText} onChangeText={setSearchText} style={styles.searchInput} />
+            {searchText.length ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')}
+              style={({ pressed }) => [styles.clearButton, pressed && styles.pressed]}>
+              <Icon name="clear" size="sm" color={OnePick.textTertiary} />
+            </Pressable> : null}
+          </View> : <ItemSearch key={`${selectedCategoryId ?? 'all'}:${incomingQuery}`} compact categoryId={selectedCategoryId}
             initialQuery={incomingQuery} showExternalActionsWithResults
             onSearchMovie={movieCategory && (!selectedCategoryId || selectedCategoryId === movieCategory.id)
               ? (query) => router.push({ pathname: '/pick/find', params: { categoryId: movieCategory.id, query } }) : undefined}
@@ -131,11 +167,18 @@ export default function ExploreScreen() {
             onSearchPokemon={pokemonCategory && (!selectedCategoryId || selectedCategoryId === pokemonCategory.id)
               ? (query) => router.push({ pathname: '/pick/pokemon', params: { categoryId: pokemonCategory.id, query } }) : undefined}
             dishChannels={{ userId: user?.id, channel: OnePickMvp.publicPickChannel, onRegister: registerDish }}
-            onSelect={openItem} />
+            onSelect={openItem} />}
+        </View> : null}
+        {searchActive && categories.data ? <View style={styles.menuSection}>
+          <ExploreSearchResults query={searchText} menus={searchMenus} menuIds={menuCategories.map((category) => category.id)}
+            onOpenMenu={(category) => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } })}
+            onOpenItem={openItem} onRegister={() => router.push('/pick/new')} />
         </View> : null}
         {scope.showChips ? <Text style={styles.levelTitle}>상위 카테고리</Text> : null}
         {categories.isPending ? <ActivityIndicator accessibilityLabel="카테고리 불러오는 중" /> : null}
-        {categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
+        {scope.showChips && categories.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요." action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
+        {!scope.showChips && !searchActive && menuLoadFailed ? <StateCard tone="danger" title="메뉴를 불러오지 못했어요." text="연결 상태를 확인한 뒤 다시 시도해주세요."
+          action={{ label: '다시 불러오기', onPress: refresh }} /> : null}
         {scope.showChips && !categories.isPending && !categories.isError && groups.length ? <View style={styles.parentRow}>
           <Chip label="전체" accessibilityLabel="전체 카테고리 보기" selected={!parentId}
             onPress={() => { setParentId(undefined); setChildId(undefined); }} />
@@ -157,10 +200,16 @@ export default function ExploreScreen() {
             onPress={() => setChildId(category.id)} />)}</View>
           {!group.children.length ? <Text style={styles.subtitle}>이 분야의 카테고리를 준비하고 있어요.</Text> : !selectedCategoryId ? <Text style={styles.subtitle}>하위 카테고리를 고르면 원픽을 볼 수 있어요.</Text> : null}
         </View> : null}
-        {!scope.showChips && !selectedCategoryId && categories.data ? <View style={styles.menuSection}>
-          <SectionHeader title="메뉴" description="메뉴를 누르면 사람들의 현재 원픽과 한줄평을 볼 수 있어요." />
+        {!scope.showChips && !searchActive && !selectedCategoryId && categories.data && !menuLoadFailed && menuCounts.data ? <View style={styles.menuSection}>
+          {menuGroups.length > 1 ? <View style={styles.parentRow}>
+            <Chip label="전체" accessibilityLabel="전체 메뉴 보기" selected={!menuGroupId} onPress={() => setMenuGroupId(null)} />
+            {menuGroups.map((groupCategory) => <Chip key={groupCategory.id} label={groupCategory.name}
+              accessibilityLabel={`${groupCategory.name} 메뉴 보기`} selected={menuGroupId === groupCategory.id}
+              onPress={() => setMenuGroupId(groupCategory.id)} />)}
+          </View> : null}
+          <SectionHeader title={`메뉴 ${visibleMenus.length}`} description="원픽 많은 순 · 메뉴를 누르면 사람들의 원픽과 한줄평을 볼 수 있어요." />
           <View style={styles.menuList}>
-            {menuCategories.map((category) => <Pressable key={category.id} accessibilityRole="button"
+            {visibleMenus.map(({ category, count }) => <Pressable key={category.id} accessibilityRole="button"
               accessibilityLabel={`${category.name} 메뉴 원픽 보기`}
               onPress={() => router.push({ pathname: '/menu/[slug]', params: { slug: category.slug } })}
               style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
@@ -169,12 +218,12 @@ export default function ExploreScreen() {
                 : <View style={styles.menuFallback} accessible={false}><Text style={styles.menuInitial}>{category.name.slice(0, 1)}</Text></View>}
               <View style={styles.menuCopy}>
                 <Text style={styles.menuName}>{category.name}</Text>
-                <Text style={styles.menuHint}>원픽 보기</Text>
+                <Text style={styles.menuHint}>{count >= OnePickThresholds.exploreRankingMinPicks ? `원픽 ${count}` : '원픽을 모으고 있어요.'}</Text>
               </View>
-              <Text style={styles.menuArrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.menuArrow} />
             </Pressable>)}
           </View>
-          {!menuCategories.length ? <StateCard title="아직 공개된 메뉴가 없어요." text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
+          {!visibleMenus.length ? <StateCard title="아직 공개된 메뉴가 없어요." text="메뉴가 열리면 이곳에서 둘러볼 수 있어요." /> : null}
         </View> : null}
         {!selectedCategoryId && categories.data && scope.showChips ? <View style={styles.rankingSection}>
           <View style={styles.sectionHeader}>
@@ -193,10 +242,10 @@ export default function ExploreScreen() {
                 <Text style={styles.rankName}>{item.name}</Text>
                 <Text style={styles.recentCategory}>{categoryWithChannels(item.categoryName, item.channels)}</Text>
               </View>
-              <Text style={styles.arrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
             </Pressable>
           </View>)}
-          {recentItems.data?.length === 0 && !recentItems.isError ? <StateCard title="아직 원픽된 곳이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
+          {recentItems.data?.length === 0 && !recentItems.isError ? <StateCard title="아직 원픽이 있는 매장이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
           {recentItems.isFetchNextPageError ? <Text style={styles.refreshError}>다음 목록을 불러오지 못했어요. 더 보기를 다시 눌러주세요.</Text> : null}
           {recentItems.hasNextPage ? <Button variant="secondary" label={recentItems.isFetchingNextPage ? '불러오는 중…' : '더 보기'}
             accessibilityLabel="최근 원픽 더 보기" disabled={recentItems.isFetchingNextPage}
@@ -233,7 +282,7 @@ export default function ExploreScreen() {
                 {homeChannelLabel(item.channels) ? <Text style={styles.rankCount}>{homeChannelLabel(item.channels)}</Text> : null}
                 {showRankingDetail ? <Text style={styles.rankCount}>{item.pickCount.toLocaleString()}명이 선택</Text> : null}
               </View>
-              <Text style={styles.arrow}>›</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
             </Pressable>
           </View>)}
           {topItems.data?.length === 0 && !topItems.isError ? <StateCard title="아직 선택된 원픽이 없어요." text="첫 원픽이 등록되면 이곳에 표시돼요." /> : null}
@@ -255,11 +304,10 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: OnePickSpace.md },
   searchButton: { width: 44, height: 44, borderRadius: OnePickRadius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: OnePick.bgDefault, borderWidth: 1, borderColor: OnePick.borderDefault },
   searchButtonActive: { backgroundColor: OnePick.bgMuted, borderColor: OnePick.borderStrong },
-  magnifier: { width: 24, height: 24 },
-  magnifierRing: { position: 'absolute', width: 16, height: 16, borderWidth: 2, borderColor: OnePick.textPrimary, borderRadius: OnePickRadius.sm, top: 1, left: 1 },
-  magnifierHandle: { position: 'absolute', width: 10, height: 2, borderRadius: 1, backgroundColor: OnePick.textPrimary, transform: [{ rotate: '45deg' }], top: 18, left: 14 },
-  closeSearch: { ...OnePickType.title, color: OnePick.actionPrimary },
   searchPanel: { marginTop: OnePickSpace.lg, gap: OnePickSpace.sm },
+  searchBox: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderRadius: OnePickRadius.md, borderWidth: 1, borderColor: OnePick.borderDefault, backgroundColor: OnePick.bgDefault, paddingLeft: OnePickSpace.md },
+  searchInput: { ...OnePickType.body, flex: 1, minHeight: 46, color: OnePick.textPrimary },
+  clearButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   searchScope: { ...OnePickType.captionMedium, color: OnePick.textSecondary },
   searchHint: { ...OnePickType.caption, color: OnePick.textSecondary },
   subtitle: { ...OnePickType.body, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
@@ -280,7 +328,7 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1, minWidth: 0, gap: 2 },
   menuName: { ...OnePickType.headline, color: OnePick.textPrimary },
   menuHint: { ...OnePickType.caption, color: OnePick.textSecondary },
-  menuArrow: { ...OnePickType.title, color: OnePick.textTertiary, marginLeft: OnePickSpace.xs },
+  menuArrow: { marginLeft: OnePickSpace.xs  },
   rankingSection: { marginTop: OnePickSpace.sm, marginBottom: OnePickSpace.lg },
   rankingLoading: { marginVertical: OnePickSpace.xl },
   rankCard: { flexDirection: 'row', alignItems: 'center', padding: OnePickSpace.md, marginBottom: OnePickSpace.sm, borderRadius: OnePickRadius.lg, borderWidth: 1, borderColor: OnePick.borderDefault, backgroundColor: OnePick.bgDefault },
@@ -296,7 +344,7 @@ const styles = StyleSheet.create({
   rankingFootnote: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: 2 },
   rankingLinkRow: { alignItems: 'flex-end', marginTop: OnePickSpace.xs },
   sectionHeader: { marginBottom: OnePickSpace.lg },
-  arrow: { ...OnePickType.title, color: OnePick.textTertiary, marginLeft: OnePickSpace.xs },
+  arrow: { marginLeft: OnePickSpace.xs  },
   stateText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', marginTop: OnePickSpace.sm },
   refreshError: { ...OnePickType.body, alignSelf: 'stretch', color: OnePick.textDanger },
   pressed: { opacity: 0.7 },

@@ -69,14 +69,11 @@ begin
   assert (res->>'published')::boolean = false, 'The Pick on a submitted store waits';
   reset role;
 
-  select ip.place_id into a_place from public.item_places ip where ip.item_id=a_item;
-  assert (select road_address = '' and map_url='https://naver.me/golmok' and not is_visible from public.places where id=a_place),
-    'The submitted place has an empty address, keeps its map link and is hidden';
-  select pc.id into a_catalog from public.place_catalog pc
-    join public.places p on p.place_provider=pc.place_provider and p.provider_place_id=pc.provider_place_id
-    where p.id=a_place;
-  assert (select road_address is null and business_status='pending' from public.place_catalog where id=a_catalog),
-    'The catalog row has no address and waits';
+  assert not exists (select 1 from public.item_places where item_id=a_item), 'No canonical store link before approval';
+  assert not exists (select 1 from public.places where map_url='https://naver.me/golmok'), 'No store before approval';
+  assert not exists (select 1 from public.place_catalog where name='골목순대국'), 'No catalog before approval';
+  assert (select road_address='' and map_url='https://naver.me/golmok' from private.user_place_requests where item_id=a_item),
+    'The request alone keeps the name and link';
   raised := false;
   begin
     insert into public.places(name,road_address,place_provider,provider_place_id)
@@ -100,6 +97,12 @@ begin
   set local role authenticated;
   perform public.admin_review_pending_item(a_item,'active');
   reset role;
+  select ip.place_id into a_place from public.item_places ip where ip.item_id=a_item;
+  select pc.id into a_catalog from public.place_catalog pc
+    join public.places p on p.place_provider=pc.place_provider and p.provider_place_id=pc.provider_place_id
+    where p.id=a_place;
+  assert a_place is not null and a_catalog is not null, 'Approval creates store and catalog';
+  assert not exists (select 1 from private.user_place_requests where item_id=a_item), 'Approval consumes the request';
   assert (select is_visible from public.places where id=a_place), 'Approval publishes the place';
   assert (select status='active' from public.picks where id=p_a), 'Approval activates the Pick';
   set local role anon;

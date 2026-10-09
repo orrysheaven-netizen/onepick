@@ -5,7 +5,6 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const explore = fs.readFileSync(path.join(root, 'src/app/(tabs)/explore.tsx'), 'utf8');
 const tree = fs.readFileSync(path.join(root, 'src/lib/categories/categoryTree.ts'), 'utf8');
-const home = fs.readFileSync(path.join(root, 'src/app/(tabs)/index.tsx'), 'utf8');
 const profileGroups = fs.readFileSync(path.join(root, 'src/components/profile-pick-groups.tsx'), 'utf8');
 
 assert.doesNotMatch(explore, /categoryLabel/, 'Explore shows leaf names, never the full category path');
@@ -42,7 +41,9 @@ assert.match(explore, /parentRow:\s*\{[^}]*flexDirection: 'row'[^}]*flexWrap: 'w
 assert.match(explore, /childTitle/);
 assert.match(explore, /selectionLabel/);
 assert.match(tree, /export function categoryLabel/);
-assert.match(home, /categoryLabel\(category, categoryCatalog\)/);
+// Home search renders store + leaf menu names in HomeSearchDialog. Its runtime
+// coverage lives in test-home-search-loading.cjs rather than unused Home data.
 assert.match(profileGroups, /buildProfileThemeSections/);
 
-console.log('Explore category hierarchy checks passed: taxonomy labels, query-hydrated search, pills, reset behavior, gated ranking detail, and consistent Home/Profile category language.');
+console.log('Explore category hierarchy checks passed: taxonomy labels, query-hydrated search, pills, reset behavior, gated ranking detail and profile grouping.');
+

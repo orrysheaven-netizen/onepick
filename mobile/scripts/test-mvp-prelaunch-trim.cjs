@@ -31,9 +31,9 @@ function home(count = 20, followingCount = 0) {
   const calls = {};
   const view = screen('app/(tabs)/index.tsx', {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
-    '@/constants/onepick': constants,
+    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'),
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeMenuRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -43,7 +43,7 @@ function home(count = 20, followingCount = 0) {
     '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
-    '@/components/home-feed-card': names('HomeFeedCard'), '@/components/item-search': names('ItemSearch'), '@/components/pick-photo': names('PickPhoto'),
+    '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'), '@/components/pick-photo': names('PickPhoto'),
   });
   view.render(); return { view, q, following, followCounts, auth, calls };
 }
@@ -56,9 +56,10 @@ function explore({ chips = true } = {}) {
   const view = screen('app/(tabs)/explore.tsx', {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
-    '@/constants/onepick': constants, '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'),
+    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'), '@/components/explore-search-results': names('ExploreSearchResults'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
-      useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; } },
+      useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; },
+      useFoodMenuPickCounts: (channel, enabled) => { calls.menuCounts = { channel, enabled }; return query(new Map([['ramen', 5]])); } },
     '@/lib/categories/categoryTree': tree, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
@@ -74,14 +75,14 @@ function profile(isPublic = false) {
   const history = query([]), requests = query([]), calls = { history: 0, requests: 0, taste: 0, ai: 0, aiIds: [] };
   const auth = { user: { id: 'reader' }, isLoading: false };
   const mount = (key) => () => { calls[key]++; return null; };
-  const view = screen(isPublic ? 'app/(tabs)/(profile)/u/[username].tsx' : 'app/(tabs)/(profile)/profile.tsx', {
+  const view = screen(isPublic ? 'app/(tabs)/(profile)/u/[username].tsx' : 'app/(tabs)/(profile)/profile.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
     'expo-router': {
       useRouter: () => ({ push() {}, back() {}, replace() {}, canGoBack: () => false, dismissTo() {} }),
       useNavigation: () => ({ addListener: () => () => {}, getState: () => ({ index: 0, routes: [] }), dispatch() {} }),
       useLocalSearchParams: () => ({ username: 'owner' }),
     },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
-    '@/constants/onepick': constants, '@/errors/appError': { AppError: class AppError extends Error {} },
+    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
@@ -137,9 +138,9 @@ async function main() {
     view.find('Chip', (p) => p.label === 'culture').onPress(); view.render();
     assert.equal(view.find('FlatList').data.length, 1); assert.equal(categoryChips(view).length, 3);
     q.data.picks = picks(19); view.render();
-    assert.equal(view.find('FlatList').data.length, 19, 'No invisible filtering before effects flush');
+    assert.equal(view.find('FlatList').data.length, 10, 'No invisible filtering before effects flush; Home caps at ten');
     assert.equal(categoryChips(view).length, 0); view.flushEffects();
-    q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 20);
+    q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 10);
     assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
   });
   await test('MVP Home exposes food + offline only while future channels stay internal', () => {
@@ -154,17 +155,24 @@ async function main() {
   await test('MVP hides Home category chips even above the Pick threshold', () => {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
     const { view } = home(20); assert.equal(categoryChips(view).length, 0);
-    assert.equal(view.find('FlatList').data.length, 20, 'Hidden chips never filter the feed');
+    assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home shows the newest ten');
+    assert.equal(view.find('FlatList').onEndReached, undefined, 'Home never loads more on scroll');
   });
   await test('MVP Explore: no chips, search open, food menus are clickable entry points', () => {
     const { view, calls } = explore({ chips: false });
     assert.equal(view.all('Chip').length, 0);
     assert.match(view.text(), /탐색/); assert.doesNotMatch(view.text(), /상위 카테고리|최근 원픽된 맛집/);
-    assert.ok(view.find('ItemSearch'), 'Search starts open without a ?search=1 handoff');
-    assert.equal(view.find('ItemSearch').onSearchMovie, undefined, 'Movie is outside the food group');
+    // Figma 43: the MVP box is the explore's own input (× clear, inline results), not the catalog ItemSearch.
+    assert.ok(view.find('TextInput', (p) => p.placeholder === '메뉴나 매장 이름으로 검색'), 'Search starts open without a ?search=1 handoff');
+    assert.equal(view.find('ItemSearch'), undefined, 'No external-catalog search (movie etc.) in the food MVP');
+    assert.equal(view.find('ExploreSearchResults'), undefined, 'Results appear only after typing');
     assert.equal(JSON.stringify(calls.recent), JSON.stringify({ ids: ['ramen'], enabled: false, storesOnly: false }), 'MVP does not load an unused recent-provider feed');
     assert.equal(calls.categoryId, undefined, 'Product rankings stay idle without a chosen category');
-    assert.match(view.text(), /메뉴/); assert.match(view.text(), /ramen/); assert.match(view.text(), /원픽 보기/);
+    // Figma 31: menus by current Picks, "원픽 N" from the 3-person threshold, always-open search.
+    assert.equal(JSON.stringify(calls.menuCounts), JSON.stringify({ channel: 'offline', enabled: true }), 'Menu counts use the public store channel');
+    assert.match(view.text(), /메뉴 1/); assert.match(view.text(), /ramen/); assert.match(view.text(), /원픽 5/);
+    assert.doesNotMatch(view.text(), /원픽 보기|전체 항목 검색|원픽에 등록된 항목을 검색해요/);
+    assert.equal(view.all('Pressable').some((p) => p.accessibilityLabel === '검색 열기' || p.accessibilityLabel === '검색 닫기'), false, 'No search toggle in the MVP');
     view.find('Pressable', (p) => p.accessibilityLabel === 'ramen 메뉴 원픽 보기').onPress();
     assert.equal(calls.route.pathname, '/menu/[slug]'); assert.equal(calls.route.params.slug, 'ramen');
     assert.doesNotMatch(view.text(), /Recent place/, 'Menu discovery replaces the old recent-provider landing list');
@@ -172,10 +180,12 @@ async function main() {
   await test('Home restoration threshold and signed-out header stay compatible with recent ranking', () => {
     flags.categoryChips = true;
     thresholds.homeCategoryFilterMinPicks = 0;
-    const { view, auth } = home(2); assert.equal(categoryChips(view).length, 3); assert.equal(view.all('Avatar').length, 1);
+    const { view, auth } = home(2); assert.equal(categoryChips(view).length, 3);
+    assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0); // header is logo only for members too
     auth.user = null; view.render();
     assert.equal(view.all('Avatar').length, 0); assert.equal(view.all('NotificationButton').length, 0);
-    assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴').description, undefined);
+    assert.equal(view.find('SectionHeader', (p) => p.title === '최근 7일 많이 고른 메뉴'), undefined); // Figma 30-1: no ranking title
+    assert.equal(view.all('HomeHeader').length, 1);
     assert.equal(view.find('SectionHeader', (p) => p.title === '먼저 소개하는 원픽'), undefined);
   });
   await test('Home normal refresh hidden; pull, initial error, stale error and pagination retries survive', () => {
@@ -185,7 +195,8 @@ async function main() {
     q.isFetching = true; view.render(); const retry = view.find('Button', (p) => p.accessibilityLabel === '홈 원픽 새로고침'); assert.equal(retry.disabled, true); retry.onPress(); assert.equal(q.refetches, 2);
     q.isFetching = false; q.data = undefined; view.render(); view.find('StateCard', (p) => p.tone === 'danger').action.onPress(); assert.equal(q.refetches, 3);
     q.data = { picks: picks(2), currentPicks: [] }; q.isFetchNextPageError = true; view.render();
-    view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기').action.onPress(); assert.equal(q.nextPages, 1);
+    assert.equal(view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기'), undefined, 'Home has no next page to retry');
+    assert.equal(q.nextPages, 0);
   });
   await test('Explore hides tied counts, emphasis and accessible rank; keeps detail routes', () => {
     const { view, calls } = explore(); assert.equal(calls.categoryId, 'ramen');

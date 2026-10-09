@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ProfilePickCard } from '@/components/profile-pick-card';
+import { Icon } from '@/components/ui';
 import { buildProfileThemeSections, defaultCollapsedProfilePickGroups } from '@/lib/profile/profilePickGroups';
 import { categoryWithChannels } from '@/lib/home/homeChannels';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
@@ -92,7 +93,7 @@ export function ProfilePickGroups({ picks, categories, onPressPick, onPressItem,
                     <Text numberOfLines={1} style={styles.groupName}>{group.name}</Text>
                     <View style={styles.countPill}><Text style={styles.countText}>{group.items.length}개</Text></View>
                   </View>
-                  <Text style={styles.groupChevron}>{isCollapsed ? '⌄' : '⌃'}</Text>
+                  <Icon name={isCollapsed ? 'chevronDown' : 'chevronUp'} size="sm" color={OnePick.textTertiary} style={styles.groupChevron} />
                 </Pressable>
 
                 {!isCollapsed ? (
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   groupName: { flexShrink: 1, color: OnePick.text, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   countPill: { borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 7, paddingVertical: 2 },
   countText: { color: OnePick.muted, fontSize: 11, lineHeight: 14, fontWeight: '700' },
-  groupChevron: { color: OnePick.hint, fontSize: 16, lineHeight: 18, marginLeft: 8 },
+  groupChevron: { marginLeft: 8 },
   groupBody: { gap: 10 },
   pressed: { opacity: 0.68 },
 });

@@ -11,7 +11,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileFollowCounts } from '@/components/profile-follow-counts';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Avatar, Button, Chip, StateCard } from '@/components/ui';
+import { Avatar, Button, Chip, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -226,7 +226,7 @@ export default function ProfileScreen() {
   }
   if (isProfileMissing) {
     return <SafeAreaView style={styles.safeArea} edges={['top']}><View style={styles.centerState}>
-      <StateCard title="프로필을 완성해주세요." text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 됩니다."
+      <StateCard title="프로필을 완성해주세요." text="원픽을 공개하려면 사용할 사용자명을 먼저 정하면 돼요."
         action={{ label: '사용자명 만들기', variant: 'primary', onPress: () => router.push({ pathname: '/auth/username', params: { action: 'profile' } }) }} />
       <SignOutButton />
     </View></SafeAreaView>;
@@ -300,7 +300,7 @@ export default function ProfileScreen() {
               disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
             <Pressable accessibilityRole="button" accessibilityLabel="설정 열기" onPress={() => router.push('/settings')}
               style={({ pressed }) => [styles.profileHeaderMenuButton, pressed && styles.pressed]}>
-              <Text style={styles.profileHeaderMenu}>⋯</Text>
+              <Icon name="more" color={OnePick.textPrimary} />
             </Pressable>
           </View>
         </View>
@@ -343,8 +343,8 @@ export default function ProfileScreen() {
               onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
             />)}
           </View> : (
-            <StateCard title={profileScope === 'food' ? '아직 고른 음식 원픽이 없어요.' : '아직 다른 취향 원픽이 없어요.'}
-              text={profileScope === 'food' ? '홈에서 지금 가장 좋아하는 하나를 골라보세요.' : '영화·게임·책 같은 다른 취향을 고르면 여기에 모여요.'}
+            <StateCard title={profileScope === 'food' ? '첫 원픽을 골라보세요.' : '다른 취향 원픽도 골라보세요.'}
+              text={profileScope === 'food' ? '지금 가장 좋아하는 메뉴 하나면 돼요.' : '영화, 게임, 책 같은 취향을 고르면 여기에 모여요.'}
               action={profileScope === 'food'
                 ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
                 : { label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab }} />
@@ -375,17 +375,17 @@ export default function ProfileScreen() {
             disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : '새로고침'} /> : null}
 
           <Pressable onPress={openPublicProfile} style={({ pressed }) => [styles.managementRow, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인합니다.</Text></View>
-            <Text style={styles.chevron}>›</Text>
+            <View style={styles.actionCopy}><Text style={styles.managementTitle}>공개 프로필 보기</Text><Text style={styles.managementText}>다른 사람에게 보이는 취향 컬렉션과 공유 화면을 확인해요.</Text></View>
+            <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.chevron} />
           </Pressable>
           {adminAccess.data === true ? <Pressable onPress={() => router.push('/admin/dashboard')} style={({ pressed }) => [styles.adminButton, pressed && styles.pressed]}>
-            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리합니다.</Text></View><Text style={styles.adminChevron}>›</Text>
+            <View style={styles.actionCopy}><Text style={styles.adminTitle}>관리자 데이터 관리</Text><Text style={styles.adminText}>승인 대기 제품, 정식 제품, 카테고리와 브랜드를 관리해요.</Text></View><Icon name="chevronRight" size="sm" color={OnePick.onAction} style={styles.adminChevron} />
           </Pressable> : null}
         </View>
 
         {showRequests || showHistory ? <View style={styles.activitySection}>
           <Text style={styles.secondaryTitle}>활동 기록</Text>
-          <Text style={styles.secondaryDescription}>{showRequests ? '원픽 등록 요청 상태를 확인합니다.' : '원픽 활동을 확인합니다.'}</Text>
+          <Text style={styles.secondaryDescription}>{showRequests ? '원픽 등록 요청 상태를 확인해요.' : '원픽 활동을 확인해요.'}</Text>
 
           {showRequests ? <>
             <View style={[styles.sectionHeader, styles.requestHeader]}>
@@ -439,7 +439,6 @@ const styles = StyleSheet.create({
   profileHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary, flexShrink: 1 },
   profileHeaderActions: { flexDirection: 'row', alignItems: 'center' },
   profileHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  profileHeaderMenu: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   profileBody: { minHeight: 724, paddingTop: 10, gap: OnePickSpace.md },
   identity: { height: 82, flexDirection: 'row', alignItems: 'center', gap: 18 },
   stats: { flexDirection: 'row', alignItems: 'flex-start', gap: 22 },
@@ -537,7 +536,7 @@ const styles = StyleSheet.create({
     marginTop: OnePickSpace.xs,
     paddingRight: OnePickSpace.md,
   },
-  adminChevron: { ...OnePickType.title, color: OnePick.onAction, paddingHorizontal: OnePickSpace.xs },
+  adminChevron: { paddingHorizontal: OnePickSpace.xs },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -579,7 +578,7 @@ const styles = StyleSheet.create({
   requestName: { ...OnePickType.headline, color: OnePick.textPrimary, marginTop: OnePickSpace.xs },
   requestDescription: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
   requestAction: { ...OnePickType.captionMedium, color: OnePick.textAccent, marginTop: OnePickSpace.sm },
-  chevron: { ...OnePickType.title, color: OnePick.textTertiary, paddingHorizontal: OnePickSpace.xs },
+  chevron: { paddingHorizontal: OnePickSpace.xs },
   noHistory: { ...OnePickType.caption, color: OnePick.textSecondary, paddingVertical: OnePickSpace.sm },
   signOutArea: {
     marginTop: OnePickSpace.xxl,

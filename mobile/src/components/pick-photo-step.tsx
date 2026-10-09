@@ -68,10 +68,10 @@ export function PickPhotoStep({ userId, itemId, disabled = false, onAttached }: 
     {photo ? <>
       <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" accessibilityLabel="선택한 대표 이미지 미리보기" />
       <View style={styles.actions}>
-        <Button variant="secondary" label="다시 선택" disabled={disabled || working} onPress={() => void choose()} style={styles.action} />
-        <Button label="이 사진 등록" disabled={disabled || (working && !attachment.isPending)} loading={attachment.isPending} onPress={() => void attach()} style={styles.action} />
+        <Button variant="secondary" label="다른 사진 고르기" disabled={disabled || working} onPress={() => void choose()} style={styles.action} />
+        <Button label="이 사진 등록하기" disabled={disabled || (working && !attachment.isPending)} loading={attachment.isPending} onPress={() => void attach()} style={styles.action} />
       </View>
-    </> : <Button fullWidth variant="soft" label="사진 선택" disabled={disabled || (working && !picker.isPending)} loading={picker.isPending} onPress={() => void choose()} style={styles.choose} />}
+    </> : <Button fullWidth variant="soft" label="사진 고르기" disabled={disabled || (working && !picker.isPending)} loading={picker.isPending} onPress={() => void choose()} style={styles.choose} />}
     {picker.isError || attachment.isError ? <Text accessibilityRole="alert" style={styles.error}>{photoErrorMessage(attachment.error ?? picker.error)}</Text> : null}
     <Text style={styles.hint}>사진을 등록해야 원픽을 저장할 수 있어요. 직접 찍었거나 공유할 권한이 있는 사진만 올려주세요.</Text>
   </View>;

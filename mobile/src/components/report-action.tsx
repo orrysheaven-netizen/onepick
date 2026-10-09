@@ -16,12 +16,12 @@ const REASONS: Array<{ value: ReportReason; label: string }> = [
 
 function errorText(error: unknown) {
   if (error instanceof AppError) {
-    if (error.code === 'REPORT_DUPLICATE') return '이미 확인 중인 신고가 있습니다.';
+    if (error.code === 'REPORT_DUPLICATE') return '이미 확인 중인 신고가 있어요.';
     if (error.code === 'RATE_LIMITED') return '신고 요청이 많아요. 최대 1시간 후 다시 시도해주세요.';
-    if (error.code === 'REPORT_SELF') return '내 콘텐츠는 신고할 수 없습니다.';
-    if (error.code === 'REPORT_TARGET_NOT_FOUND') return '신고할 콘텐츠를 찾을 수 없습니다.';
+    if (error.code === 'REPORT_SELF') return '내 콘텐츠는 신고할 수 없어요.';
+    if (error.code === 'REPORT_TARGET_NOT_FOUND') return '신고할 콘텐츠를 찾을 수 없어요.';
   }
-  return '신고를 접수하지 못했습니다. 다시 시도해주세요.';
+  return '신고를 접수하지 못했어요. 다시 시도해주세요.';
 }
 
 export function ReportAction({
@@ -59,7 +59,7 @@ export function ReportAction({
     }
   };
 
-  if (done) return <Text style={styles.done}>신고가 접수됐습니다.</Text>;
+  if (done) return <Text style={styles.done}>신고를 접수했어요.</Text>;
 
   return (
     <View style={styles.container}>
@@ -72,7 +72,7 @@ export function ReportAction({
           submitReport.reset();
         }}
         style={({ pressed }) => [styles.reportButton, pressed && styles.pressed]}>
-        <Text style={styles.reportButtonText}>{open ? '신고 취소' : '신고'}</Text>
+        <Text style={styles.reportButtonText}>{open ? '닫기' : '신고하기'}</Text>
       </Pressable>
       {open ? (
         <View style={styles.panel}>
@@ -98,12 +98,12 @@ export function ReportAction({
 
 const styles = StyleSheet.create({
   container: { alignSelf: 'flex-start' },
-  reportButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border },
+  reportButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border },
   reportButtonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   panel: { backgroundColor: OnePick.background, borderRadius: 14, padding: 12, marginTop: 8, maxWidth: 360 },
   title: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 9 },
-  reasonButton: { minHeight: 38, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 12 },
+  reasonButton: { minHeight: 44, justifyContent: 'center', borderRadius: 999, backgroundColor: OnePick.surface, paddingHorizontal: 12 },
   reasonText: { color: OnePick.muted, fontSize: 12, fontWeight: '800' },
   loading: { marginTop: 10 },
   done: { color: OnePick.success, fontSize: 12, fontWeight: '700' },

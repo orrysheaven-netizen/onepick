@@ -8,11 +8,14 @@ import { useDishChannels } from '@/hooks/useDishChannels';
 import { useItemSearch } from '@/hooks/useItemSearch';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import { OnePick } from '@/constants/onepick';
+import { Icon } from '@/components/ui';
 
 type ItemSearchProps = {
   categoryId?: string;
   compact?: boolean;
   initialQuery?: string;
+  /** Defaults to the home wording; explore asks for a menu or store name (Figma 31). */
+  placeholder?: string;
   onSubmitSearch?: (query: string) => void;
   onSearchMovie?: (query: string) => void;
   onSearchDrama?: (query: string) => void;
@@ -38,6 +41,7 @@ export function ItemSearch({
   categoryId,
   compact = false,
   initialQuery = '',
+  placeholder = '어떤 원픽을 찾으세요?',
   onSubmitSearch,
   onSearchMovie,
   onSearchDrama,
@@ -134,7 +138,7 @@ export function ItemSearch({
       <View style={[styles.searchRow, compact && styles.compactSearchRow]}>
         <TextInput accessibilityLabel="항목명 검색" autoCapitalize="none" autoCorrect={false} maxLength={100}
           onChangeText={setSearchText} onSubmitEditing={submitSearch}
-          placeholder="어떤 원픽을 찾으세요?" placeholderTextColor={OnePick.hint}
+          placeholder={placeholder} placeholderTextColor={OnePick.textSecondary}
           returnKeyType="search" style={styles.input} value={searchText} />
         {searchText.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setSearchText('')} style={styles.clearButton}>
           <Text style={styles.clearText}>지우기</Text>
@@ -142,11 +146,11 @@ export function ItemSearch({
         {onSubmitSearch ? <Pressable accessibilityRole="button" accessibilityLabel="검색 실행"
           accessibilityState={{ disabled: !normalizedSearch }} disabled={!normalizedSearch}
           onPress={submitSearch} style={({ pressed }) => [styles.submitButton, (!normalizedSearch || pressed) && styles.pressed]}>
-          <Text style={styles.submitText}>검색</Text>
+          <Text style={styles.submitText}>검색하기</Text>
         </Pressable> : null}
       </View>
       {!compact && !query.hasSearchText ? <Text style={styles.description}>항목을 찾으면 상세 정보와 사람들의 선택을 볼 수 있어요.</Text> : null}
-      {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요.</Text></View> : null}
+      {isLoading ? <View style={styles.state}><ActivityIndicator /><Text style={styles.description}>검색하고 있어요</Text></View> : null}
       {query.hasSearchText && !isLoading && query.isError ? <View style={styles.state}>
         <Text style={styles.description}>검색 결과를 불러오지 못했어요.</Text>
         <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retryButton}><Text style={styles.retryText}>다시 검색하기</Text></Pressable>
@@ -165,7 +169,7 @@ export function ItemSearch({
           <Text style={styles.description}>
             {externalActions.length
               ? 'OnePick에 아직 등록된 항목이 없어요. 아래 외부 DB에서 계속 찾아보세요.'
-              : '일치하는 항목이 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
+              : '검색 결과가 없어요. 다른 이름이나 카테고리로 찾아보세요.'}
           </Text>
           {externalActions.map((action) => <Pressable key={action.key} accessibilityRole="button"
             accessibilityLabel={action.accessibilityLabel} onPress={action.run}
@@ -184,7 +188,7 @@ export function ItemSearch({
               </Text> : null}
               <Text style={styles.description}>상세 보기</Text>
             </View>
-            <Text style={styles.arrow}>›</Text>
+            <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} style={styles.arrow} />
           </Pressable>
         </View>)}
         {showExternalActionsWithResults && query.data.length > 0 && externalActions.length > 0 ? <View style={styles.moreSearch}>
@@ -227,6 +231,6 @@ const styles = StyleSheet.create({
   itemMeta: { color: OnePick.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
   moreSearch: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: OnePick.border },
   moreSearchTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
-  arrow: { color: OnePick.hint, fontSize: 25, marginLeft: 10 },
+  arrow: { marginLeft: 10  },
   pressed: { opacity: 0.7 },
 });

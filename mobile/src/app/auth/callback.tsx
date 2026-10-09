@@ -59,7 +59,7 @@ export default function AuthCallbackScreen() {
           <>
             <ActivityIndicator />
             <Text style={styles.title}>로그인을 마무리하고 있어요.</Text>
-            <Text style={styles.subtitle}>잠시 후 하려던 작업으로 돌아갑니다.</Text>
+            <Text style={styles.subtitle}>잠시 후 하려던 작업으로 돌아가요.</Text>
           </>
         )}
       </View>

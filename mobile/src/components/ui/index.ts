@@ -16,3 +16,8 @@ export { PickButton } from './pick-button';
 export type { PickButtonState } from './pick-button';
 export { LoadingState } from './loading-state';
 export { CurrentPickFlag } from './current-pick-flag';
+export { Icon } from './icon';
+export type { IconName, IconSize } from './icon';
+
+export { DIALOG_CANCEL_LABEL, DIALOG_CLOSE_LABEL, dialogSecondaryLabel } from './dialog-labels';
+export type { DialogSecondaryKind } from './dialog-labels';

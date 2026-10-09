@@ -204,6 +204,19 @@ async function main() {
   assert.match(edge, /\.eq\('normalized_name', head\)\s*\.ilike\('branch_name', '%' \+ branch \+ '%'\)/,
     'A full-title miss retries brand name + branch');
   assert.match(edge, /placeFullName\(place\) === branchKey\(resolvedName\)/);
+  const cleanSource = /function cleanNaverTitle[\s\S]*?\n}/.exec(edge)?.[0];
+  const cleanNaverTitle = new Function(cleanSource.replace(/: string/g, '') + '; return cleanNaverTitle;')();
+  assert.equal(cleanNaverTitle('을밀대 평양냉면 : 네이버\u001c'), '을밀대 평양냉면', 'Invisible control characters do not keep the Naver suffix');
+  assert.equal(cleanNaverTitle('스타벅스 강남우성점 - 네이버 지도'), '스타벅스 강남우성점');
+  for (const generic of ['네이버 지도', '네이버 플레이스', 'NAVER', '']) assert.equal(cleanNaverTitle(generic), '', generic + ' is not a store name');
+  const placeIdSource = /function naverPlaceId[\s\S]*?\n}/.exec(edge)?.[0];
+  const naverPlaceId = new Function(placeIdSource.replace(/\(url: URL\)/, '(url)') + '; return naverPlaceId;')();
+  assert.equal(naverPlaceId(new URL('https://map.naver.com/p/entry/place/11679611?placePath=%2Fhome')), '11679611');
+  assert.equal(naverPlaceId(new URL('https://m.place.naver.com/restaurant/11679611/home')), '11679611');
+  assert.equal(naverPlaceId(new URL('https://map.naver.com/p/search/abc')), null);
+  assert.match(edge, /new URL\('https:\/\/m\.place\.naver\.com\/place\/' \+ placeId \+ '\/home'\)/,
+    'A titleless map page is read through the place page of the same id');
+  assert.match(edge, /\.eq\('normalized_name', first\)\.limit\(20\)/, 'A Naver name with an extra word still lists the brand stores');
   assert.match(edge, /body\.action === 'attach_pending_link'/);
   assert.match(edge, /itemResult\.data\.created_by !== auth\.data\.user\.id/);
   assert.match(edge, /\.eq\('created_by', auth\.data\.user\.id\)\.eq\('status', 'pending'\)/,

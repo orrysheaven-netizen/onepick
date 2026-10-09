@@ -13,6 +13,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === '@/components/profile-ai-comment') return { ProfileAiComment: () => null };
     if (name === '@/components/profile-taste-composition') return { ProfileTasteComposition: () => null };
@@ -111,6 +112,8 @@ async function main() {
   } };
   const native = {
     View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+    PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
+    Platform: { OS: 'ios' },
     StyleSheet: { create: (styles) => styles, absoluteFill: {} },
     Pressable: (p) => { buttons.push(p); return React.createElement('button', null, p.children); },
     TextInput: (p) => { input = p; return React.createElement('textarea', { value: p.value, readOnly: true }); },
@@ -161,7 +164,7 @@ async function main() {
   assert.notEqual(ProfileBioEditor(props).key, key, 'Account changes remount the editor');
 
   const publicData = { profile: { id: 'owner', username: 'owner', bio: '영화와 라면\n<script>plain text</script>' }, currentPicks: [], isMine: false };
-  const { default: PublicProfile } = load('app/(tabs)/(profile)/u/[username].tsx', {
+  const { default: PublicProfile } = load('app/(tabs)/(profile)/u/[username].tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
     'expo-router': {
       useLocalSearchParams: () => ({ username: 'owner' }),
       useRouter: () => ({ back() {}, push() {}, replace() {}, canGoBack: () => false, dismissTo() {} }),

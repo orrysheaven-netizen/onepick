@@ -40,7 +40,7 @@ async function main() {
     const wrong=drama(params); wrong.render(); assert.equal(wrong.writes.length,0,'Wrong media or malformed return cannot execute');
   }
   const local=drama(); local.local.data=[{ id:itemId,categoryId:dramaId,name:entry.title,status:'active',externalSource:'tmdb_tv',externalId:'101' }];
-  const localPage=local.render(); assert.doesNotMatch(localPage,/이 드라마를 원픽으로 선택/);
+  const localPage=local.render(); assert.doesNotMatch(localPage,/이 드라마를 원픽으로 고르기/);
   local.button('테스트 드라마 원픽 선택').onPress(); assert.equal(local.writes.length,0); assert.equal(local.routes[0].route.params.itemId,itemId);
   const wrongSource=drama(); wrongSource.catalog.data=[{ ...entry,source:'tmdb',title:'Wrong movie namespace' }];
   assert.doesNotMatch(wrongSource.render(),/Wrong movie namespace/);

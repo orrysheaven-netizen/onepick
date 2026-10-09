@@ -16,6 +16,38 @@ export function useHomeMenuRanking(groupCategoryId: string | null = null, channe
   });
 }
 
+/** Store×menu 7-day ranking: Home shows the first six, 더보기 shows up to 50 in order. */
+export function useHomeItemRanking(channel: PickChannel | null = null, limit = 20, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.itemRanking(channel, limit),
+    queryFn: () => homeService.getRecentItemRanking(channel, limit),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
+/**
+ * Full public feed (Home → 사람들의 원픽 더보기): 20 Picks per server page, all pages kept
+ * so the list never drops rows it already showed, each Pick shown once.
+ */
+export function useFullPickFeed(userId: string | undefined, enabled: boolean, channel: PickChannel | null = null, rootSlug: string | null = null) {
+  return useInfiniteQuery({
+    enabled,
+    queryKey: [...queryKeys.home.data(userId), 'full-feed', channel ?? 'all', rootSlug ?? 'every-root'],
+    initialPageParam: null as ReadCursor | null,
+    queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel, rootSlug),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    select: (data) => {
+      const seen = new Set<string>();
+      return data.pages.flatMap((page) => page.picks).filter((pick) => {
+        if (seen.has(pick.pickId)) return false;
+        seen.add(pick.pickId);
+        return true;
+      });
+    },
+  });
+}
+
 export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
   const context = useQuery({
     enabled,

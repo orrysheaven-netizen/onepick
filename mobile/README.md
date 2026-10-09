@@ -31,7 +31,11 @@ Copy `.env.example` to `.env.local` and set the project's public Supabase key be
 
 Kakao login requests only `profile_nickname` via `options.queryParams.scope`. The `scopes` option is additive for Supabase's Kakao provider and would still request email and a profile photo. In Kakao Developers, enable nickname as optional consent; leave email and profile image disabled. In Supabase's Kakao provider settings, enable **Allow users without an email**. Add the development/production callback URLs to Supabase's redirect allow list and its Auth callback URL to Kakao's Redirect URI list.
 
-Web uses browser local storage; native builds use Expo SQLite storage. Static web rendering uses Supabase's in-memory fallback. Public environment variables must use static `process.env.EXPO_PUBLIC_…` access so Expo can include them in the client bundle.
+Web uses browser local storage; native builds use AES-GCM encrypted AsyncStorage with the encryption key in Expo SecureStore. Static web rendering uses Supabase's in-memory fallback. Public environment variables must use static `process.env.EXPO_PUBLIC_…` access so Expo can include them in the client bundle.
+
+## Native test builds
+
+See [iOS/Android build readiness](../docs/native-build-readiness.md) for the tested baseline, account-owned identifiers, EAS preview profiles, OAuth/deep-link setup and device acceptance checklist. `npm run check:native -- --platform android` (or `ios`) checks the supplied configuration without starting a build. Native account values may remain unset for ordinary web/PWA work.
 
 Run these checks from the `mobile` directory:
 

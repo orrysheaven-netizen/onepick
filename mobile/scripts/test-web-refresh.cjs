@@ -30,7 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
-    'home-feed-card': 'HomeFeedCard', 'item-search': 'ItemSearch', 'pick-photo': 'PickPhoto',
+    'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'explore-search-results': 'ExploreSearchResults', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
     'profile-social-links': 'ProfileSocialLinks', 'profile-follow-counts': 'ProfileFollowCounts', 'profile-my-comments': 'ProfileMyComments',
@@ -44,13 +44,13 @@ function fixture(kind, platform = 'web') {
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeMenuRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]) },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
-      useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }) },
+      useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }), useFoodMenuPickCounts: () => query(new Map()) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => profile },
     '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
@@ -115,12 +115,13 @@ async function main() {
   await test('Web Home preserves stale-data retry and independent next-page retry', () => {
     const { view, home } = fixture('home');
     home.isError = true; view.render(); assert.equal(button(view, homeLabel).label, '다시 불러오기');
-    assert.match(view.text(), /마지막으로 불러온 내용/); assert.equal(view.all('HomeFeedCard').length, 1);
+    assert.match(view.text(), /마지막으로 불러온 내용/); assert.equal(view.all('HomePickRow').length, 1);
     assert.equal(view.all('Button').filter((p) => p.accessibilityLabel === homeLabel).length, 1);
     button(view, homeLabel).onPress(); assert.equal(home.refetches, 1);
     home.isFetchNextPageError = true; view.render(); assert.equal(button(view, homeLabel).label, '새로고침');
-    view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기').action.onPress();
-    assert.equal(home.nextPages, 1); assert.equal(home.refetches, 1);
+    // Home shows ten Picks and never pages (10-04); the full feed owns pagination.
+    assert.equal(view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기'), undefined);
+    assert.equal(home.nextPages, 0); assert.equal(home.refetches, 1);
     home.isFetching = true; view.render(); button(view, homeLabel).onPress(); assert.equal(home.refetches, 1);
     home.isFetching = false; home.isError = false; home.isFetchNextPageError = false; view.render();
     assert.ok(button(view, homeLabel)); assert.doesNotMatch(view.text(), /마지막으로 불러온 내용/);
