@@ -80,7 +80,7 @@ function NicknameForm({ userId, nickname }: { userId: string; nickname: string |
             <Pressable accessibilityRole="button" accessibilityLabel="닉네임 입력 지우기"
               disabled={mutation.isPending} onPress={() => { setDraft(''); setError(''); }}
               style={styles.clearButton}>
-              <Text style={styles.clearText}>×</Text>
+              <Icon name="clear" size="sm" />
             </Pressable>
           ) : null}
         </View>
@@ -132,7 +132,6 @@ const styles = StyleSheet.create({
   inputBox: { minHeight: 52, backgroundColor: OnePick.bgSubtle, borderRadius: OnePickRadius.md, paddingLeft: OnePickSpace.lg, paddingRight: OnePickSpace.xs, flexDirection: 'row', alignItems: 'center' },
   input: { ...OnePickType.body, flex: 1, minWidth: 0, paddingVertical: OnePickSpace.md, color: OnePick.textPrimary },
   clearButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  clearText: { ...OnePickType.title, color: OnePick.textSecondary },
   hint: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
   error: { ...OnePickType.caption, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
   preview: { backgroundColor: OnePick.bgSubtle, borderRadius: OnePickRadius.md, padding: OnePickSpace.lg, gap: OnePickSpace.sm, marginTop: OnePickSpace.xxl },
