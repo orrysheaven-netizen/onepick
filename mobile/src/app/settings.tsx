@@ -61,15 +61,6 @@ export default function SettingsScreen() {
 
         {user ? (
           <>
-            <Text style={styles.sectionLabel}>프로필</Text>
-            <View style={styles.card}>
-              <Pressable accessibilityRole="link" accessibilityLabel="닉네임 수정"
-                onPress={() => router.push('/settings/nickname')}
-                style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
-                <Text style={styles.linkText}>닉네임 수정</Text>
-                <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
-              </Pressable>
-            </View>
             {OnePickFeatures.followNotifications ? <>
             <Text style={styles.sectionLabel}>알림</Text>
             <View style={styles.card}>
@@ -124,6 +115,12 @@ export default function SettingsScreen() {
 
             <Text style={styles.sectionLabel}>계정</Text>
             <View style={styles.card}>
+              <Pressable accessibilityRole="link" accessibilityLabel="닉네임 수정"
+                onPress={() => router.push('/settings/nickname')}
+                style={({ pressed }) => [styles.linkRow, styles.linkRowDivider, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>닉네임 수정</Text>
+                <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+              </Pressable>
               <Text style={styles.cardTitle}>계정 삭제</Text>
               <Text style={styles.body}>
                 내 프로필, 원픽 기록, 댓글과 차단 정보가 삭제돼요. 이미 승인되어 정식 등록된 정보는 서비스 데이터로 유지될 수 있지만 내 계정과의 연결은 제거돼요.
