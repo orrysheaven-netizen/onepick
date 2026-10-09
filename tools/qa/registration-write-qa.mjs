@@ -160,12 +160,22 @@ async function main() {
       throw new Error('REVIEW_TEXT_NOT_VISIBLE');
     }
     phase = 'photo-display';
-    await page.getByRole('img', { name: STORE, exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
-    await page.waitForFunction(label => [...document.querySelectorAll('[aria-label]')].some(el => {
-      if (el.getAttribute('aria-label') !== label) return false;
-      const image = el instanceof HTMLImageElement ? el : el.querySelector('img');
-      return image?.complete && image.naturalWidth > 0;
-    }), STORE, { timeout: 30_000 });
+    const itemPhoto = page.getByRole('img', { name: STORE, exact: true }).first();
+    try {
+      await itemPhoto.waitFor({ state: 'visible', timeout: 30_000 });
+    } catch (error) {
+      if (!(error instanceof errors.TimeoutError)) throw error;
+      throw new Error('PHOTO_IMAGE_NOT_VISIBLE');
+    }
+    try {
+      // expo-image maps accessibilityLabel to the HTML <img alt="..."> on web.
+      await page.waitForFunction(label => [...document.images].some(image =>
+        image.alt === label && image.complete && image.naturalWidth > 0
+      ), STORE, { timeout: 30_000 });
+    } catch (error) {
+      if (!(error instanceof errors.TimeoutError)) throw error;
+      throw new Error('PHOTO_IMAGE_NOT_LOADED');
+    }
     phase = 'final-persistence';
     await verify(registration);
     need(!fault, 'UNEXPECTED_REQUEST');
