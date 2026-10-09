@@ -44,13 +44,14 @@ function getCommentErrorMessage(error: unknown) {
  * login/signup) opens that popup once on arrival. `ownReview`: the review author only replies to other
  * people's comments; there is no top-level composer on their own review.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, ownReview = false, onPickFirst, autoOpenPickFirst = false, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, ownReview = false, onPickFirst, autoOpenPickFirst = false, onPickFirstAutoOpened, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
   ownReview?: boolean;
   onPickFirst?: () => void;
   autoOpenPickFirst?: boolean;
+  onPickFirstAutoOpened?: () => void;
   focusCommentId?: string;
   initialCursor?: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -58,10 +59,10 @@ export function PickReplies({ pickId, compact = false, canWrite = true, ownRevie
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} ownReview={ownReview} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} ownReview={ownReview} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} onPickFirstAutoOpened={onPickFirstAutoOpened} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirst, autoOpenPickFirst, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirst, autoOpenPickFirst, onPickFirstAutoOpened, focusCommentId, initialCursor, onFocusLoaded }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
@@ -69,6 +70,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirs
   ownReview: boolean;
   onPickFirst?: () => void;
   autoOpenPickFirst: boolean;
+  onPickFirstAutoOpened?: () => void;
   focusCommentId?: string;
   initialCursor: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -100,7 +102,9 @@ function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirs
     if (!autoOpenPickFirst || !canPickFirst || pickFirstAutoOpened.current) return;
     pickFirstAutoOpened.current = true;
     setPickFirstOpen(true);
-  }, [autoOpenPickFirst, canPickFirst]);
+    // Consume the one-time trigger so a remount (account switch, refresh) does not reopen it.
+    onPickFirstAutoOpened?.();
+  }, [autoOpenPickFirst, canPickFirst, onPickFirstAutoOpened]);
 
   const loginPrompt = (
     <Pressable

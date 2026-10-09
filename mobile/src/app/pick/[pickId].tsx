@@ -165,6 +165,7 @@ export default function PickDetailScreen() {
             canWrite={Boolean(focused.pick.canComment)}
             ownReview={Boolean(user && focused.pick.userId === user.id)}
             autoOpenPickFirst={params.afterAuth === '1'}
+            onPickFirstAutoOpened={() => router.setParams({ afterAuth: undefined })}
             onPickFirst={canPickFirst ? () => router.push({ pathname: '/pick/choose', params: {
               itemId: focused.pick.itemId, categoryId: focused.pick.categoryId,
               ...(focused.pick.channel ? { channel: focused.pick.channel } : {}), returnPickId: focused.pick.id,
