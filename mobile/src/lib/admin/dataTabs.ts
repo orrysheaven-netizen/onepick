@@ -1,9 +1,10 @@
 // Tabs of the admin /admin/data page and the sidebar sections that group them.
 // Kept outside the route file so the dashboard (and anything else that
 // deep-links into a tab) can import the type without importing a screen.
-export type AdminDataTab = 'categories' | 'brands' | 'providers' | 'items' | 'channels' | 'editorial' | 'pending' | 'photos' | 'links' | 'users' | 'reports' | 'audit';
+export type AdminDataTab = 'categories' | 'brands' | 'providers' | 'items' | 'channels' | 'editorial' | 'pending' | 'photos' | 'links' | 'users' | 'reports' | 'audit' | 'feedback';
 
 export const ADMIN_DATA_TABS: Array<{ key: AdminDataTab; label: string; description: string }> = [
+  { key: 'feedback', label: '의견 수신 이메일', description: '사용자 의견을 받을 공개 이메일 주소를 설정해요.' },
   { key: 'categories', label: '카테고리', description: '최대 3단계까지 카테고리를 구성하고, 노출 여부·Pick 가능 여부·상태와 정렬 순서를 관리합니다.' },
   { key: 'brands', label: '브랜드', description: '상품 등록에 사용할 브랜드를 추가하고 활성 상태를 관리합니다.' },
   { key: 'providers', label: '판매처', description: '온라인 공식 판매처를 생성·검색하고 브랜드 연결과 노출 상태를 관리합니다.' },
@@ -38,6 +39,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   { title: '처리 대기', items: [tabItem('pending'), tabItem('photos'), tabItem('links'), tabItem('reports')] },
   { title: '콘텐츠', items: [tabItem('categories'), tabItem('brands'), tabItem('providers'), tabItem('items'), tabItem('channels'), tabItem('editorial')] },
   { title: '사용자·기록', items: [tabItem('users'), tabItem('audit')] },
+  { title: '앱 설정', items: [tabItem('feedback')] },
   {
     title: 'QA 도구',
     items: [
@@ -50,3 +52,4 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
 export function adminNavSectionTitle(tab: AdminDataTab) {
   return ADMIN_NAV_SECTIONS.find((section) => section.items.some((item) => item.tab === tab))?.title ?? null;
 }
+

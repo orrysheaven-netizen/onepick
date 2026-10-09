@@ -11,6 +11,7 @@ import type {
   RegisterPickRecordInput,
   RegisterItemPickInput,
   RegisterItemPickResult,
+  RegisterUnclassifiedPickInput,
 } from '@/repositories/interfaces/pickRepository';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
 
@@ -72,6 +73,24 @@ export class SupabasePickRepository implements PickRepository {
       replacedPickId: typeof row.replaced_pick_id === 'string' ? row.replaced_pick_id : null,
       retried: row.retried,
     };
+  }
+
+  async registerUnclassifiedPick(input: RegisterUnclassifiedPickInput): Promise<RegisterItemPickResult> {
+    const { data, error } = await this.client.rpc('register_unclassified_menu_pick', {
+      p_menu_name: input.menuName, p_one_line_review: input.oneLineReview,
+      p_catalog_id: input.catalogId ?? undefined, p_place_name: input.placeName,
+      p_map_url: input.mapUrl, p_image_path: input.imagePath,
+      p_thumbnail_path: input.thumbnailPath, p_image_source_url: input.imageSourceUrl,
+      p_request_id: input.requestId,
+    });
+    if (error) throw mapSupabaseError(error);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
+    const row = data as Record<string, unknown>;
+    if (typeof row.item_id !== 'string' || typeof row.pick_id !== 'string'
+      || typeof row.published !== 'boolean' || typeof row.retried !== 'boolean'
+      || row.replaced_pick_id !== null) throw new AppError('INTERNAL_ERROR');
+    return { itemId: row.item_id, pickId: row.pick_id, published: row.published,
+      replacedPickId: null, retried: row.retried };
   }
 
   async getById(pickId: string) {
@@ -221,7 +240,12 @@ export class SupabasePickRepository implements PickRepository {
     return mapPickRow(data);
   }
 
-  async removePick(categoryId: string, channel?: PickChannel | null) {
+  async removePick(categoryId: string, channel?: PickChannel | null, pickId?: string) {
+    if (pickId) {
+      const { error } = await this.client.rpc('remove_pick_by_id', { p_pick_id: pickId });
+      if (error) throw mapSupabaseError(error);
+      return;
+    }
     const { error } = await this.client.rpc('remove_pick', {
       p_category_id: categoryId,
       ...(channel ? { p_channel: channel } : {}),
@@ -236,3 +260,4 @@ export class SupabasePickRepository implements PickRepository {
     if (error) throw mapSupabaseError(error);
   }
 }
+

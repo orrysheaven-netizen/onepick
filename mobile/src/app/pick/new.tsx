@@ -325,7 +325,11 @@ export default function NewPickScreen() {
     : null;
   // Step 2 always derives its category from current inputs/server data, including
   // restored legacy drafts. The committed menu is used only in later steps.
-  const effectiveMenu = menus.isSuccess ? prefilledMenu ?? exactMenu ?? autoSuggestedMenu : null;
+  const classifiedMenu = menus.isSuccess ? prefilledMenu ?? exactMenu ?? autoSuggestedMenu : null;
+  // An unknown dish is still a valid registration. Preserve its name and let
+  // the server save a separate unclassified Pick instead of inventing a category.
+  const effectiveMenu = classifiedMenu ?? (requestedMenu && requestedMenu.length <= 40 && storeChannel === 'offline'
+    ? { categoryId: null, name: requestedMenu } : null);
   const classificationPending = Boolean(requestedMenu && !effectiveMenu && !menus.isError
     && (!menus.isSuccess || !aiTried || suggestions.isFetching));
   const classificationUnresolved = Boolean(requestedMenu && menus.isSuccess && !effectiveMenu
@@ -448,7 +452,12 @@ export default function NewPickScreen() {
     // A restored review step stays there only when no photo is missing.
     const photoStep = (next: 4 | 5): Step => (resume === 5 && next === 4 && photo ? 5 : next);
     setMenu(effectiveMenu);
-    if (!effectiveMenu.categoryId) return;
+    if (!effectiveMenu.categoryId) {
+      setExpectedPreviousPickId(null);
+      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
+      setPickScope('branch'); setStep(photoStep(4));
+      return;
+    }
 
     busy.current = true;
     try {
@@ -495,7 +504,6 @@ export default function NewPickScreen() {
   const save = async (expectedOverride?: string | null) => {
     if (!user || !store || !menu || busy.current || saving) return;
     if (!reviewValid) { setShowReviewError(true); return; }
-    if (!menu.categoryId) { setSaveError(new AppError('CATEGORY_NOT_PICKABLE')); return; }
     if (needsPhoto && !photo) { setSaveError(new AppError('PHOTO_REQUIRED')); setStep(4); return; }
     const expected = expectedOverride !== undefined ? expectedOverride : expectedPreviousPickId;
     if (expected === undefined) { setSaveError(new AppError('INTERNAL_ERROR')); return; }
@@ -509,6 +517,7 @@ export default function NewPickScreen() {
       const result = await registration.mutateAsync({
         userId: user.id,
         categoryId: menu.categoryId,
+        ...(!menu.categoryId ? { menuName: menu.name } : {}),
         channel: storeChannel,
         oneLineReview: trimmedReview,
         requestId,
@@ -790,11 +799,11 @@ export default function NewPickScreen() {
                 </Pressable> : null}
               </View>
               <Text style={styles.helper}>{menuPrefilled && entryMenuName
-                ? `${entryMenuName} 메뉴에서 시작해 메뉴명을 미리 채웠어요. 매장에서 부르는 이름으로 고쳐 써도 돼요.`
-                : '매장에서 부르는 메뉴 이름 그대로 적어주세요. 카테고리는 앱이 자동으로 분류해요.'}</Text>
+                ? '매장 메뉴명으로 고쳐 써도 돼요.'
+                : '매장 메뉴명을 그대로 적어주세요.'}</Text>
             </View>
 
-            {menus.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
+            {menus.isError && !effectiveMenu ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
               action={{ label: '다시 불러오기', onPress: () => { void menus.refetch(); } }} /> : null}
 
             {effectiveMenu ? <Text style={styles.helper}>
@@ -825,7 +834,7 @@ export default function NewPickScreen() {
           </View>
           <View style={styles.footer}>
             <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
-              disabled={!effectiveMenu || suggestions.isFetching || Boolean(preflight?.brand && !pickScope)}
+              disabled={!effectiveMenu || Boolean(preflight?.brand && !pickScope)}
               loading={selectItem.isPending} onPress={() => void confirmMenu()} />
           </View>
         </> : null}
@@ -1023,4 +1032,3 @@ const styles = StyleSheet.create({
   noticeText: { ...OnePickType.caption, color: OnePick.textPrimary },
   counter: { ...OnePickType.caption, alignSelf: 'stretch', color: OnePick.textSecondary, textAlign: 'right' },
 });
-
