@@ -21,69 +21,50 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+function utcHour(value) {
+  const ms=new Date(value).getTime();
+  if(!Number.isFinite(ms)||ms%HOUR_MS!==0)throw new Error("Invalid hourly QA window");
+  return new Date(ms).toISOString();
+}
+
 export function evaluateRows(rows) {
-  const byCode = new Map();
-
-  for (const row of Array.isArray(rows) ? rows : []) {
-    if (row?.kind !== 'client_error') continue;
-
-    const code = safeCell(row.detail);
-    const context = safeCell(row.name);
-    const platform = safeCell(row.platform);
-    const current = count(row.last_complete_hour);
-    const baseline = count(row.error_code_same_hour_prev_7d);
-    const previous7d = count(row.error_code_prev_7d);
-
-    let item = byCode.get(code);
-    if (!item) {
-      item = {
-        errorCode: code,
-        currentCount: 0,
-        baselineSameHourTotal: 0,
-        previous7dCount: 0,
-        currentLocations: [],
-        windowStart: row.current_hour_start ?? null,
-        windowEnd: row.current_hour_end ?? null,
-      };
-      byCode.set(code, item);
+  const byWindowAndCode = new Map();
+  for(const row of Array.isArray(rows)?rows:[]) {
+    if(row?.kind!=="client_error")continue;
+    const start=utcHour(row.current_hour_start),end=utcHour(row.current_hour_end);
+    if(Date.parse(end)-Date.parse(start)!==HOUR_MS)throw new Error("Hourly QA window must be exactly one hour");
+    const code=safeCell(row.detail),context=safeCell(row.name),platform=safeCell(row.platform);
+    const current=count(row.last_complete_hour),baseline=count(row.error_code_same_hour_prev_7d),previous7d=count(row.error_code_prev_7d);
+    const groupKey=`${end}|${code}`;
+    let item=byWindowAndCode.get(groupKey);
+    if(!item){
+      item={errorCode:code,currentCount:0,baselineSameHourTotal:0,previous7dCount:0,currentLocations:[],windowStart:start,windowEnd:end};
+      byWindowAndCode.set(groupKey,item);
     }
-
-    item.currentCount += current;
-    item.baselineSameHourTotal = Math.max(item.baselineSameHourTotal, baseline);
-    item.previous7dCount = Math.max(item.previous7dCount, previous7d);
-    item.windowStart ||= row.current_hour_start ?? null;
-    item.windowEnd ||= row.current_hour_end ?? null;
-
-    if (current > 0) {
-      item.currentLocations.push({ context, platform, count: current });
-    }
+    item.currentCount+=current;
+    item.baselineSameHourTotal=Math.max(item.baselineSameHourTotal,baseline);
+    item.previous7dCount=Math.max(item.previous7dCount,previous7d);
+    if(current>0)item.currentLocations.push({context,platform,count:current});
   }
-
-  const alerts = [];
-  for (const item of byCode.values()) {
-    if (item.currentCount <= 0) continue;
-
-    const baselineAverage = item.baselineSameHourTotal / 7;
-    const isNew = item.previous7dCount === 0;
-    const isSpike = item.currentCount > baselineAverage * 3;
-    if (!isNew && !isSpike) continue;
-
-    item.currentLocations.sort((a, b) => b.count - a.count || a.context.localeCompare(b.context));
+  const alerts=[];
+  for(const item of byWindowAndCode.values()){
+    if(item.currentCount<=0)continue;
+    const baselineAverage=item.baselineSameHourTotal/7;
+    const isNew=item.previous7dCount===0,isSpike=item.currentCount>baselineAverage*3;
+    if(!isNew&&!isSpike)continue;
+    item.currentLocations.sort((a,b)=>b.count-a.count||a.context.localeCompare(b.context));
     alerts.push({
-      key: `error-code:${item.errorCode}`,
-      errorCode: item.errorCode,
-      reasons: [isNew ? 'new_error_code' : null, isSpike ? 'three_x_spike' : null].filter(Boolean),
-      currentCount: item.currentCount,
-      baselineAverage: round2(baselineAverage),
-      previous7dCount: item.previous7dCount,
-      ratio: baselineAverage === 0 ? null : round2(item.currentCount / baselineAverage),
-      windowStart: item.windowStart,
-      windowEnd: item.windowEnd,
-      locations: item.currentLocations.slice(0, 5),
+      key:`error-code:${item.errorCode}`,errorCode:item.errorCode,
+      reasons:[isNew?"new_error_code":null,isSpike?"three_x_spike":null].filter(Boolean),
+      currentCount:item.currentCount,baselineAverage:round2(baselineAverage),
+      previous7dCount:item.previous7dCount,
+      ratio:baselineAverage===0?null:round2(item.currentCount/baselineAverage),
+      windowStart:item.windowStart,windowEnd:item.windowEnd,
+      locations:item.currentLocations.slice(0,5),
     });
   }
-
-  alerts.sort((a, b) => b.currentCount - a.currentCount || a.errorCode.localeCompare(b.errorCode));
+  alerts.sort((a,b)=>a.windowStart.localeCompare(b.windowStart)||b.currentCount-a.currentCount||a.errorCode.localeCompare(b.errorCode));
   return alerts;
 }
 
@@ -106,13 +87,14 @@ async function main() {
   const report = {
     generatedAt: new Date().toISOString(),
     projectRef: PROJECT_REF,
+    lookbackCompletedHours: 24,
     alertCount: alerts.length,
     alerts,
   };
 
   fs.mkdirSync(path.dirname(OUTPUT), { recursive: true });
   fs.writeFileSync(OUTPUT, `${JSON.stringify(report, null, 2)}\n`);
-  console.log(`Real-user error alert evaluation: ${alerts.length} alert(s).`);
+  console.log(`Real-user error alert evaluation: ${alerts.length} hourly alert(s) in a 24-hour lookback.`);
 }
 
 const invokedDirectly = process.argv[1]
