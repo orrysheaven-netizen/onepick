@@ -1,6 +1,6 @@
 // Manual, one-time production smoke. Never imported by the scheduled Daily QA.
 import fs from 'node:fs';
-import { chromium } from 'playwright';
+import { chromium, errors } from 'playwright';
 import { isPublicKey } from './setup-qa-profile.mjs';
 import { SITE, API, STORE, MENU, REVIEW, uuid, requireCondition as need,
   assertExecution, assertSessionBudget, createWriteGuard, enterRegistration,
@@ -145,8 +145,20 @@ async function main() {
     await page.getByText(STORE, { exact: false }).first().waitFor({ state: 'visible', timeout: 30_000 });
     phase = 'detail-review';
     // ItemReviewCard wraps the complete review in curly quotation marks.
-    await page.getByRole('button', { name: `${STORE} 한줄평 대화 보기`, exact: true })
-      .getByText(`“${REVIEW}”`, { exact: true }).waitFor({ state: 'visible', timeout: 30_000 });
+    const reviewButton = page.getByRole('button', { name: `${STORE} 한줄평 대화 보기`, exact: true });
+    try {
+      await reviewButton.waitFor({ state: 'visible', timeout: 30_000 });
+    } catch (error) {
+      if (!(error instanceof errors.TimeoutError)) throw error;
+      throw new Error('REVIEW_BUTTON_NOT_VISIBLE');
+    }
+    try {
+      await reviewButton.getByText(`“${REVIEW}”`, { exact: true })
+        .waitFor({ state: 'visible', timeout: 30_000 });
+    } catch (error) {
+      if (!(error instanceof errors.TimeoutError)) throw error;
+      throw new Error('REVIEW_TEXT_NOT_VISIBLE');
+    }
     phase = 'photo-display';
     await page.getByRole('img', { name: STORE, exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
     await page.waitForFunction(label => [...document.querySelectorAll('[aria-label]')].some(el => {

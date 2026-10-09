@@ -200,6 +200,9 @@ test('persisted fixture uses real table columns and rejects other rows, ended pi
 
 test('failure diagnostics never echo arbitrary error messages or response data', () => {
   assert.equal(safeFailureCode(new Error('PICK_PERSISTENCE_FAILED')), 'PICK_PERSISTENCE_FAILED');
+  for (const code of ['REVIEW_BUTTON_NOT_VISIBLE', 'REVIEW_TEXT_NOT_VISIBLE']) {
+    assert.equal(safeFailureCode(new Error(code)), code);
+  }
   for (const value of ['SENSITIVE_TOKEN', 'https://example.invalid/private', 'PICK_PERSISTENCE_FAILED secret', '']) {
     assert.equal(safeFailureCode(new Error(value)), 'UNCLASSIFIED_FAILURE');
   }
