@@ -31,7 +31,7 @@ import {
 } from './logged-in-contract.mjs';
 import {
   createRestoreGuard, handleRoute, pickFixtureCategory, assertDraftRestoreExecution, assertSessionBudget,
-  inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft,
+  inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode,
   RESTORE_MENU, RESTORE_REVIEW, DRAFT_KEY, DRAFT_PHOTO_KEY,
 } from './draft-restore-contract.mjs';
 
@@ -223,16 +223,25 @@ async function revoke(supabase, session) {
   }).catch(() => {});
 }
 
-// #858: photo + review draft → menu classification failing → the same web session
-// re-enters twice → the review step comes back (manually, then automatically once the
-// classification is answered by a fixture). Also: sign-out/re-login keeps the draft,
-// a lost photo asks again, another account's draft is discarded. No registration,
+// #858: photo + review draft → menu classification pending (request held), then failing →
+// the same web session re-enters twice in each state → the review step comes back
+// (manually, then automatically once the classification is answered by a fixture; and
+// again after the current-Pick lookup failed once). Also: sign-out/re-login keeps the
+// draft, a lost photo asks again, another account's draft is discarded. No registration,
 // upload, AI call or other write ever leaves the browser (guard fails closed) and the
-// account's Pick count is compared read-only before and after.
+// account's Pick count is compared read-only before and after. Failures are reported as
+// closed codes only (never error.message, page text or URLs).
 async function runDraftRestoreFlow({ browser, supabase, session, runtime, storageKey }) {
   const flow = '초안 복원';
   const userId = session.user.id;
   const guard = createRestoreGuard({ api: supabase.origin, site: BASE_URL });
+  // Every failure inside this flow is reduced to the closed vocabulary before it is recorded.
+  const restoreCheck = (name, fn) => check(flow, name, () => fn().catch((error) => { throw new Error(safeRestoreFailureCode(error)); }));
+  const readJson = async (url, init) => {
+    const response = await fetch(url, { ...init, headers: { apikey: supabase.apikey, authorization: `Bearer ${session.access_token}`, 'content-type': 'application/json', ...(init?.headers ?? {}) } });
+    const body = await response.json().catch(() => null);
+    return { ok: response.ok, body };
+  };
   const stepMeta = (page, n) => page.getByText(new RegExp(`^${n} / 4 · `)).first();
   const nextButton = (page) => page.getByRole('button', { name: '다음', exact: true });
   const reviewBox = (page) => page.getByRole('textbox', { name: '원픽 한줄평', exact: true });
@@ -256,20 +265,26 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
   };
   const draftState = (d) => d ? `step=${d.step} photo=${d.photo} review=${d.review === RESTORE_REVIEW ? '유지' : '유실'}` : '초안 없음';
   const countPicks = async () => {
-    const response = await fetch(`${supabase.origin}/rest/v1/picks?user_id=eq.${userId}&select=id`, {
-      headers: { apikey: supabase.apikey, authorization: `Bearer ${session.access_token}` },
-    });
-    const rows = await response.json().catch(() => null);
-    if (!response.ok || !Array.isArray(rows)) throw new Error(`원픽 수 조회 HTTP ${response.status}`);
-    return rows.length;
+    const { ok, body } = await readJson(`${supabase.origin}/rest/v1/picks?user_id=eq.${userId}&select=id`);
+    if (!ok || !Array.isArray(body)) throw new Error('PICK_COUNT_READ_FAILED');
+    return body.length;
   };
 
   let picksBefore = null;
-  const authorized = await check(flow, '실행 조건 (workflow_dispatch · main · 세션 여유)', async () => {
+  let deployment = 'unknown';
+  const authorized = await restoreCheck('실행 조건 (workflow_dispatch · main · 배포 일치 · 일반 사용자 · 세션 여유)', async () => {
     assertDraftRestoreExecution(process.env);
     assertSessionBudget(session);
+    // The tester site must be serving the commit this run was dispatched from; otherwise the
+    // result would describe another deploy and must not be claimed as QA of main.
+    const dep = await fetch(`${BASE_URL}/deployment.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    deployment = typeof dep?.commitSha === 'string' ? dep.commitSha.slice(0, 7) : 'unreadable';
+    if (!dep || dep.commitSha !== process.env.GITHUB_SHA) throw new Error('DEPLOYMENT_NOT_CURRENT');
+    // Only the dedicated general QA account may run this; an admin session would widen what the screen can do.
+    const admin = await readJson(`${supabase.origin}/rest/v1/rpc/current_user_is_admin`, { method: 'POST', body: '{}' });
+    if (!admin.ok || admin.body !== false) throw new Error('GENERAL_USER_REQUIRED');
     picksBefore = await countPicks();
-    return `승인된 실행 경로 · 세션 15분 이상 · 원픽 ${picksBefore}개(읽기 전용)`;
+    return `승인된 실행 경로 · 배포 ${deployment} = GITHUB_SHA · 일반 사용자 · 세션 15분 이상 · 원픽 ${picksBefore}개(읽기 전용)`;
   });
   if (!authorized) return;
 
@@ -295,9 +310,9 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
     await page.goto(`${BASE_URL}/legal/terms`, { waitUntil: 'domcontentloaded' });
     await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
 
-    const ready = await check(flow, '등록 화면 → 매장 선택 (1/4 → 2/4)', async () => {
+    const ready = await restoreCheck('등록 화면 → 매장 선택 (1/4 → 2/4)', async () => {
       await page.goto(`${BASE_URL}/pick/new`, { waitUntil: 'networkidle' });
-      if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
+      if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('LOGIN_REQUIRED_SCREEN');
       await page.getByRole('button', { name: 'URL 없음', exact: true }).click({ timeout: STEP_TIMEOUT_MS });
       await page.getByRole('textbox', { name: '매장명 검색', exact: true }).fill(STORE_QUERY);
       const result = page.getByRole('button', { name: /선택$/ });
@@ -309,7 +324,7 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
     });
     if (!ready) return;
 
-    const drafted = await check(flow, '메뉴 입력 → AI 분류 실패(차단) → 수동 다음 → 사진 → 한줄평 (4/4)', async () => {
+    const drafted = await restoreCheck('메뉴 입력 → AI 분류 실패(차단) → 수동 다음 → 사진 → 한줄평 (4/4)', async () => {
       await page.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(RESTORE_MENU);
       // The typed name is not in the taxonomy, so the AI pass is attempted and dropped.
       const aiFailed = await waitCount(page, () => guard.counts.aiFailed, 1);
@@ -341,8 +356,47 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
     if (!drafted) return;
     const storeName = (await readDraft(page)).draft?.storeName ?? null;
 
+    // #858 as titled: the classification request is still PENDING when the session re-enters
+    // (twice). While it waits nothing is decided — the screen must stay on 2/4 with the
+    // review-step target kept, and the AI pass must not even start.
+    const requireNoResume = async () => {
+      if (await stepMeta(page, 4).isVisible().catch(() => false)) throw new Error('RESTORE_TOO_EARLY');
+      if (await page.getByRole('button', { name: '원픽 등록하기', exact: true }).isVisible().catch(() => false)) throw new Error('RESTORE_TOO_EARLY');
+    };
+    guard.setFault('holdMenuOptions', true);
     for (const round of [1, 2]) {
-      await check(flow, `동일 세션 재진입 ${round}회 (분류 실패 유지) → 2/4 대기 · 복귀 목표 유지`, async () => {
+      await restoreCheck(`동일 세션 재진입 ${round}회 (분류 대기 = 요청 보류) → 2/4 대기 · 복귀 목표 유지`, async () => {
+        const aiBefore = guard.counts.aiFailed;
+        const heldBefore = guard.counts.held;
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await waitCount(page, () => guard.counts.held, heldBefore + 1)) <= heldBefore) throw new Error('MENU_OPTIONS_NOT_HELD');
+        await page.waitForTimeout(1_500);
+        await requireNoResume();
+        if (guard.counts.aiFailed !== aiBefore) throw new Error('RESTORE_TOO_EARLY'); // AI pass must wait for the menu list
+        const { draft } = await waitDraft(page, (d) => d?.step === 5);
+        assertReviewDraft(draft, { storeName, userId });
+        const meta = (await stepMeta(page, 2).innerText()).trim();
+        if (meta !== meta2) throw new Error('STORE_LABEL_CHANGED');
+        return `2/4 "${meta}" 대기 · 분류 요청 보류 ${guard.parkedCount}건 · 초안 ${draftState(draft)} · 자동 진행 없음`;
+      });
+    }
+    guard.setFault('holdMenuOptions', false);
+    await restoreCheck('보류 해제 → 분류 실패로 정착 · 2/4 유지 · "다음" 활성 · 자동 등록 없음', async () => {
+      const aiBefore = guard.counts.aiFailed;
+      await guard.release((route) => route.continue());
+      if ((await waitCount(page, () => guard.counts.aiFailed, aiBefore + 1)) <= aiBefore) throw new Error('MENU_AI_NOT_ATTEMPTED');
+      await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.waitForTimeout(1_000);
+      await requireNoResume();
+      const { draft } = await waitDraft(page, (d) => d?.step === 5);
+      assertReviewDraft(draft, { storeName, userId });
+      if (await nextButton(page).isDisabled()) throw new Error('NEXT_DISABLED');
+      return `보류 해제 후 AI 차단 ${guard.counts.aiFailed}건 · 2/4 유지 · 초안 ${draftState(draft)} · "다음" 활성`;
+    });
+
+    for (const round of [1, 2]) {
+      await restoreCheck(`동일 세션 재진입 ${round}회 (분류 실패 유지) → 2/4 대기 · 복귀 목표 유지`, async () => {
         const before = guard.counts.aiFailed;
         await page.reload({ waitUntil: 'networkidle' });
         await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
@@ -350,23 +404,23 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
         if (after <= before) throw new Error('MENU_AI_NOT_ATTEMPTED');
         // Settle time for the restore's own autosave; the target step must not regress to 2.
         await page.waitForTimeout(1_000);
-        if (await stepMeta(page, 4).isVisible().catch(() => false)) throw new Error('미분류 메뉴인데 자동으로 4/4까지 진행됨');
+        await requireNoResume();
         const { draft } = await waitDraft(page, (d) => d?.step === 5);
         assertReviewDraft(draft, { storeName, userId });
         const meta = (await stepMeta(page, 2).innerText()).trim();
-        if (meta !== meta2) throw new Error(`매장 표시 변경: "${meta}"`);
-        if (await nextButton(page).isDisabled()) throw new Error('"다음" 버튼 비활성');
+        if (meta !== meta2) throw new Error('STORE_LABEL_CHANGED');
+        if (await nextButton(page).isDisabled()) throw new Error('NEXT_DISABLED');
         return `2/4 "${meta}" · 초안 ${draftState(draft)} · 매장·메뉴명 유지 · 자동 진행 없음`;
       });
     }
 
-    await check(flow, '수동 "다음" → 원래 한줄평 단계(4/4) 복귀 · 입력 유지', async () => {
+    await restoreCheck('수동 "다음" → 원래 한줄평 단계(4/4) 복귀 · 입력 유지', async () => {
       await nextButton(page).click();
       await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const meta = (await stepMeta(page, 4).innerText()).trim();
-      if (meta !== meta5) throw new Error(`4/4 표시 변경: "${meta}"`);
+      if (meta !== meta5) throw new Error('STEP_LABEL_CHANGED');
       const review = await reviewBox(page).inputValue();
-      if (review !== RESTORE_REVIEW) throw new Error('한줄평 입력 유실');
+      if (review !== RESTORE_REVIEW) throw new Error('DRAFT_REVIEW_LOST');
       // The submit button exists but is never pressed.
       await page.getByRole('button', { name: '원픽 등록하기', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.photo === 'stored');
@@ -375,7 +429,33 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
       return `4/4 "${meta}" · 한줄평·사진·메뉴명·매장명 유지 (등록하지 않음)`;
     });
 
-    await check(flow, '재진입 3회 (분류 성공 fixture) → 4/4 자동 복귀', async () => {
+    // Classification succeeds (fixture) but the current-Pick lookup fails during the automatic
+    // resume: the target must survive the failed lookup (#861) and a manual "다음" must then
+    // reach 4/4 once the lookup works again (#865 test 14, in a real browser).
+    await restoreCheck('재진입 (분류 성공 fixture · 원픽 조회 실패) → 2/4 유지 · 목표 보존 → 수동 "다음" 재시도 성공', async () => {
+      const category = pickFixtureCategory(menuRows);
+      if (!category) throw new Error('MENU_OPTIONS_NOT_CAPTURED');
+      guard.setMode('success', category);
+      guard.setFault('failPickSlotRead', true);
+      try {
+        const slotBefore = guard.counts.slotReadFailed;
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await waitCount(page, () => guard.counts.slotReadFailed, slotBefore + 1)) <= slotBefore) throw new Error('RETRY_FAILED');
+        await page.getByRole('alert').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }); // lookup error under the menu controls
+        if (await stepMeta(page, 4).isVisible().catch(() => false)) throw new Error('RETRY_FAILED');
+        const { draft } = await waitDraft(page, (d) => d?.step === 5);
+        assertReviewDraft(draft, { storeName, userId }); // target not consumed on a failed lookup
+        guard.setFault('failPickSlotRead', false);
+        await nextButton(page).click();
+        await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await stepMeta(page, 4).innerText()).trim() !== meta5) throw new Error('STEP_LABEL_CHANGED');
+        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('RETRY_FAILED');
+        return `조회 실패 ${guard.counts.slotReadFailed}건 중 2/4 유지(초안 ${draftState(draft)}) · 재시도 후 4/4 복귀 · 한줄평 유지`;
+      } finally { guard.setFault('failPickSlotRead', false); guard.setMode('fail'); }
+    });
+
+    await restoreCheck('재진입 (분류 성공 fixture) → 4/4 자동 복귀', async () => {
       const category = pickFixtureCategory(menuRows);
       if (!category) throw new Error('MENU_OPTIONS_NOT_CAPTURED');
       guard.setMode('success', category);
@@ -383,19 +463,19 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
         await page.reload({ waitUntil: 'networkidle' });
         await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
         const meta = (await stepMeta(page, 4).innerText()).trim();
-        if (meta !== meta5) throw new Error(`4/4 표시 변경: "${meta}"`);
-        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('한줄평 입력 유실');
+        if (meta !== meta5) throw new Error('STEP_LABEL_CHANGED');
+        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('DRAFT_REVIEW_LOST');
         const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.menuName === RESTORE_MENU);
         assertReviewDraft(draft, { storeName, userId });
         return `탭 없이 4/4 "${meta}" 복귀 · AI fixture ${guard.counts.aiFixture}건 · place-catalog fixture ${guard.counts.placeCatalogFixture}건 · 초안 ${draftState(draft)}`;
       } finally { guard.setMode('fail'); }
     });
 
-    await check(flow, '세션 제거(로그아웃 상태) → 초안 비노출 → 같은 계정 재로그인 → 초안 유지', async () => {
+    await restoreCheck('세션 제거(로그아웃 상태) → 초안 비노출 → 같은 계정 재로그인 → 초안 유지', async () => {
       await page.evaluate((key) => window.localStorage.removeItem(key), storageKey);
       await page.reload({ waitUntil: 'networkidle' });
       await page.getByText('로그인하고').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      if (await stepMeta(page, 4).isVisible().catch(() => false) || await stepMeta(page, 2).isVisible().catch(() => false)) throw new Error('비로그인 상태에서 초안 화면 노출');
+      if (await stepMeta(page, 4).isVisible().catch(() => false) || await stepMeta(page, 2).isVisible().catch(() => false)) throw new Error('DRAFT_SHOWN_SIGNED_OUT');
       const kept = (await readDraft(page)).draft;
       assertReviewDraft(kept, { storeName, userId });
       await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
@@ -406,7 +486,7 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
       return `비로그인 안내 표시 · 초안 보존 · 재로그인 후 2/4 복귀 · 초안 ${draftState(draft)}`;
     });
 
-    await check(flow, '사진 유실 표시 → "다음" 후 3/4 재선택 안내 · 한줄평 유지', async () => {
+    await restoreCheck('사진 유실 표시 → "다음" 후 3/4 재선택 안내 · 한줄평 유지', async () => {
       const { raw } = await readDraft(page);
       await page.evaluate(([k, p, value]) => { sessionStorage.setItem(k, value); sessionStorage.removeItem(p); }, [DRAFT_KEY, DRAFT_PHOTO_KEY, markPhotoLost(raw)]);
       await page.reload({ waitUntil: 'networkidle' });
@@ -419,29 +499,31 @@ async function runDraftRestoreFlow({ browser, supabase, session, runtime, storag
       return `3/4 재선택 안내 표시 · 한줄평·메뉴명 유지 · 초안 ${draftState(draft)}`;
     });
 
-    await check(flow, '다른 계정 소유 초안 → 재진입 시 폐기 (빈 등록 화면)', async () => {
+    await restoreCheck('다른 계정 소유 초안 → 재진입 시 폐기 (빈 등록 화면)', async () => {
       const { raw } = await readDraft(page);
       await page.evaluate(([k, value]) => sessionStorage.setItem(k, value), [DRAFT_KEY, reassignDraftOwner(raw, crypto.randomUUID())]);
       await page.reload({ waitUntil: 'networkidle' });
       await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
-      for (const n of [2, 3, 4]) if (await stepMeta(page, n).isVisible().catch(() => false)) throw new Error(`다른 계정 초안이 ${n}/4로 복원됨`);
+      for (const n of [2, 3, 4]) if (await stepMeta(page, n).isVisible().catch(() => false)) throw new Error('OTHER_OWNER_DRAFT_RESTORED');
       const { draft } = await readDraft(page);
-      if (draft && (draft.userId !== userId || draft.review || draft.menuQuery)) throw new Error('다른 계정 초안이 남아 있음');
+      if (draft && (draft.userId !== userId || draft.review || draft.menuQuery)) throw new Error('OTHER_OWNER_DRAFT_KEPT');
       return `링크 입력 첫 화면 · 이전 입력 없음 · ${draft ? '현재 계정의 빈 초안만 저장' : '초안 없음'}`;
     });
   } catch (error) {
-    record(flow, '스크립트', 'fail', String(error?.message ?? error).split('\n')[0].slice(0, 200));
+    record(flow, '스크립트', 'fail', safeRestoreFailureCode(error));
   } finally {
+    await guard.release((route) => route.abort('blockedbyclient')).catch(() => {});
     await context.close().catch(() => {});
-    await check(flow, '쓰기 차단 가드 · 원픽 수 불변 (읽기 전용 비교)', async () => {
+    // Context: the blocked-request facts are reported as counts and closed codes only.
+    await check(flow, '쓰기·유료 호출 차단 가드 · 원픽 수 불변 (읽기 전용 비교)', async () => {
       const c = guard.counts;
-      const picksAfter = await countPicks();
-      if (picksBefore !== null && picksAfter !== picksBefore) throw new Error(`PICK_COUNT_CHANGED ${picksBefore}→${picksAfter}`);
-      if (guard.failed) {
-        const first = firstBlocked ? `${firstBlocked.code} (${firstBlocked.kind}, 검사 #${firstBlocked.flowStep + 1})` : 'UNEXPECTED_WRITE';
-        throw new Error(`차단된 쓰기 ${c.blockedWrites}건 · 최초 ${first} · 원픽 ${picksBefore}→${picksAfter}`);
-      }
-      return `차단된 쓰기 0건 · AI 차단 ${c.aiFailed}건 · AI fixture ${c.aiFixture}건 · place-catalog fixture ${c.placeCatalogFixture}건 · 텔레메트리 드롭 ${c.telemetryDropped}건 · 외부 드롭 ${c.externalDropped}건 · 원픽 ${picksBefore}→${picksAfter}`;
+      const picksAfter = await countPicks().catch(() => null);
+      const first = firstBlocked ? `${firstBlocked.code} (${firstBlocked.kind}, 검사 #${firstBlocked.flowStep + 1})` : null;
+      const summary = `차단된 쓰기 ${c.blockedWrites}건 · 차단된 함수 호출 ${c.blockedFunctions}건${first ? ` · 최초 ${first}` : ''} · 원픽 ${picksBefore ?? '?'}→${picksAfter ?? '?'}`;
+      if (picksAfter === null) return { status: 'fail', detail: `PICK_COUNT_READ_FAILED · ${summary}` };
+      if (picksBefore !== null && picksAfter !== picksBefore) return { status: 'fail', detail: `PICK_COUNT_CHANGED · ${summary}` };
+      if (guard.failed) return { status: 'fail', detail: `${firstBlocked?.code ?? 'UNEXPECTED_WRITE'} · ${summary}` };
+      return `${summary} · AI 차단 ${c.aiFailed}건 · AI fixture ${c.aiFixture}건 · place-catalog fixture ${c.placeCatalogFixture}건 · 분류 보류 ${c.held}건 · 조회 실패 주입 ${c.slotReadFailed}건 · 텔레메트리 드롭 ${c.telemetryDropped}건 · 외부 드롭 ${c.externalDropped}건`;
     });
   }
 }

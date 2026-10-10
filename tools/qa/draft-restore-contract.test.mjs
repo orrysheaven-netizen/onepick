@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createRestoreGuard, aiSuccessFixture, pickFixtureCategory, assertDraftRestoreExecution,
-  inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode,
+  inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode, RESTORE_FAILURE_CODES,
+  isAllowedAuthMutation, isStorageRead, isMenuOptionsRequest, isCurrentPickSlotRead,
   RESTORE_MENU, RESTORE_REVIEW,
 } from './draft-restore-contract.mjs';
 
@@ -37,10 +38,14 @@ test('reads pass through on both origins; every other write fails closed', () =>
     ['POST', `${API}/storage/v1/object/item-photos/${USER}/a.jpg`],
     ['PUT', `${API}/storage/v1/object/item-photos/${USER}/a.jpg`],
     ['DELETE', `${API}/storage/v1/object/item-photos/${USER}/a.jpg`],
-    ['POST', `${API}/functions/v1/link-category-suggestions`],
-    ['POST', `${API}/auth/v1/token?grant_type=refresh_token`],
-    ['POST', `${API}/auth/v1/logout`],
+    ['POST', `${API}/auth/v1/signup`],
+    ['POST', `${API}/auth/v1/token?grant_type=password`],
+    ['PUT', `${API}/auth/v1/user`],
+    ['POST', `${API}/auth/v1/recover`],
+    ['POST', `${API}/auth/v1/user/identities`],
     ['POST', `${SITE}/anything`],
+    ['PUT', `${SITE}/api/profile`],
+    ['PATCH', `${SITE}/pick/new`],
   ];
   for (const [method, url] of writes) {
     const result = decide(guard, method, url);
@@ -50,8 +55,127 @@ test('reads pass through on both origins; every other write fails closed', () =>
   }
   assert.equal(guard.failed, true);
   assert.equal(guard.counts.blockedWrites, writes.length);
+  // The two auth mutations the signed-in app may legitimately issue are the only ones let through.
+  assert.deepEqual(decide(guard, 'POST', `${API}/auth/v1/token?grant_type=refresh_token`), { action: 'continue' });
+  assert.deepEqual(decide(guard, 'POST', `${API}/auth/v1/logout?scope=local`), { action: 'continue' });
+  assert.deepEqual(decide(guard, 'GET', `${API}/auth/v1/user`), { action: 'continue' });
+  assert.equal(guard.counts.blockedWrites, writes.length, 'allowed auth mutations are not findings');
   assert.ok(guard.blocked.length <= 10);
   assert.ok(guard.blocked.every((entry) => entry.code === 'UNEXPECTED_WRITE' && typeof entry.kind === 'string'));
+});
+
+// Codex review of #872 (High): Edge Functions reached by GET and non-Supabase write
+// requests must not escape the guard. Functions are judged before the read allowance.
+test('functions never pass by method: GET/HEAD/OPTIONS on /functions/v1 fail closed as paid calls', () => {
+  const guard = createRestoreGuard({ api: API, site: SITE });
+  for (const method of ['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']) {
+    for (const fn of ['suggest-item-categories', 'link-category-suggestions', 'youtube-catalog', 'cleanup-item-photos']) {
+      const result = decide(guard, method, `${API}/functions/v1/${fn}?x=${USER}`);
+      assert.equal(result.action, 'abort', `${method} ${fn}`);
+      assert.equal(result.fail, 'UNEXPECTED_FUNCTION', `${method} ${fn}`);
+      assert.equal(result.kind, 'FUNCTION_REQUEST');
+      assert.ok(!JSON.stringify(result).includes(USER));
+    }
+  }
+  // POST to any function other than the intercepted menu AI is a paid call too.
+  assert.equal(decide(guard, 'POST', `${API}/functions/v1/link-category-suggestions`).fail, 'UNEXPECTED_FUNCTION');
+  assert.equal(guard.counts.blockedFunctions, 21);
+  assert.equal(guard.counts.blockedWrites, 0);
+  assert.equal(guard.failed, true, 'a blocked function call fails the run even with zero table writes');
+  // The intercepted menu AI stays local in both modes and is never a finding.
+  assert.equal(decide(guard, 'POST', `${API}/functions/v1/suggest-item-categories`).silent, true);
+  assert.equal(guard.counts.blockedFunctions, 21);
+});
+
+test('storage: only GET/HEAD of public objects and renders pass; everything else fails closed', () => {
+  const guard = createRestoreGuard({ api: API, site: SITE });
+  assert.deepEqual(decide(guard, 'GET', `${API}/storage/v1/object/public/item-photos/a/b.jpg`), { action: 'continue' });
+  assert.deepEqual(decide(guard, 'HEAD', `${API}/storage/v1/render/image/public/brand-logos/x.png?width=64`), { action: 'continue' });
+  const denied = [
+    ['GET', `${API}/storage/v1/object/item-photos/${USER}/a.jpg`], // private object read is not part of this QA
+    ['GET', `${API}/storage/v1/object/sign/item-photos/${USER}/a.jpg`],
+    ['GET', `${API}/storage/v1/bucket`],
+    ['POST', `${API}/storage/v1/object/list/item-photos`],
+    ['POST', `${API}/storage/v1/object/sign/item-photos/${USER}/a.jpg`],
+    ['POST', `${API}/storage/v1/object/public/item-photos/a.jpg`],
+    ['OPTIONS', `${API}/storage/v1/object/item-photos/${USER}/a.jpg`],
+  ];
+  for (const [method, url] of denied) {
+    const result = decide(guard, method, url);
+    assert.equal(result.fail, 'UNEXPECTED_WRITE', `${method} ${url}`);
+    assert.equal(result.kind, 'STORAGE_REQUEST');
+  }
+  assert.equal(guard.counts.blockedWrites, denied.length);
+  assert.equal(isStorageRead(new URL(`${API}/storage/v1/object/public/x/y`), 'GET'), true);
+  assert.equal(isStorageRead(new URL(`${API}/storage/v1/object/public/x/y`), 'POST'), false);
+});
+
+test('auth allow-list is exact: refresh grant and logout only', () => {
+  const ok = (p) => isAllowedAuthMutation(new URL(`${API}${p}`), 'POST');
+  assert.equal(ok('/auth/v1/token?grant_type=refresh_token'), true);
+  assert.equal(ok('/auth/v1/logout'), true);
+  assert.equal(ok('/auth/v1/logout?scope=global'), true);
+  assert.equal(ok('/auth/v1/token?grant_type=password'), false);
+  assert.equal(ok('/auth/v1/token'), false);
+  assert.equal(ok('/auth/v1/signup'), false);
+  assert.equal(ok('/auth/v1/user'), false);
+  assert.equal(ok('/auth/v1/recover'), false);
+  assert.equal(ok('/auth/v1/logout/extra'), false);
+  assert.equal(isAllowedAuthMutation(new URL(`${API}/auth/v1/logout`), 'PUT'), false);
+  assert.equal(isAllowedAuthMutation(new URL(`${API}/auth/v1/token?grant_type=refresh_token`), 'PATCH'), false);
+});
+
+test('a non-Supabase origin never receives a write: same-site and third-party mutations do not continue', () => {
+  const guard = createRestoreGuard({ api: API, site: SITE });
+  for (const [method, url] of [['POST', `${SITE}/api/picks`], ['DELETE', `${SITE}/pick/1`], ['PUT', `${SITE}/`]]) {
+    const result = decide(guard, method, url);
+    assert.equal(result.action, 'abort'); assert.equal(result.fail, 'UNEXPECTED_WRITE'); assert.equal(result.kind, 'SITE_REQUEST');
+  }
+  for (const [method, url] of [['POST', 'https://other-project.supabase.co/rest/v1/picks'], ['PUT', 'https://api.example.com/upload'],
+    ['DELETE', 'http://localhost:54321/rest/v1/picks'], ['POST', `https://evil.example/${encodeURIComponent(API)}`]]) {
+    const result = decide(guard, method, url);
+    assert.equal(result.action, 'abort', url); assert.equal(result.silent, true, url); assert.equal(result.fail, undefined, url);
+  }
+  assert.equal(guard.counts.blockedWrites, 3);
+  assert.equal(guard.counts.externalDropped, 4);
+  // No request decision ever returns 'continue' for a non-read outside the Supabase origin.
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    for (const url of [`${SITE}/x`, 'https://cdn.example/x', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks']) {
+      assert.notEqual(decide(guard, method, url).action, 'continue', `${method} ${url}`);
+    }
+  }
+});
+
+test('restore faults: classification can be held and the current-Pick lookup failed, nothing else changes', () => {
+  const guard = createRestoreGuard({ api: API, site: SITE });
+  const menu = `${API}/rest/v1/rpc/store_menu_options`;
+  const slot = `${API}/rest/v1/picks?select=*&user_id=eq.${USER}&category_id=eq.${OTHER}`;
+  assert.deepEqual(decide(guard, 'POST', menu), { action: 'continue' });
+  assert.deepEqual(decide(guard, 'GET', slot), { action: 'continue' });
+  assert.throws(() => guard.setFault('nope', true), /GUARD_FAULT_INVALID/);
+  assert.throws(() => guard.setFault('holdMenuOptions', 'yes'), /GUARD_FAULT_INVALID/);
+
+  guard.setFault('holdMenuOptions', true);
+  assert.deepEqual(decide(guard, 'POST', menu), { action: 'hold' });
+  assert.deepEqual(decide(guard, 'POST', `${API}/rest/v1/rpc/current_user_is_admin`), { action: 'continue' }, 'other reads unaffected');
+  assert.deepEqual(decide(guard, 'GET', slot), { action: 'continue' });
+  guard.setFault('holdMenuOptions', false);
+  assert.deepEqual(decide(guard, 'POST', menu), { action: 'continue' });
+
+  guard.setFault('failPickSlotRead', true);
+  assert.deepEqual(decide(guard, 'GET', slot), { action: 'abort', reason: 'connectionfailed', silent: true });
+  assert.deepEqual(decide(guard, 'GET', `${API}/rest/v1/picks?select=id&user_id=eq.${USER}`), { action: 'continue' }, 'pick count read is not the slot read');
+  assert.deepEqual(decide(guard, 'GET', `${API}/rest/v1/items?select=*`), { action: 'continue' });
+  guard.setFault('failPickSlotRead', false);
+  assert.deepEqual(decide(guard, 'GET', slot), { action: 'continue' });
+
+  assert.equal(guard.counts.held, 1);
+  assert.equal(guard.counts.slotReadFailed, 1);
+  assert.equal(guard.failed, false, 'injected faults are never findings');
+  assert.equal(isMenuOptionsRequest(new URL(menu), 'POST'), true);
+  assert.equal(isMenuOptionsRequest(new URL(menu), 'GET'), false);
+  assert.equal(isCurrentPickSlotRead(new URL(slot), 'GET'), true);
+  assert.equal(isCurrentPickSlotRead(new URL(slot), 'DELETE'), false);
 });
 
 test('third-party and telemetry requests are dropped without a finding', () => {
@@ -83,7 +207,8 @@ test('menu AI is failed or answered by fixture per mode; never forwarded', () =>
   assert.equal(answered.json.needsNewCategory, false);
   guard.setMode('fail');
   assert.equal(decide(guard, 'POST', ai).reason, 'failed');
-  assert.deepEqual(guard.counts, { aiFailed: 2, aiFixture: 1, placeCatalogFixture: 0, telemetryDropped: 0, externalDropped: 0, blockedWrites: 0 });
+  assert.deepEqual(guard.counts, { aiFailed: 2, aiFixture: 1, placeCatalogFixture: 0, telemetryDropped: 0, externalDropped: 0,
+    blockedWrites: 0, blockedFunctions: 0, held: 0, slotReadFailed: 0 });
 });
 
 test('category_uses_place_catalog is answered locally with false', () => {
@@ -150,8 +275,12 @@ test('draft inspection and the mutations applied between reloads', () => {
 test('failure codes are a closed vocabulary', () => {
   assert.equal(safeRestoreFailureCode(new Error('UNEXPECTED_WRITE')), 'UNEXPECTED_WRITE');
   assert.equal(safeRestoreFailureCode(new Error('PICK_COUNT_CHANGED')), 'PICK_COUNT_CHANGED');
-  assert.equal(safeRestoreFailureCode(new Error(`token eyJabc for ${USER}`)), null);
-  assert.equal(safeRestoreFailureCode(null), null);
+  assert.equal(safeRestoreFailureCode(new Error('UNEXPECTED_FUNCTION')), 'UNEXPECTED_FUNCTION');
+  // Unknown text — library errors, page text, anything that could carry a token — never reaches the report.
+  assert.equal(safeRestoreFailureCode(new Error(`token eyJabc for ${USER}`)), 'UNCLASSIFIED_FAILURE');
+  assert.equal(safeRestoreFailureCode(new Error('매장 표시 변경: "카페 어딘가"')), 'UNCLASSIFIED_FAILURE');
+  assert.equal(safeRestoreFailureCode(null), 'UNCLASSIFIED_FAILURE');
+  for (const code of RESTORE_FAILURE_CODES) assert.match(code, /^[A-Z_]+$/, code);
 });
 
 // The same route handler the live flow installs, exercised in a real Chromium against a
@@ -200,16 +329,44 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     const register = await call('POST', `${API}/rest/v1/rpc/register_item_pick`, '{}');
     const upload = await call('POST', `${API}/storage/v1/object/item-photos/${USER}/a.jpg`, 'bytes');
     const del = await call('DELETE', `${API}/rest/v1/picks?id=eq.x`);
+    const fnGet = await call('GET', `${API}/functions/v1/youtube-catalog?q=x`);
+    const authSignup = await call('POST', `${API}/auth/v1/signup`, '{}');
+    const sitePost = await call('POST', `${SITE}/api/anything`, '{}');
     const telemetry = await call('POST', `${API}/rest/v1/client_error_events`, '{}');
-    for (const result of [register, upload, del, telemetry]) assert.ok(result.error, 'write never reaches a server');
-    assert.deepEqual(blocked.map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE']);
-    assert.deepEqual(blocked.map((b) => b.kind), ['OTHER_RPC', 'STORAGE_REQUEST', 'TABLE_REQUEST']);
-    assert.equal(guard.counts.blockedWrites, 3);
+    for (const result of [register, upload, del, fnGet, authSignup, sitePost, telemetry]) assert.ok(result.error, 'write never reaches a server');
+    assert.deepEqual(blocked.map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE']);
+    assert.deepEqual(blocked.map((b) => b.kind), ['OTHER_RPC', 'STORAGE_REQUEST', 'TABLE_REQUEST', 'FUNCTION_REQUEST', 'AUTH_REQUEST', 'SITE_REQUEST']);
+    assert.equal(guard.counts.blockedWrites, 5);
+    assert.equal(guard.counts.blockedFunctions, 1);
     assert.equal(guard.counts.telemetryDropped, 1);
     assert.equal(guard.counts.aiFailed, 1);
     assert.equal(guard.counts.aiFixture, 1);
     assert.equal(guard.counts.placeCatalogFixture, 1);
     assert.equal(forwarded, 2, 'only the page itself and the read RPC were forwarded');
+    const refresh = await call('POST', `${API}/auth/v1/token?grant_type=refresh_token`, '{}');
+    assert.equal(refresh.ok, true, 'token refresh is forwarded (answered by the fixture origin here)');
+    assert.equal(forwarded, 3);
+
+    // Fault switches in the browser: a held classification request stays pending until
+    // release(), and the current-Pick lookup fails without becoming a finding.
+    guard.setFault('holdMenuOptions', true);
+    let settled = false;
+    const held = call('POST', `${API}/rest/v1/rpc/store_menu_options`, '{}').then((r) => { settled = true; return r; });
+    for (let i = 0; i < 20 && guard.parkedCount === 0; i += 1) await new Promise((r) => setTimeout(r, 50));
+    assert.equal(guard.parkedCount, 1, 'request parked');
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(settled, false, 'the page is still waiting');
+    guard.setFault('holdMenuOptions', false);
+    assert.equal(await guard.release(forward), 1);
+    assert.equal((await held).ok, true, 'released request completes as a read');
+    guard.setFault('failPickSlotRead', true);
+    const slot = await call('GET', `${API}/rest/v1/picks?select=*&user_id=eq.${USER}&category_id=eq.${OTHER}`);
+    assert.ok(slot.error, 'slot lookup fails in the page');
+    guard.setFault('failPickSlotRead', false);
+    assert.equal(guard.counts.held, 1);
+    assert.equal(guard.counts.slotReadFailed, 1);
+    assert.equal(guard.counts.blockedWrites, 5, 'faults added no findings');
+    assert.equal(forwarded, 4);
   } finally {
     await context.close();
     await browser.close();
