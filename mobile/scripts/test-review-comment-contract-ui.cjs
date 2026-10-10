@@ -130,7 +130,7 @@ async function main() {
     'Comment-entry replacement cannot be submitted from a stale screen');
   assert.match(commentChoose, /const atomicCommentRegistration = Boolean\(returnPickId[\s\S]*?isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
     'Atomic comment registration is scoped to food and the public channel');
-  assert.match(commentChoose, /registerCommentPick\.mutateAsync\([\s\S]*?expectedPreviousPickId: null,[\s\S]*?requestId/,
+  assert.match(commentChoose, /const registration = \{[\s\S]*?expectedPreviousPickId: null,[\s\S]*?requestId: attempt\.id,[\s\S]*?registerCommentPick\.mutateAsync\(registration\)/,
     'Comment-entry registration uses the existing expected-null RPC');
   assert.match(commentChoose, /commentAttempt\.current \?\? \{ id: Crypto\.randomUUID\(\), review: trimmedReview \}/,
     'The request ID and original review remain stable for a lost-response retry');
@@ -150,6 +150,12 @@ async function main() {
     'A server conflict permanently blocks retry in this comment flow');
   assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| commentPickConflict/,
     'The save button must be disabled after an atomic server conflict');
+  assert.match(commentChoose, /if \(!isReceiptRetry \|\| !\(error instanceof AppError && error\.code === 'PICK_CHANGED_ELSEWHERE'\)\) throw error;\s*result = await registerCommentPick\.mutateAsync\(registration\);/,
+    'Only a receipt retry re-reads once with the same request after a self-overlap conflict');
+  assert.match(commentChoose, /TERMINAL_COMMENT_PICK_ERRORS\.has\(error\.code\)\)[\s\S]*?setCommentPickConflict\(true\)/,
+    'Terminal server refusals end the comment attempt instead of a receipt-retry loop');
+  assert.doesNotMatch(commentChoose, /TERMINAL_COMMENT_PICK_ERRORS = new Set\(\[[^\]]*'(AUTH_REQUIRED|PROFILE_NOT_FOUND)'/,
+    'Recoverable auth/profile errors keep their recovery actions');
   assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
     'Unsupported comment-origin flows fail closed before reaching change_pick');
   assert.match(commentChoose, /published: result\.published/,

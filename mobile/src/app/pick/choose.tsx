@@ -32,12 +32,22 @@ function getErrorMessage(error: unknown) {
     case 'PICK_CHANGED_ELSEWHERE': return '다른 기기에서 원픽이 바뀌었어요. 기존 원픽은 변경하지 않았어요.';
     case 'PICK_COOLDOWN': return '해제한 원픽은 24시간이 지나야 다시 고를 수 있어요.';
     case 'ITEM_ALREADY_PICKED': return '이미 다른 방식의 원픽으로 고른 곳이에요. 그 원픽을 먼저 바꾸거나 지워주세요.';
+    case 'PICK_CHANNEL_INVALID':
     case 'PICK_CHANNEL_MISMATCH': return '이 방식으로는 이걸 원픽으로 고를 수 없어요.';
+    case 'USER_SUSPENDED': return '현재 계정에서는 원픽을 등록할 수 없어요.';
     default: return '원픽을 저장하지 못했어요. 잠시 후 다시 시도해주세요.';
   }
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Server refusals that the same request ID can never turn into a saved Pick.
+// A comment-origin attempt ends on these instead of offering a receipt recheck.
+// AUTH_REQUIRED / PROFILE_NOT_FOUND stay recoverable through their own actions.
+const TERMINAL_COMMENT_PICK_ERRORS = new Set([
+  'PICK_COOLDOWN', 'ITEM_ALREADY_PICKED', 'ITEM_NOT_ELIGIBLE', 'ITEM_NOT_FOUND',
+  'ITEM_CATEGORY_MISMATCH', 'CATEGORY_NOT_PICKABLE', 'PICK_CHANNEL_INVALID',
+  'PICK_CHANNEL_MISMATCH', 'USER_SUSPENDED',
+]);
 
 type Params = { itemId?: string; categoryId?: string; channel?: string; returnPickId?: string };
 type PickReceipt = { id: string; itemId: string; userId: string; oneLineReview: string };
@@ -157,9 +167,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       }
       setCommentPickError(null);
       if (atomicCommentRegistration) {
+        const isReceiptRetry = commentAttempt.current !== null;
         const attempt = commentAttempt.current ?? { id: Crypto.randomUUID(), review: trimmedReview };
         commentAttempt.current = attempt;
-        const result = await registerCommentPick.mutateAsync({
+        const registration = {
           userId: user.id,
           categoryId: item.categoryId,
           channel: OnePickMvp.publicPickChannel,
@@ -167,7 +178,20 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           itemId: item.id,
           expectedPreviousPickId: null,
           requestId: attempt.id,
-        });
+        };
+        let result: Awaited<ReturnType<typeof registerCommentPick.mutateAsync>>;
+        try {
+          result = await registerCommentPick.mutateAsync(registration);
+        } catch (error) {
+          // A receipt retry can overlap this attempt's own first request: the
+          // server reads the request-ID receipt before the slot lock, so the
+          // retry sees its own just-committed Pick as a stale-view conflict.
+          // It returns only after that first transaction ended, so asking once
+          // more with the same ID reads the committed receipt. A real change on
+          // another device has no receipt and stays PICK_CHANGED_ELSEWHERE.
+          if (!isReceiptRetry || !(error instanceof AppError && error.code === 'PICK_CHANGED_ELSEWHERE')) throw error;
+          result = await registerCommentPick.mutateAsync(registration);
+        }
         // register_item_pick returns an ID receipt, not a full Pick row.
         setSavedChoice({
           pick: { id: result.pickId, itemId: result.itemId, userId: user.id, oneLineReview: attempt.review },
@@ -192,6 +216,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       if (returnPickId && error instanceof AppError && error.code === 'PICK_CHANGED_ELSEWHERE') {
         setCommentPickConflict(true);
         setCommentPickError('다른 기기에서 원픽이 바뀌었어요. 기존 원픽은 변경하지 않았어요. 댓글 화면으로 돌아가주세요.');
+      } else if (returnPickId && error instanceof AppError && TERMINAL_COMMENT_PICK_ERRORS.has(error.code)) {
+        // Not a lost response: retrying the same request cannot succeed.
+        setCommentPickConflict(true);
+        setCommentPickError(`${getErrorMessage(error)} 댓글 화면으로 돌아가주세요.`);
       }
       // Other mutation failures retain the draft and original request for retry.
     }
@@ -303,7 +331,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             onChangeText={(value) => { if (submitPhase.current !== 'saving' && !commentAttempt.current) setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.textSecondary} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
-          {returnPickId && commentAttempt.current && !saving && saveError ? (
+          {returnPickId && commentAttempt.current && !saving && saveError && !commentPickConflict ? (
             <Text style={styles.helperText}>다시 시도하면 처음 작성한 한줄평을 그대로 사용해요. 내용을 바꾸려면 댓글 화면으로 돌아가 다시 시작해주세요.</Text>
           ) : null}
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}

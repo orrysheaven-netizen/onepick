@@ -150,6 +150,8 @@ function commentChoice() {
   };
   let latestStatus = { type: 'not_selected' };
   let registerMode = 'success';
+  // Optional per-call modes consumed in order before falling back to registerMode.
+  const registerQueue = [];
   const query = { data, isPending: false, isError: false, isFetching: false, refreshes: 0,
     refetch: async () => {
       query.refreshes++;
@@ -160,11 +162,16 @@ function commentChoice() {
   const registration = { isPending: false, error: null,
     mutateAsync: async (payload) => {
       registrationWrites.push(payload);
-      if (registerMode === 'conflict') {
+      const mode = registerQueue.length ? registerQueue.shift() : registerMode;
+      if (mode === 'cooldown') {
+        registration.error = new AppError('PICK_COOLDOWN');
+        throw registration.error;
+      }
+      if (mode === 'conflict') {
         registration.error = new AppError('PICK_CHANGED_ELSEWHERE');
         throw registration.error;
       }
-      if (registerMode === 'lost_response') {
+      if (mode === 'lost_response') {
         registration.error = new Error('response lost');
         throw registration.error;
       }
@@ -196,6 +203,7 @@ function commentChoice() {
   return { view, auth, params, data, query, registration, registrationWrites, ordinaryWrites, destinations,
     returnPickId, draft, setLatestStatus: (status) => { latestStatus = status; },
     setRegisterMode: (mode) => { registerMode = mode; },
+    queueRegisterModes: (...modes) => { registerQueue.push(...modes); },
   };
 }
 
@@ -380,6 +388,50 @@ async function main() {
     assert.equal(c.query.refreshes, 1, 'Retry preserves request ID and avoids rebasing on a newer Pick');
     assert.equal(c.ordinaryWrites.length, 0);
     assert.match(c.view.render(), /댓글 남기러 가기/);
+  });
+  await check('Receipt retry overlapping its own first request reads the committed receipt', async () => {
+    const c = commentChoice(); c.draft(); c.setRegisterMode('lost_response');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+    // The retry raced the still-running first request and lost the slot check;
+    // the automatic follow-up with the same request ID finds the receipt.
+    c.setRegisterMode('success'); c.queueRegisterModes('conflict');
+    c.view.render();
+    c.view.button('저장 결과 다시 확인하기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 3);
+    assert.ok(c.registrationWrites.every(({ requestId }) => requestId === c.registrationWrites[0].requestId),
+      'Every follow-up reuses the original request ID');
+    assert.doesNotMatch(c.view.render(), /다른 기기에서 원픽이 바뀌었어요/,
+      'A self-overlapping retry is not reported as a change on another device');
+    assert.match(c.view.render(), /댓글 남기러 가기/);
+    assert.equal(c.ordinaryWrites.length, 0);
+  });
+  await check('A real change elsewhere during a receipt retry still ends the attempt', async () => {
+    const c = commentChoice(); c.draft(); c.setRegisterMode('lost_response');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    c.setRegisterMode('conflict');
+    c.view.render();
+    c.view.button('저장 결과 다시 확인하기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 3, 'Exactly one automatic receipt re-read, no loop');
+    assert.match(c.view.render(), /다른 기기에서 원픽이 바뀌었어요/);
+    assert.doesNotMatch(c.view.render(), /저장 결과 다시 확인하기/,
+      'A confirmed conflict no longer offers a receipt recheck');
+    assert.equal(c.view.button('내 원픽으로 고르기').disabled, true);
+  });
+  await check('First-attempt conflict is not re-sent automatically', async () => {
+    const c = commentChoice(); c.draft(); c.setRegisterMode('conflict');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+  });
+  await check('Terminal server refusal ends the comment attempt instead of a receipt loop', async () => {
+    const c = commentChoice(); c.draft(); c.setRegisterMode('cooldown');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+    const screen = c.view.render();
+    assert.match(screen, /24시간이 지나야 다시 고를 수 있어요\. 댓글 화면으로 돌아가주세요\./);
+    assert.doesNotMatch(screen, /저장 결과 다시 확인하기|다시 시도하면 처음 작성한 한줄평/,
+      'A cooldown is not presented as a lost response to retry');
+    assert.match(screen, /댓글 화면으로 돌아가기/);
   });
   await check('Comment-origin preflight conflict blocks registration before a request ID', async () => {
     const c = commentChoice(); c.draft();
