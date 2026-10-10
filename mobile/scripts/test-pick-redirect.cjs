@@ -22,6 +22,7 @@ const imports = {
     StyleSheet: { create: (x) => x, hairlineWidth: 1 },
   },
   'react-native-safe-area-context': { SafeAreaView: component },
+  '@/components/pick-photo': { PickPhoto: ({ uri, label }) => React.createElement('img', { src: uri ?? undefined, alt: label }) },
   '@/components/current-pick-flag': { CurrentPickFlag: () => React.createElement('i', null, 'flag') },
   '@/components/pick-replies': { PickReplies: ({ pickId, canWrite }) => React.createElement('i', null, 'thread:' + pickId + ':' + canWrite) },
   '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
@@ -72,10 +73,16 @@ itemQuery = {
 };
 const loaded = render();
 assert.match(loaded, /중앙해장 내장탕/);
+assert.match(loaded, /product.jpg/, 'Item photo is visible above the conversation');
+assert.match(loaded, /중앙해장/, 'Store name is retained');
+assert.match(loaded, /내장탕/, 'Menu name is retained');
+assert.ok(loaded.indexOf('product.jpg') < loaded.indexOf('국물이 좋아요'), 'Item content precedes the review');
 assert.match(loaded, /@friend/);
 assert.match(loaded, /국물이 좋아요/);
 assert.match(loaded, /thread:shared-review:true/);
 
+itemQuery = { ...itemQuery, data: { ...itemQuery.data, category: null } };
+assert.match(render(), /중앙해장/, 'Missing category does not hide item information');
 itemQuery = { ...itemQuery, isError: true, data: undefined };
 assert.match(render(), /한줄평을 볼 수 없어요/);
 
