@@ -122,7 +122,7 @@ async function main() {
     'Comment-entry save rechecks the current Pick before mutation');
   assert.match(commentChoose, /latest\.data\.myPickStatus\.type !== 'not_selected'/,
     'Comment-entry save declines a replacement');
-  assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| Boolean\(returnPickId/,
+  assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| commentPickConflict \|\| Boolean\(returnPickId/,
     'Comment-entry replacement cannot be submitted from a stale screen');
   assert.match(commentChoose, /const atomicCommentRegistration = Boolean\(returnPickId[\s\S]*?isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
     'Atomic comment registration is scoped to food and the public channel');
