@@ -27,10 +27,22 @@ insert into public.items(id,category_id,name,normalized_name,status,image_source
 ('fa090000-0000-4000-8000-000000000201','fa090000-0000-4000-8000-000000000101','One','featured_one','active','https://example.invalid/one.png'),
 ('fa090000-0000-4000-8000-000000000202','fa090000-0000-4000-8000-000000000102','Two','featured_two','active','https://example.invalid/two.png'),
 ('fa090000-0000-4000-8000-000000000203','fa090000-0000-4000-8000-000000000103','Pending','featured_pending','active','https://example.invalid/pending.png');
+-- The non-food item remains a valid public Pick in the existing catalog, but must
+-- not enter the restaurant-only featured selector.
+insert into public.items(id,category_id,name,normalized_name,status,image_source_url)
+select 'fa090000-0000-4000-8000-000000000204',id,'Feature Movie','featured_movie',
+  'active','https://example.invalid/movie.png'
+from public.categories where slug='movie';
 insert into public.picks(id,user_id,category_id,item_id,channel,one_line_review,status,started_at) values
 ('fa090000-0000-4000-8000-000000000301','fa090000-0000-4000-8000-000000000001','fa090000-0000-4000-8000-000000000101','fa090000-0000-4000-8000-000000000201','online','Review A','active',now()-interval '3 hours'),
 ('fa090000-0000-4000-8000-000000000302','fa090000-0000-4000-8000-000000000001','fa090000-0000-4000-8000-000000000102','fa090000-0000-4000-8000-000000000202','online','Review B','active',now()-interval '2 hours'),
 ('fa090000-0000-4000-8000-000000000303','fa090000-0000-4000-8000-000000000003','fa090000-0000-4000-8000-000000000103','fa090000-0000-4000-8000-000000000203','online','Not public','needs_review',now()-interval '1 hour');
+insert into public.picks(id,user_id,category_id,item_id,channel,one_line_review,status,started_at)
+select 'fa090000-0000-4000-8000-000000000304',
+  'fa090000-0000-4000-8000-000000000001',id,
+  'fa090000-0000-4000-8000-000000000204',null,'Movie review','active',
+  now()-interval '30 minutes'
+from public.categories where slug='movie';
 
 select ok(not has_table_privilege('authenticated','private.profile_featured_picks','SELECT')
       and not has_table_privilege('authenticated','private.profile_featured_picks','INSERT')
@@ -50,7 +62,12 @@ select is((public.get_profile_featured_pick('fa090000-0000-4000-8000-00000000000
   0::bigint,'unset owner starts with revision zero');
 select is((public.list_my_featured_pick_candidates(null,null,30)->'items') @>
   '[{"pick_id":"fa090000-0000-4000-8000-000000000302"}]'::jsonb,
-  true,'a public online candidate is included');
+  true,'a public online food candidate is included');
+select is((public.list_my_featured_pick_candidates(null,null,30)->'items') @>
+  '[{"pick_id":"fa090000-0000-4000-8000-000000000304"}]'::jsonb,
+  false,'public non-food Pick is excluded from restaurant candidates');
+select throws_ok($q$select public.set_my_featured_pick('fa090000-0000-4000-8000-000000000304',0)$q$,
+  'P0001','FEATURED_PICK_INELIGIBLE','public non-food Pick cannot be featured');
 
 select is((public.set_my_featured_pick('fa090000-0000-4000-8000-000000000301',0)->>'revision')::bigint,
   1::bigint,'first featured selection succeeds with revision 1');
@@ -141,6 +158,10 @@ from featured_extra_ids f;
 update public.picks set started_at=now()-interval '5 seconds'
 where id in (select pick_id from featured_extra_ids where seq in (1,2,3));
 
+-- Use the actual app role for the full 205-candidate traversal, not only a
+-- JWT sub claim with elevated SQL privileges.
+set local role authenticated;
+select set_config('request.jwt.claim.sub','fa090000-0000-4000-8000-000000000001',true);
 select lives_ok($test$
 do $do$
 declare
@@ -167,7 +188,8 @@ begin
   assert v_count=205, 'all 205 eligible candidates returned once';
 end
 $do$;
-$test$,'cursor pagination reaches the 205th eligible Pick with no duplicates');
+$test$,'authenticated role paginates all 205 food Picks without duplicates');
+reset role;
 
 -- A public Pick transferred to another owner must stop representing the old owner.
 update public.categories set is_visible=true
