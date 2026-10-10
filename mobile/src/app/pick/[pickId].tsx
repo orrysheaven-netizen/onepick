@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
+import { PickPhoto } from '@/components/pick-photo';
 import { PickReplies } from '@/components/pick-replies';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -143,6 +144,15 @@ export default function PickDetailScreen() {
           </Pressable>
         </View>
         : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.itemContext}>
+            <PickPhoto uri={itemQuery.data?.item.imageUrl ?? itemQuery.data?.item.thumbnailUrl ?? itemQuery.data?.item.imageSourceUrl}
+              label={itemQuery.data?.item.name ?? title} large logoUri={itemQuery.data?.brand?.logoUrl} />
+            {itemQuery.data?.isRestaurant ? <>
+              <Text style={styles.storeName}>{itemQuery.data.item.name}</Text>
+              {itemQuery.data.category?.name && itemQuery.data.category.name !== itemQuery.data.item.name
+                ? <Text style={styles.menuName}>{itemQuery.data.category.name}</Text> : null}
+            </> : <Text style={styles.menuName}>{itemQuery.data?.item.name}</Text>}
+          </View>
           <View style={styles.review}>
             <View style={styles.reviewMeta}>
               <Text style={styles.author}>
@@ -179,6 +189,9 @@ const styles = StyleSheet.create({
   headerSide: { width: 48, minHeight: 44, justifyContent: 'center' },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   content: { width: '100%', maxWidth: 390, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
+  itemContext: { paddingTop: OnePickSpace.lg, gap: OnePickSpace.sm },
+  storeName: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
+  menuName: { ...OnePickType.title, color: OnePick.textPrimary },
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   author: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },
