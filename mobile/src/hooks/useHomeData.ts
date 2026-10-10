@@ -124,6 +124,10 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
   return {
     ...feed,
     data,
+    // The viewer's own current Picks, settled independently of the feed pages, so Home can
+    // answer "did I pick today's menu?" while the feed is still loading or failed (#762).
+    contextData: context.data,
+    isContextError: context.isError,
     error: context.error ?? (feedEnabled ? feed.error : null),
     isError: context.isError || (feedEnabled && feed.isError),
     isPending: context.isPending || (feedEnabled && feed.isPending),

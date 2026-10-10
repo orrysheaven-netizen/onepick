@@ -37,6 +37,8 @@ function home(count = 20, followingCount = 0) {
       useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
     '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
     '@/components/home-early-sections': names('HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus'),
+    '@/components/home-feedback-button': names('HomeFeedbackButton'),
+    '@/hooks/useMyProfile': { useMyProfile: () => query(undefined) }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
     '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
     '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),

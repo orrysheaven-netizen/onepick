@@ -40,7 +40,7 @@ let seq = 0;
 const row = (userId, categoryId, startedAt, extra = {}) => ({
   pick: { id: extra.id ?? `p${++seq}`, userId, categoryId, itemId: `item-${categoryId}-${userId}`, channel: extra.channel === undefined ? 'offline' : extra.channel,
     oneLineReview: '이유', status: extra.status ?? 'active', startedAt },
-  profile: extra.noProfile ? null : { id: userId, username: userId, profileImageUrl: null },
+  profile: extra.noProfile ? null : { id: userId, username: userId, nickname: extra.nickname ?? null, profileImageUrl: null },
   item: { name: `${categoryId} 가게` }, category: { name: categoryId },
 });
 const group = (id, kind, unread, latest, pickId = `pick-${id}`) => ({
@@ -288,24 +288,33 @@ const ui = names('Avatar BrandMark Button Chip SectionHeader StateCard');
 // Same element shape the screen harness renders.
 const jsx = (type, props, key) => ({ type, props: props ?? {}, key });
 const jsxRuntime = { jsx, jsxs: jsx, Fragment: 'Fragment' };
+const profileName = load('lib/profile/profileName.ts');
 const sections = load('components/home-early-sections.tsx', {
   'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': constants,
-  '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'),
+  '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileName': profileName,
 });
 
 function home(options = {}) {
   const {
     user = { id: 'me' }, counts = countsOf({ ramen: 3 }), question = 'naengmyeon', currentPicks = [], participants = [],
     groups = [], countsQuery, questionQuery, participantsComplete = true, replyQuery, badge,
+    // Feed pages and the viewer's context are separate reads (useHomeData); each can be pending/failed alone.
+    feed = { picks: [] }, feedError = false, contextPending = false, contextError = false,
+    profile = { nickname: null }, feedbackEmail = null, feedbackError = false,
   } = options;
-  const calls = { routes: [], shares: [] };
+  const calls = { routes: [], shares: [], opened: [] };
+  const contextData = contextPending || contextError ? undefined : { currentPicks };
+  const feedData = feed && !feedError ? feed : undefined;
   const view = screen('app/(tabs)/index.tsx', {
     'expo-router': { useRouter: () => ({ push: (route) => calls.routes.push(route) }), useFocusEffect: (fn) => { calls.focus = fn; } },
     '@/constants/onepick': constants,
     '@/components/ui': ui,
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user, isLoading: false, error: null, retry: () => {} }) },
     '@/hooks/useHomeData': {
-      useHomeData: () => query({ currentPicks, picks: [] }),
+      useHomeData: () => ({
+        ...query(contextData && feedData ? { ...contextData, ...feedData } : undefined, { isError: contextError || feedError, isPending: !contextError && !feedError && (!contextData || !feedData) }),
+        contextData, isContextError: contextError,
+      }),
       useHomeItemRanking: (...args) => {
         calls.itemRanking = args;
         return query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }], { refetch: () => { calls.rankingRefetch = (calls.rankingRefetch ?? 0) + 1; } });
@@ -315,6 +324,16 @@ function home(options = {}) {
     },
     '@/hooks/useFollow': { useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }), useFollowingFeed: () => query({ items: [], nextCursor: null }) },
     '@/hooks/useExploreData': { useExploreCategories: (enabled) => { calls.categoriesEnabled = enabled; return query(catalog); }, useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
+    '@/hooks/useMyProfile': { useMyProfile: (userId) => { calls.profileUserId = userId; return query(userId && profile ? { profile: { id: userId, username: userId, ...profile }, currentPicks } : undefined); } },
+    '@/lib/profile/profileName': profileName,
+    '@/components/home-feedback-button': load('components/home-feedback-button.tsx', {
+      react: { useState: (initial) => [initial, () => {}] },
+      'react/jsx-runtime': jsxRuntime,
+      'react-native': { ...native, Linking: { openURL: async (url) => { calls.opened.push(url); } } },
+      '@/components/ui': ui, '@/constants/onepick': constants,
+      '@/hooks/useFeedbackEmail': { useFeedbackEmail: () => query(feedbackError ? undefined : feedbackEmail, { isError: feedbackError, isPending: false }) },
+      '@/lib/feedback/email': load('lib/feedback/email.ts'),
+    }),
     '@/hooks/useNotifications': {
       useHomeReplyBanner: (userId, enabled) => {
         calls.replies = { userId, enabled };
@@ -473,7 +492,7 @@ test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
   assert.match(three.text(), /함께하는 사람들/);
   assert.match(three.text(), /3명/);
   assert.ok(three.text().indexOf('모두의 원픽') < three.text().indexOf('함께하는 사람들'), 'People follow the feed');
-  deepEq(three.press('@user2 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'user2', returnTo: '/' } });
+  deepEq(three.press('user2 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'user2', returnTo: '/' } });
   assert.doesNotMatch(home({ participants: people(3), participantsComplete: false }).text(), /함께하는 사람들/,
     'Partial reads never show undercounted people');
 });
@@ -523,7 +542,71 @@ test('Signed-out Home: no reply/invite, question still asks, login handled by re
   assert.ok(member.view.find('HomeInviteRow') === undefined, 'Invite row is the real component, not a stub');
   assert.match(member.text(), /친구 초대 링크/);
   assert.equal(member.press('친구 초대 링크 공유하러 가기'), '/profile', 'Invite reuses the existing profile share path');
-  assert.doesNotMatch(member.text(), /의견 보내기/, 'No in-app feedback destination exists yet; not invented');
+  assert.doesNotMatch(member.text(), /의견을 보내요/, 'No public feedback address → no feedback action (never a made-up mailbox)');
+});
+
+test('#762 · question, reply banner, people and invite do not wait on the feed pages', () => {
+  const participants = Array.from({ length: 3 }, (_, i) => row(`user${i}`, 'ramen', `2026-10-0${i + 1}T00:00:00Z`));
+  const groups = [group('g1', 'comment', 2, '2026-10-05T00:00:00Z')];
+  const pending = home({ feed: null, participants, groups });
+  assert.match(pending.text(), /원픽을 불러오고 있어요/, 'Feed loading card still shows');
+  assert.match(pending.text(), /냉면 먹으러 어디 가요\?/, 'Question is asked while the feed loads');
+  assert.match(pending.text(), /내 원픽에 새 답글 2개/, 'Reply banner does not wait for the feed');
+  assert.match(pending.text(), /함께하는 사람들/, 'People row does not wait for the feed');
+  assert.match(pending.text(), /친구 초대 링크/, 'Invite does not wait for the feed');
+  const failed = home({ feedError: true, participants, groups });
+  assert.match(failed.text(), /원픽을 불러오지 못했어요/, 'Feed failure is reported where the feed goes');
+  assert.match(failed.text(), /냉면 먹으러 어디 가요\?/, 'A failed feed never hides today’s question');
+  assert.match(failed.text(), /내 원픽에 새 답글 2개|함께하는 사람들|친구 초대 링크/);
+  assert.match(failed.text(), /함께하는 사람들/); assert.match(failed.text(), /친구 초대 링크/);
+  deepEq(failed.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } }, 'Registration CTA stays usable');
+  // The viewer's own Picks decide 답하기 vs 구경해요; without them nothing is pretended.
+  const contextPending = home({ contextPending: true, participants, groups });
+  assert.doesNotMatch(contextPending.text(), /먹으러 어디 가요|함께하는 사람들|친구 초대 링크|새 답글/, 'Unknown viewer context shows neither state');
+  const contextFailed = home({ contextError: true, participants });
+  assert.match(contextFailed.text(), /원픽을 불러오지 못했어요/);
+  assert.doesNotMatch(contextFailed.text(), /먹으러 어디 가요/, 'A failed context is an error, not an unanswered question');
+  const answeredOffline = home({ feedError: true, currentPicks: [row('me', 'naengmyeon', '2026-10-05T00:00:00Z', { id: 'n1' })] });
+  assert.match(answeredOffline.text(), /다른 냉면 원픽도 구경해요/, 'Answered state comes from the context read alone');
+});
+
+test('#804 · question names the viewer by nickname, 원픽 사용자 without one, nobody signed out', () => {
+  const named = home({ profile: { nickname: '오리' } });
+  assert.match(named.text(), /오리님, 냉면 먹으러 어디 가요\?/);
+  assert.equal(named.calls.profileUserId, 'me', 'Reads the same cached profile as the Profile tab');
+  const unnamed = home({ profile: { nickname: null } });
+  assert.match(unnamed.text(), /원픽 사용자님, 냉면 먹으러 어디 가요\?/, 'Mention fallback is the user-confirmed 원픽 사용자, never the username');
+  assert.doesNotMatch(unnamed.text(), /me님/);
+  const blank = home({ profile: { nickname: '   ' } });
+  assert.match(blank.text(), /원픽 사용자님, 냉면/);
+  const loading = home({ profile: null });
+  assert.match(loading.text(), /^(?:(?!님, 냉면).)*냉면 먹으러 어디 가요\?/m, 'No name while the profile is unknown');
+  const guest = home({ user: null });
+  assert.equal(guest.calls.profileUserId, undefined, 'Signed-out viewers never query a profile');
+  assert.match(guest.text(), /냉면 먹으러 어디 가요\?/);
+  assert.doesNotMatch(guest.text(), /원픽 사용자님/);
+});
+
+test('#804 · people row shows nickname when set, username otherwise; route keeps the username', () => {
+  const participants = [row('ann', 'ramen', '2026-10-03T00:00:00Z', { nickname: '앤' }), row('bob', 'ramen', '2026-10-02T00:00:00Z'), row('cy', 'ramen', '2026-10-01T00:00:00Z', { nickname: ' ' })];
+  const view = home({ participants });
+  assert.match(view.text(), /앤/); assert.doesNotMatch(view.text(), /\bann\b/, 'Nickname replaces the username label');
+  assert.match(view.text(), /bob/); assert.match(view.text(), /cy/, 'Blank nickname falls back to the username');
+  deepEq(view.press('앤 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'ann', returnTo: '/' } }, 'Profile route stays on the username');
+  assert.equal(view.view.find('Avatar', (p) => p.name === '앤')?.size, 64);
+});
+
+test('#831 · 의견 보내기 sits beside the invite: stored address opens mailto, NULL/read error hide it', () => {
+  const configured = home({ feedbackEmail: 'hello@onepick.test' });
+  assert.match(configured.text(), /친구 초대 링크[\s\S]*의견을 보내요/, 'Feedback follows the invite in the same row');
+  assert.equal(configured.view.find('HomeInviteRow'), undefined, 'Rendered through the real invite row');
+  configured.press('의견을 보내요');
+  assert.equal(configured.calls.opened.at(-1), 'mailto:hello%40onepick.test?subject=' + encodeURIComponent('원픽 의견'));
+  assert.doesNotMatch(configured.text(), /hello@onepick.test/, 'Address is not printed until the mail app fails');
+  assert.doesNotMatch(home({ feedbackEmail: null }).text(), /의견을 보내요/, 'NULL setting → hidden');
+  assert.doesNotMatch(home({ feedbackError: true }).text(), /의견을 보내요/, 'Read error → hidden');
+  assert.doesNotMatch(home({ user: null, feedbackEmail: 'hello@onepick.test' }).text(), /의견을 보내요/, 'Signed out → no invite row, no feedback');
+  assert.doesNotMatch(home({ feedbackEmail: 'hello@onepick.test', feed: null }).text(), /sent|자동/, 'Nothing is auto-sent');
 });
 
 test('Hidden early-MVP entries stay hidden; feed is the single 모두의 원픽', () => {

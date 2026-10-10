@@ -81,8 +81,10 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }), useFocusEffect: () => {} },
   '@/components/home-early-sections': load('components/home-early-sections.tsx', {
     'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': onepickConstants,
-    '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'),
+    '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
   }),
+  '@/components/home-feedback-button': { HomeFeedbackButton: () => null },
+  '@/hooks/useMyProfile': { useMyProfile: () => emptyQuery(undefined) }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
   '@/hooks/useNotifications': { useHomeReplyBanner: () => emptyQuery(undefined), useNotificationCount: () => emptyQuery(undefined) },
   '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') }),
   '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),

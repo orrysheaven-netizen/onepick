@@ -98,7 +98,10 @@ export function questionFooter(scopedPicks: readonly PickReadItem[], justSavedFi
 
 export interface HomeParticipant {
   userId: string;
+  /** Account identity: routes and @handles keep using the username (#804). */
   username: string;
+  /** Optional public nickname (#804 / #863); screens resolve the shown name through lib/profile/profileName. */
+  nickname: string | null;
   profileImageUrl: string | null;
   pickCount: number;
   lastActiveAt: string;
@@ -130,6 +133,7 @@ export function homeParticipants(
       byUser.set(pick.userId, {
         userId: pick.userId,
         username: profile.username,
+        nickname: profile.nickname ?? null,
         profileImageUrl: profile.profileImageUrl,
         pickCount: 1,
         lastActiveAt: pick.startedAt,

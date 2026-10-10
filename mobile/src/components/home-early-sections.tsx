@@ -1,5 +1,6 @@
 // Current Home integration (Figma 1058:9018, #762). Presentational only: Home decides what to show
 // with lib/home/earlyHome and passes callbacks that reuse existing routes.
+import type { ReactNode } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar, Button, Chip, Icon } from '@/components/ui';
@@ -7,6 +8,7 @@ import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeParticipant, QuestionFooter } from '@/lib/home/earlyHome';
 import { homeQuestionTitle, homeQuestionSubtitle } from '@/lib/home/questionTitle';
+import { profileDisplayName } from '@/lib/profile/profileName';
 import type { Category } from '@/types/domain/category';
 
 /** 834:4749 — shown only while unread replies exist. */
@@ -69,16 +71,19 @@ export function HomePeopleRow({ people, onOpenProfile }: { people: HomeParticipa
         <Text style={styles.sectionAction}>{`${people.length}명`}</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peopleRow}>
-        {people.map((person) => (
-          <Pressable key={person.userId} accessibilityRole="button"
-            accessibilityLabel={`@${person.username} 프로필 보기, 원픽 ${person.pickCount}개`}
+        {people.map((person) => {
+          // Shown name follows the #804 identification rule (nickname, else username);
+          // the profile route keeps the username.
+          const name = profileDisplayName(person);
+          return <Pressable key={person.userId} accessibilityRole="button"
+            accessibilityLabel={`${name} 프로필 보기, 원픽 ${person.pickCount}개`}
             onPress={() => onOpenProfile(person.username)}
             style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-            <Avatar name={person.username} size={64} tone="subtle" />
-            <Text style={styles.personName} numberOfLines={1}>{person.username}</Text>
+            <Avatar name={name} size={64} tone="subtle" />
+            <Text style={styles.personName} numberOfLines={1}>{name}</Text>
             <Text style={styles.personCount}>{`원픽 ${person.pickCount}`}</Text>
-          </Pressable>
-        ))}
+          </Pressable>;
+        })}
       </ScrollView>
     </View>
   );
@@ -96,11 +101,16 @@ export function HomeUnpickedMenus({ categories, onPick }: { categories: Category
   );
 }
 
-/** 834:4889 — invite through the existing profile share path. */
-export function HomeInviteRow({ onInvite }: { onInvite: () => void }) {
+/**
+ * 834:4889 — invite through the existing profile share path, with the 의견 보내기 action
+ * (#831 HomeFeedbackButton) beside it. The feedback element renders nothing while no public
+ * address is configured, so the row then holds the invite button alone.
+ */
+export function HomeInviteRow({ onInvite, feedback }: { onInvite: () => void; feedback?: ReactNode }) {
   return (
     <View style={styles.inviteRow}>
       <Button variant="secondary" fullWidth label="친구 초대 링크" accessibilityLabel="친구 초대 링크 공유하러 가기" onPress={onInvite} style={styles.inviteButton} />
+      {feedback ?? null}
     </View>
   );
 }

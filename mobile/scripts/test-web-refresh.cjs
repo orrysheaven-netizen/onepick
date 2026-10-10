@@ -30,7 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
-    'home-early-sections': 'HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus',
+    'home-early-sections': 'HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus', 'home-feedback-button': 'HomeFeedbackButton',
     'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'explore-search-results': 'ExploreSearchResults', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
@@ -58,7 +58,7 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
       useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }), useFoodMenuPickCounts: () => query(new Map()) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
-    '@/hooks/useMyProfile': { useMyProfile: () => profile },
+    '@/hooks/useMyProfile': { useMyProfile: () => profile }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/lib/categories/categoryTree': { categoryLabel: (c) => c.name, selectableCategories: (cs) => cs,
