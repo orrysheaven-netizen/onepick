@@ -200,7 +200,8 @@ test('persisted fixture uses real table columns and rejects other rows, ended pi
 
 test('failure diagnostics never echo arbitrary error messages or response data', () => {
   assert.equal(safeFailureCode(new Error('PICK_PERSISTENCE_FAILED')), 'PICK_PERSISTENCE_FAILED');
-  for (const code of ['REVIEW_BUTTON_NOT_VISIBLE', 'REVIEW_TEXT_NOT_VISIBLE']) {
+  for (const code of ['REVIEW_BUTTON_NOT_VISIBLE', 'REVIEW_TEXT_NOT_VISIBLE',
+    'PHOTO_IMAGE_NOT_VISIBLE', 'PHOTO_IMAGE_NOT_LOADED']) {
     assert.equal(safeFailureCode(new Error(code)), code);
   }
   for (const value of ['SENSITIVE_TOKEN', 'https://example.invalid/private', 'PICK_PERSISTENCE_FAILED secret', '']) {
@@ -209,3 +210,14 @@ test('failure diagnostics never echo arbitrary error messages or response data',
   assert.equal(safeFailureCode(null), 'UNCLASSIFIED_FAILURE');
 });
 
+
+
+test('photo verification follows expo-image web alt output instead of aria-label containers', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(new URL('./registration-write-qa.mjs', import.meta.url), 'utf8'));
+  assert.match(source, /document\.images/);
+  assert.match(source, /image\.alt === label/);
+  assert.match(source, /image\.complete && image\.naturalWidth > 0/);
+  assert.doesNotMatch(source, /querySelectorAll\('\[aria-label\]'\)/);
+  assert.match(source, /PHOTO_IMAGE_NOT_VISIBLE/);
+  assert.match(source, /PHOTO_IMAGE_NOT_LOADED/);
+});

@@ -225,7 +225,9 @@ export default function NewPickScreen() {
     setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
     // Item, photo requirement and the current Pick slot come from the server again:
     // later steps resume only after the menu step's own checks pass (never auto-submit).
-    if (draft.step >= 4 && draft.store && draft.menu) { setStep(2); setResumeStep(draft.step); }
+    // A prior restore may have saved menu:null while awaiting classification.
+    // Keep the target using the typed name, not an untrusted saved category.
+    if (draft.step >= 4 && draft.store && (draft.menu || draft.menuQuery.trim())) { setStep(2); setResumeStep(draft.step); }
     else setStep(draft.step >= 4 ? (draft.store ? 2 : 1) : draft.step);
   };
   // Load once per resolved account. Nothing is read while the session is still being
@@ -334,6 +336,12 @@ export default function NewPickScreen() {
     && (!menus.isSuccess || !aiTried || suggestions.isFetching));
   const classificationUnresolved = Boolean(requestedMenu && menus.isSuccess && !effectiveMenu
     && aiTried && !suggestions.isFetching);
+  // Classification has settled once the menu list (and any AI pass for the typed
+  // name) has answered. Until then the unclassified fallback above is only a
+  // placeholder for the person's own "다음" tap, never a decision a draft restore
+  // may make on its own (#836 H1).
+  const classificationSettled = menus.isError
+    || (menus.isSuccess && (Boolean(classifiedMenu) || (aiTried && !suggestions.isFetching)));
 
   const draftOwner = user && hydratedFor === user.id ? user.id : null;
   useEffect(() => {
@@ -451,8 +459,11 @@ export default function NewPickScreen() {
     if (!user || !store || !effectiveMenu || busy.current) return;
     // A restored review step stays there only when no photo is missing.
     const photoStep = (next: 4 | 5): Step => (resume === 5 && next === 4 && photo ? 5 : next);
+    // Consume the target only after success, not on failed lookups or
+    // while waiting for an explicit brand-scope choice.
     setMenu(effectiveMenu);
     if (!effectiveMenu.categoryId) {
+      setResumeStep(null);
       setExpectedPreviousPickId(null);
       setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
       setPickScope('branch'); setStep(photoStep(4));
@@ -463,6 +474,7 @@ export default function NewPickScreen() {
     try {
       if (store.kind === 'new') {
         await readCurrentSlotSnapshot(effectiveMenu.categoryId);
+        setResumeStep(null);
         setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(photoStep(4));
         return;
       }
@@ -479,17 +491,22 @@ export default function NewPickScreen() {
       setItemId(target.itemId);
       setItemHadPhoto(target.hasPhoto);
       setItemPending(target.pending);
+      setResumeStep(null);
       setStep(target.hasPhoto ? 5 : photoStep(4));
     } catch { /* Each mutation exposes its own error under the menu controls. */ }
     finally { busy.current = false; }
   };
 
+  // A restored later step resumes on its own only for a menu the catalog/AI
+  // classified. While the menu list or the AI pass is still loading nothing is
+  // decided; when they settle without a match the person stays on this step and
+  // confirms the unclassified registration with their own tap (photo and review
+  // restored so far are kept and used by that tap).
   useEffect(() => {
-    if (resumeStep === null || !user || step !== 2 || !effectiveMenu) return;
+    if (resumeStep === null || !user || step !== 2 || !classificationSettled || !classifiedMenu) return;
     const target = resumeStep;
-    setResumeStep(null);
     if (store) void confirmMenu(target);
-  }, [resumeStep, user, step, store, effectiveMenu?.categoryId]);
+  }, [resumeStep, user, step, store, classificationSettled, classifiedMenu?.categoryId]);
 
   const pickNewPhoto = async () => {
     if (busy.current) return;
@@ -835,7 +852,7 @@ export default function NewPickScreen() {
           <View style={styles.footer}>
             <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
               disabled={!effectiveMenu || Boolean(preflight?.brand && !pickScope)}
-              loading={selectItem.isPending} onPress={() => void confirmMenu()} />
+              loading={selectItem.isPending} onPress={() => void confirmMenu(resumeStep ?? undefined)} />
           </View>
         </> : null}
 
