@@ -122,6 +122,14 @@ async function main() {
     'Comment-entry save declines a replacement');
   assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| Boolean\(returnPickId/,
     'Comment-entry replacement cannot be submitted from a stale screen');
+  assert.match(commentChoose, /const atomicCommentRegistration = Boolean\(returnPickId[\s\S]*?isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
+    'Atomic comment registration is scoped to food and the public channel');
+  assert.match(commentChoose, /registerCommentPick\.mutateAsync\([\s\S]*?expectedPreviousPickId: null,[\s\S]*?requestId/,
+    'Comment-entry registration uses the existing expected-null RPC');
+  assert.match(commentChoose, /commentRequestId\.current \?\? Crypto\.randomUUID\(\)/,
+    'The request ID remains stable for a lost-response retry');
+  assert.match(commentChoose, /published: result\.published/,
+    'Registration receipt distinguishes a pending photo review from a commentable Pick');
 
   const myComments = source('components/profile-my-comments.tsx');
   assert.match(myComments, /commentService\.locateComment\(entry\.comment\.id\)/);

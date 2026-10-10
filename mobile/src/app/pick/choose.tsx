@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -9,6 +10,7 @@ import { BrandMark, Button, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
+import { useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { channelLabel } from '@/lib/home/homeChannels';
 import { parseChannelParam } from '@/lib/items/pickChannel';
@@ -27,6 +29,7 @@ function getErrorMessage(error: unknown) {
     case 'ITEM_CATEGORY_MISMATCH': return '카테고리 정보가 맞지 않아요.';
     case 'REVIEW_INVALID': return '한줄평을 1~100자로 입력해주세요.';
     case 'PICK_CONFLICT': return '원픽 상태가 바뀌었어요. 다시 시도해주세요.';
+    case 'PICK_CHANGED_ELSEWHERE': return '다른 기기에서 원픽이 바뀌었어요. 기존 원픽은 변경하지 않았어요.';
     case 'PICK_COOLDOWN': return '해제한 원픽은 24시간이 지나야 다시 고를 수 있어요.';
     case 'ITEM_ALREADY_PICKED': return '이미 다른 방식의 원픽으로 고른 곳이에요. 그 원픽을 먼저 바꾸거나 지워주세요.';
     case 'PICK_CHANNEL_MISMATCH': return '이 방식으로는 이걸 원픽으로 고를 수 없어요.';
@@ -37,7 +40,8 @@ function getErrorMessage(error: unknown) {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Params = { itemId?: string; categoryId?: string; channel?: string; returnPickId?: string };
-type SavedChoice = { pick: Pick; item: Item };
+type PickReceipt = { id: string; itemId: string; userId: string; oneLineReview: string };
+type SavedChoice = { pick: Pick | PickReceipt; item: Item; published?: boolean };
 
 export default function ChoosePickScreen() {
   const auth = useAuthSession();
@@ -54,8 +58,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const requestedChannel = routeChannel && !OnePickFeatures.foodChannelPicker ? OnePickMvp.publicPickChannel : routeChannel;
   const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, requestedChannel);
   const choosePick = useChoosePick();
-  const saving = choosePick.isPending;
-  const saveError = choosePick.error;
+  const registerCommentPick = useRegisterItemPick();
+  const saving = choosePick.isPending || registerCommentPick.isPending;
+  const saveError = choosePick.error ?? registerCommentPick.error;
   const [draftReview, setReview] = useState<string | null>(null);
   // null means "not touched on this screen". The stored link is not read back
   // here yet, so an untouched field must send nothing rather than an empty
@@ -75,6 +80,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   // Mutation state arrives on a later render. A synchronous phase also guards
   // same-frame double taps and old event handlers after an acknowledged save.
   const submitPhase = useRef<'idle' | 'saving' | 'saved'>('idle');
+  // Reuse the same ID when a comment-originated registration response is lost.
+  // The keyed form resets this on account/item changes.
+  const commentRequestId = useRef<string | null>(null);
   // Preserve the acknowledged result even if a later detail refresh fails.
   // Navigation uses the returned Pick IDs, never a potentially stale myPickStatus.
   const loadedItem = itemQuery.data?.item;
@@ -100,6 +108,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
   // Only a valid return ID identifies the comment-originated flow.
   const returnPickId = typeof params.returnPickId === 'string' && UUID_PATTERN.test(params.returnPickId) ? params.returnPickId : null;
+  // The existing atomic registration RPC currently supports food items only.
+  // Do not change the regular /pick/choose behavior or unlaunched channels.
+  const atomicCommentRegistration = Boolean(returnPickId && itemQuery.data?.isRestaurant
+    && pickChannel === OnePickMvp.publicPickChannel && !OnePickFeatures.purchaseLinks);
   const formTitle = pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
@@ -118,11 +130,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
     submitPhase.current = 'saving';
     try {
-      // Comment-entry signup is never consent to replace an existing Pick.
-      // Refresh immediately before save rather than trusting the entry-screen snapshot.
-      // This client check cannot prevent a simultaneous change after the refresh;
-      // an atomic expected-previous-Pick DB guard would require a separate approval.
-      if (returnPickId) {
+      // Only the existing food/offline registration RPC enforces expected-null
+      // atomically. A last-moment read is a UX preflight, not the safety boundary.
+      // On a lost response the retained request ID makes retry idempotent.
+      if (returnPickId && !commentRequestId.current) {
         const latest = await itemQuery.refetch();
         if (latest.isError || !latest.data) {
           setCommentPickError('원픽 상태를 확인하지 못했어요. 다시 시도해주세요.');
@@ -134,16 +145,38 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         }
       }
       setCommentPickError(null);
-      const result = await choosePick.mutateAsync({
-        categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
-        ...(pickChannel ? { channel: pickChannel } : {}),
-        // An untouched field is left out so the stored value survives; '' clears it.
-        ...(OnePickFeatures.purchaseLinks && draftUrl !== null ? { purchaseUrl: trimmedUrl } : {}),
-        ...(draftUrl === null && draftTip === null ? {}
-          : { purchaseTip: showTipInput ? trimmedTip : '' }),
-      });
+      if (atomicCommentRegistration) {
+        const requestId = commentRequestId.current ?? Crypto.randomUUID();
+        commentRequestId.current = requestId;
+        const result = await registerCommentPick.mutateAsync({
+          userId: user.id,
+          categoryId: item.categoryId,
+          channel: OnePickMvp.publicPickChannel,
+          oneLineReview: trimmedReview,
+          itemId: item.id,
+          expectedPreviousPickId: null,
+          requestId,
+        });
+        // register_item_pick returns an ID receipt, not a full Pick row.
+        setSavedChoice({
+          pick: { id: result.pickId, itemId: result.itemId, userId: user.id, oneLineReview: trimmedReview },
+          item,
+          published: result.published,
+        });
+      } else {
+        // Non-food or future channels retain their existing choice contract.
+        // #770 must not release them without a separate atomic safeguard review.
+        const result = await choosePick.mutateAsync({
+          categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
+          ...(pickChannel ? { channel: pickChannel } : {}),
+          // An untouched field is left out so the stored value survives; '' clears it.
+          ...(OnePickFeatures.purchaseLinks && draftUrl !== null ? { purchaseUrl: trimmedUrl } : {}),
+          ...(draftUrl === null && draftTip === null ? {}
+            : { purchaseTip: showTipInput ? trimmedTip : '' }),
+        });
+        setSavedChoice({ pick: result, item });
+      }
       submitPhase.current = 'saved';
-      setSavedChoice({ pick: result, item });
     } catch { /* Mutation state renders the error; no success route is exposed. */ }
     finally { if (submitPhase.current === 'saving') submitPhase.current = 'idle'; }
   };
@@ -299,10 +332,12 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           <View style={styles.successPhoto}>{itemPhoto}</View>
           <Text style={styles.panelText}>내 원픽은 내 프로필에 모이고, 홈에서는 다른 사람의 원픽을 둘러볼 수 있어요.</Text>
           <View style={styles.successActions}>
-            {returnPickId ? <>
+            {returnPickId && savedChoice.published !== false ? <>
               <Button size="lg" fullWidth label="댓글 남기러 가기" onPress={backToComments} style={styles.submit} />
               <Button variant="ghost" label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.centered} />
             </> : <>
+              {returnPickId && savedChoice.published === false
+                ? <Text style={styles.panelText}>사진 확인이 끝나면 댓글을 남길 수 있어요.</Text> : null}
               <Button size="lg" fullWidth label="내 원픽 보기" onPress={() => router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id } })} style={styles.submit} />
               <Button variant="ghost" label="다른 사람의 원픽 계속 보기" onPress={() => router.replace('/')} style={styles.centered} />
             </>}
