@@ -337,8 +337,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   }
   // A private needs_review Pick is not a publicly shareable item. The viewer
   // may see their own registration here, but no public URL is offered for it.
-  const canSharePublicItem = item.status === 'active' && hasPhoto
+  const canSharePublicItem = item.status === 'active' && hasPhoto && !item.photoPendingReview
     && picks.some(({ pick }) => pick.status === 'active' && !pick.isDeleted);
+  const showRestaurantFields = isRestaurant || item.externalSource === 'onepick_place';
+  const hasOwnPendingPick = Boolean(user && picks.some(({ pick }) =>
+    pick.userId === user.id && pick.status === 'needs_review' && !pick.isDeleted));
   const completionEligible = hasCompletionReceipt && Boolean(user && focusPickId
     && picks.some(({ pick }) => pick.id === focusPickId && pick.userId === user.id && !pick.isDeleted));
   const onCompleteRegistration = () => {
@@ -455,15 +458,28 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           {isRestaurant
             ? homeChannelLabel(displayChannels) ? <Text style={styles.category}>{homeChannelLabel(displayChannels)}</Text> : null
             : category?.name ? <Text style={styles.category}>{categoryWithChannels(category.name, item.channels)}</Text> : null}
-          {brand ? <View style={styles.brandRow}>
-            {brand.logoUrl ? <View style={styles.brandLogo}>
-              <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+          {showRestaurantFields ? <View style={styles.restaurantDetails}>
+            <Text style={styles.detailFieldLabel}>매장</Text>
+            <View style={styles.brandRow}>
+              {brand?.logoUrl ? <View style={styles.brandLogo}>
+                <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+              </View> : null}
+              <Text style={styles.storeName}>{item.name}</Text>
+            </View>
+            <Text style={styles.detailFieldLabel}>메뉴</Text>
+            <Text style={styles.itemName}>{category?.name || item.requestedCategoryLabel || '메뉴 분류 대기'}</Text>
+          </View> : <>
+            {brand ? <View style={styles.brandRow}>
+              {brand.logoUrl ? <View style={styles.brandLogo}>
+                <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+              </View> : null}
+              <Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text>
             </View> : null}
-            <Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text>
-          </View> : null}
-          <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
+            <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
+          </>}
           <YouTubeVideoLink item={item} />
-          {!mvpFoodScope ? <ItemPickCount itemId={item.id} /> : null}
+          <ItemPickCount itemId={item.id} />
+          {hasOwnPendingPick ? <Text style={styles.pendingPickNotice}>내 원픽은 등록됐어요. 공개 전 관리자 확인 중이에요.</Text> : null}
           {!mvpFoodScope ? <ItemChannelLinks itemId={item.id} /> : null}
 
           {/* One shape for the Pick state: filled brand color when it is my Pick, no color
@@ -620,6 +636,10 @@ const styles = StyleSheet.create({
   photoRecovery: { marginTop: OnePickSpace.sm },
   photoError: { ...OnePickType.caption, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
   category: { ...OnePickType.captionMedium, color: OnePick.textSecondary, marginTop: OnePickSpace.xl },
+  restaurantDetails: { width: '100%', alignItems: 'center', gap: OnePickSpace.xs, marginTop: OnePickSpace.md },
+  detailFieldLabel: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
+  storeName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1, textAlign: 'center' },
+  pendingPickNotice: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm, textAlign: 'center' },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
