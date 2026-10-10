@@ -1,6 +1,12 @@
 // UI contracts shared by the live QA and offline DOM fixtures. No network calls here.
 export const SUGGESTION_ROUTE = '**/functions/v1/suggest-item-categories*';
 
+// Default QA observes the site's actual service workers. Only opt-in AI
+// safety mode or a short-lived mock context disables them for route handling.
+export function qaContextOptions(device, interceptMenuAI = false) {
+  return { ...device, locale: 'ko-KR', serviceWorkers: interceptMenuAI ? 'block' : 'allow' };
+}
+
 export function ownProfileUsername(data, userId) {
   const rows = Array.isArray(data) ? data : [data];
   const own = rows.find((row) => row?.id === userId);

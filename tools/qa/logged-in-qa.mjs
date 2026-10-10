@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, devices } from 'playwright';
 import {
-  SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, checkUnclassifiedMenuNext, assertNotifications,
+  SUGGESTION_ROUTE, qaContextOptions, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, checkUnclassifiedMenuNext, assertNotifications,
   openHomeSearch, submitHomeSearch, openOwnComments, openNotificationsTab,
   assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
   pickIdSource, pickIdsFromResponse, assertPickConversation,
@@ -243,8 +243,9 @@ async function main() {
     });
     if (!loggedIn) return;
 
-    // Block service workers so Playwright's AI response interception is reliable.
-    const context = await browser.newContext({ ...device, locale: 'ko-KR', serviceWorkers: 'block' });
+    // Keep normal scheduled QA on the site's regular service-worker behavior.
+    // Opt-in safe mode blocks SWs so its AI-abort route cannot be bypassed.
+    const context = await browser.newContext(qaContextOptions(device, BLOCK_MENU_AI));
     // Explicit safety mode only; do not change the scheduled QA's request policy.
     if (BLOCK_MENU_AI) await context.route(SUGGESTION_ROUTE, async (route) => {
       blockedMenuSuggestions += 1;
@@ -458,28 +459,47 @@ async function main() {
         return { status: 'warn', detail: 'QA_BLOCK_MENU_AI 활성: 미분류 폴백 미검증 (차단을 성공으로 간주하지 않음)' };
       }
       if (MENU_QUERY === UNCLASSIFIED_MENU_QUERY) throw new Error('정상 분류 및 미분류 QA 메뉴명이 같음');
+      // Only this synthetic scenario blocks service workers, so its mock is
+      // reliably intercepted without changing regular PWA/login QA or its draft.
+      // storageState carries the QA session without copying the current wizard draft.
+      const isolated = await browser.newContext({
+        ...qaContextOptions(device, true),
+        storageState: await context.storageState(),
+      });
       let mockedCalls = 0;
       const mockedNames = [];
-      // A controlled empty *successful* recommendation is different from
-      // aborting the request. It tests the actual app's no-match fallback while
-      // preventing additional AI/model costs and any registration writes.
-      await page.route(SUGGESTION_ROUTE, async (route) => {
-        mockedCalls += 1;
-        let name = null;
-        try { name = route.request().postDataJSON()?.store?.menuName ?? null; } catch { /* invalid body is checked below */ }
-        mockedNames.push(name);
-        await route.fulfill({
-          status: 200, contentType: 'application/json',
-          body: JSON.stringify({ suggestions: [], needsNewCategory: true }),
-        });
-      });
       try {
-        const responsePromise = page.waitForResponse((response) => {
-          if (!response.url().includes('/functions/v1/suggest-item-categories') || response.request().method() !== 'POST') return false;
-          try { return response.request().postDataJSON()?.store?.menuName === UNCLASSIFIED_MENU_QUERY; } catch { return false; }
-        }, { timeout: STEP_TIMEOUT_MS });
-        await page.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(UNCLASSIFIED_MENU_QUERY);
+        await isolated.route(SUGGESTION_ROUTE, async (route) => {
+          mockedCalls += 1;
+          let name = null;
+          try { name = route.request().postDataJSON()?.store?.menuName ?? null; } catch { /* checked below */ }
+          mockedNames.push(name);
+          await route.fulfill({
+            status: 200, contentType: 'application/json',
+            body: JSON.stringify({ suggestions: [], needsNewCategory: true }),
+          });
+        });
+        const mockPage = await isolated.newPage();
+        await mockPage.goto(`${BASE_URL}/pick/new`, { waitUntil: 'domcontentloaded' });
+        await mockPage.getByText('네이버 지도 링크를 입력해주세요.', { exact: true })
+          .waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        await mockPage.getByRole('button', { name: 'URL 없음', exact: true }).click({ timeout: STEP_TIMEOUT_MS });
+        const mockStoreInput = mockPage.getByRole('textbox', { name: '매장명 검색', exact: true });
+        await mockStoreInput.fill(STORE_QUERY);
+        const mockStore = mockPage.getByRole('button', { name: /선택$/ }).first();
+        await mockStore.waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        await mockStore.click({ timeout: STEP_TIMEOUT_MS });
+        await mockPage.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+
+        const responsePromise = mockPage.waitForResponse((response) =>
+          response.url().includes('/functions/v1/suggest-item-categories') && response.request().method() === 'POST',
+          { timeout: STEP_TIMEOUT_MS });
+        await mockPage.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(UNCLASSIFIED_MENU_QUERY);
         const response = await responsePromise;
+        let requestedName;
+        try { requestedName = response.request().postDataJSON()?.store?.menuName; }
+        catch { throw new Error('미분류 AI 요청의 JSON 본문을 읽지 못함'); }
+        if (requestedName !== UNCLASSIFIED_MENU_QUERY) throw new Error('미분류 AI 요청 메뉴명이 입력과 일치하지 않음');
         const payload = await response.json();
         if (response.status() !== 200 || !payload?.needsNewCategory || !Array.isArray(payload.suggestions) || payload.suggestions.length) {
           throw new Error('미분류 모의 추천 응답을 확인하지 못함');
@@ -487,11 +507,11 @@ async function main() {
         if (mockedCalls !== 1 || mockedNames[0] !== UNCLASSIFIED_MENU_QUERY) {
           throw new Error(`미분류 AI 모의 응답 요청이 일치하지 않음 (호출 ${mockedCalls}건)`);
         }
-        await checkUnclassifiedMenuNext(page, UNCLASSIFIED_MENU_QUERY, STEP_TIMEOUT_MS);
-        await noErrorCopy(page);
-        return '목록 외 메뉴 · 모의 빈 추천 응답 확인 → 입력 유지·"다음" 활성화 (trial click, 미제출; 실제 AI 결과 검증 아님)';
+        await checkUnclassifiedMenuNext(mockPage, UNCLASSIFIED_MENU_QUERY, STEP_TIMEOUT_MS);
+        await noErrorCopy(mockPage);
+        return '목록 외 메뉴 · 격리 컨텍스트의 모의 빈 추천 응답 확인 → 입력 유지·"다음" 활성화 (trial click, 미제출; 실제 AI 결과 검증 아님)';
       } finally {
-        await page.unroute(SUGGESTION_ROUTE);
+        await isolated.close();
       }
     });
     await shot(page, 'pick_new');

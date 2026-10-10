@@ -8,7 +8,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
   const api = await import('./logged-in-contract.mjs');
   const browser = await chromium.launch(process.env.QA_CHROMIUM_PATH
     ? { executablePath: process.env.QA_CHROMIUM_PATH } : {});
-  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const context = await browser.newContext(api.qaContextOptions({}));
   let unexpectedRequests = 0;
   await context.route('**/*', async (route) => {
     if (new URL(route.request().url()).hostname === 'fixture.invalid') {
@@ -22,6 +22,11 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
   const timeout = 400;
   const set = async (html) => { await page.goto('https://fixture.invalid/profile'); await page.setContent(html); };
   try {
+    await t.test('regular QA retains SW policy and explicit interception blocks only the isolated context', () => {
+      assert.equal(api.qaContextOptions({}).serviceWorkers, 'allow');
+      assert.equal(api.qaContextOptions({}).locale, 'ko-KR');
+      assert.equal(api.qaContextOptions({ viewport: { width: 390 } }, true).serviceWorkers, 'block');
+    });
     await t.test('identity belongs to authenticated user, not another visible profile', async () => {
       assert.equal(api.ownProfileUsername([{ id: 'other', username: 'stranger' }, { id: 'qa', username: 'qa_user' }], 'qa'), 'qa_user');
       assert.throws(() => api.ownProfileUsername([{ id: 'other', username: 'qa_user' }], 'qa'));
@@ -109,10 +114,20 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await api.checkMenuSelection(page, '도가니탕', timeout);
       assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
     });
-    await t.test('empty AI recommendation permits an unknown menu without submitting', async () => {
+    await t.test('empty AI recommendation is mocked only in a short-lived SW-blocked context', async () => {
       const name = 'QA미분류검증메뉴20261010';
+      const isolated = await browser.newContext(api.qaContextOptions({}, true));
       let calls = 0;
-      await context.route(api.SUGGESTION_ROUTE, async (route) => {
+      let unexpectedIsolatedRequests = 0;
+      await isolated.route('**/*', async (route) => {
+        if (new URL(route.request().url()).hostname === 'fixture.invalid') {
+          await route.fulfill({ contentType: 'text/html', body: '<body></body>' });
+        } else {
+          unexpectedIsolatedRequests += 1;
+          await route.abort();
+        }
+      });
+      await isolated.route(api.SUGGESTION_ROUTE, async (route) => {
         calls += 1;
         const req = route.request().postDataJSON();
         assert.equal(req.store.menuName, name);
@@ -121,9 +136,11 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
           body: JSON.stringify({ suggestions: [], needsNewCategory: true }),
         });
       });
+      const mockPage = await isolated.newPage();
       try {
-        await set(menu('추천 중', true));
-        const input = page.getByRole('textbox', { name: '메뉴 이름', exact: true });
+        await mockPage.goto('https://fixture.invalid/profile');
+        await mockPage.setContent(menu('추천 중', true));
+        const input = mockPage.getByRole('textbox', { name: '메뉴 이름', exact: true });
         await input.evaluate((element) => {
           element.addEventListener('input', async () => {
             const response = await fetch('/functions/v1/suggest-item-categories', {
@@ -138,14 +155,17 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
           }, { once: true });
         });
         await input.fill(name);
-        await page.getByText(successCopy, { exact: true }).waitFor({ state: 'visible', timeout });
-        await api.checkUnclassifiedMenuNext(page, name, timeout);
+        await mockPage.getByText(successCopy, { exact: true }).waitFor({ state: 'visible', timeout });
+        await api.checkUnclassifiedMenuNext(mockPage, name, timeout);
         assert.equal(calls, 1, 'empty AI response must actually be intercepted');
         assert.equal(await input.inputValue(), name);
-        assert.equal(await page.evaluate(() => Boolean(window.submitted)), false, 'trial click cannot submit');
+        assert.equal(await mockPage.evaluate(() => Boolean(window.submitted)), false, 'trial click cannot submit');
       } finally {
-        await context.unroute(api.SUGGESTION_ROUTE);
+        await isolated.close();
       }
+      assert.equal(unexpectedIsolatedRequests, 0);
+      // A synthetic menu must not alter the ordinary QA page or its routing.
+      assert.equal(await page.evaluate(() => window.location.pathname), '/profile');
       await set(menu(successCopy, true));
       await page.getByRole('textbox', { name: '메뉴 이름' }).fill(name);
       await assert.rejects(api.checkUnclassifiedMenuNext(page, name, timeout), 'disabled Next cannot pass');

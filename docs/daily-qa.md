@@ -80,7 +80,7 @@ QA_BASE_URL=https://onepick-5cl.pages.dev node live-qa.mjs   # 결과: tools/qa/
 SUPABASE_ACCESS_TOKEN=<PAT> node db-health.mjs               # 결과: tools/qa/qa-output/db-health.md
 ```
 
-로그인 QA는 2/4 메뉴 단계에서 기존 정상 자동 분류 `다음` 검사와 별도로, 목록에 없도록 만든 `QA미분류검증메뉴20261010` 입력을 검사한다. 이때 `suggest-item-categories`에는 실제 AI 호출 대신 `{ suggestions: [], needsNewCategory: true }`라는 **모의 정상 응답**을 주입한다. 요청 본문의 메뉴명·응답 수신 여부를 확인한 후 메뉴명 보존과 `다음`의 trial click만 검사하며 등록·운영 데이터는 쓰지 않는다. 이 항목의 pass는 **앱의 미분류 폴백 경로**에 관한 근거일 뿐 실제 AI 실패율이나 원격 AI 응답의 성공 근거가 아니다. 모의 응답을 관찰하지 못하거나 버튼이 비활성이면 fail이다. `QA_BLOCK_MENU_AI=1`인 경우 이 항목은 반드시 warn(미검증)이며 성공으로 집계하지 않는다. 추천 요청 가로채기를 위해 로그인 QA에서는 service worker를 차단한다.
+로그인 QA는 2/4 메뉴 단계에서 기존 정상 자동 분류 `다음` 검사와 별도로, 목록에 없도록 만든 `QA미분류검증메뉴20261010` 입력을 검사한다. 이때 `suggest-item-categories`에는 실제 AI 호출 대신 `{ suggestions: [], needsNewCategory: true }`라는 **모의 정상 응답**을 주입한다. 요청 본문의 메뉴명·응답 수신 여부를 확인한 후 메뉴명 보존과 `다음`의 trial click만 검사하며 등록·운영 데이터는 쓰지 않는다. 이 항목의 pass는 **모의 빈 추천 응답을 받은 뒤에도 메뉴명이 유지되고 `다음`이 활성 상태임**을 확인할 뿐, 실제 AI 실패율·원격 AI 응답 성공이나 최종 등록 성공을 증명하지 않는다. 모의 응답을 관찰하지 못하거나 버튼이 비활성이면 fail이다. `QA_BLOCK_MENU_AI=1`인 경우 이 항목은 반드시 warn(미검증)이며 성공으로 집계하지 않는다. 기본 정기 로그인 QA는 서비스워커를 허용하여 원래 PWA 동작을 보존한다. **미분류 메뉴 모의 검사는** 같은 QA 로그인 상태를 전달한 별도 임시 컨텍스트에서만 `serviceWorkers: 'block'`을 적용해 추천 요청을 가로챈다. 격리 컨텍스트는 검사 후 닫으며 기존 정상 분류 화면·임시저장을 변경하지 않는다. `QA_BLOCK_MENU_AI=1` 명시 안전 모드 역시 AI 요청의 SW 우회를 막기 위해 해당 실행에만 서비스워커를 차단한다.
 
 ## 오프라인 계약 검증과 메뉴 AI 안전 모드
 
