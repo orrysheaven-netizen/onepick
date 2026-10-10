@@ -48,8 +48,8 @@ const detail = read('src/app/item/[itemId].tsx');
 assert.match(detail, /const \[hasCompletionReceipt\] = useState\(\(\) => Boolean\(!isSessionLoading && user && consumePickSavedToast\(focusPickId\)\)\)/);
 assert.match(detail, /const \[pickSavedToast, setPickSavedToast\] = useState\(false\)/);
 assert.match(detail, /const onCompleteRegistration = \(\) => \{[\s\S]*?setCompletionAcknowledged\(true\);\s*setPickSavedToast\(true\);\s*\}/);
-assert.match(detail, /<Button label="완료" disabled=\{completionAcknowledged\} onPress=\{onCompleteRegistration\} \/>/);
-assert.match(detail, /\{completionEligible \? <View style=\{styles\.completionFooter\}>/);
+assert.match(detail, /<Button label="완료" fullWidth accessibilityLabel="원픽 등록 완료" onPress=\{onCompleteRegistration\} \/>/);
+assert.match(detail, /\{completionEligible && !completionAcknowledged \? <View style=\{styles\.completionFooter\}>/);
 assert.match(detail, /picks\.some\(\(\{ pick \}\) => pick\.id === focusPickId && pick\.userId === user\.id && !pick\.isDeleted\)/);
 assert.match(detail, /if \(!pickSavedToast\) return;\s*const timer = setTimeout\(\(\) => setPickSavedToast\(false\), 2000\)/);
 assert.match(detail, /justifyContent: 'center', alignItems: 'center'/);
@@ -58,7 +58,16 @@ assert.doesNotMatch(detail, /registration\.mutateAsync|onPress=\{\(\) => void sa
   'completed detail cannot perform a second registration write');
 assert.doesNotMatch(detail, /bottom: OnePickSpace\.xxxl,[\s\S]{0,220}toastText/, 'completion toast is not bottom-positioned');
 assert.match(detail, /accessibilityLabel="홈으로" onPress=\{\(\) => router\.replace\('\/'\)\}/);
+// Home replaces Back only on the registration handoff; ordinary entries keep the
+// real previous screen (UX-SWIPE-001 parity between swipe and the header button).
+assert.match(detail, /\{hasCompletionReceipt\s*\? <Pressable accessibilityRole="button" accessibilityLabel="홈으로"/);
+assert.match(detail, /accessibilityLabel="뒤로 가기"\s*onPress=\{\(\) => router\.canGoBack\(\) \? router\.back\(\) : router\.replace\('\/'\)\}/);
 assert.match(detail, /headerActionButton: \{ width: 44, height: 44/);
+// The saved detail is read from the top first; no automatic jump to the own review.
+assert.match(detail, /if \(!hasCompletionReceipt && params\.photo !== '1' && focusPickId/);
+assert.match(detail, /if \(!hasCompletionReceipt && params\.photo !== '1' && pick\.id === focusPickId/);
+// A share notice is transient, like the completion toast.
+assert.match(detail, /if \(!shareNotice\) return;\s*const timer = setTimeout\(\(\) => setShareNotice\(null\), 2500\)/);
 
 // Item content links and review/Pick links have different route semantics.
 const urls = load('lib/share/shareLinks.ts', { 'react-native': { Platform: { OS: 'web' } } });

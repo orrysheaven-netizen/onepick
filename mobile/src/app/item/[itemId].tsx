@@ -116,6 +116,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     const timer = setTimeout(() => setPickSavedToast(false), 2000);
     return () => clearTimeout(timer);
   }, [pickSavedToast]);
+  useEffect(() => {
+    if (!shareNotice) return;
+    const timer = setTimeout(() => setShareNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [shareNotice]);
 
   useEffect(() => {
     const data = query.data;
@@ -159,11 +164,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   useEffect(() => {
     scrolledTo.current = undefined;
     // A photo invitation opens the uploader, not a review far below it.
-    if (params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
+    // Right after registration the final detail is shown from the top first (#874 ①).
+    if (!hasCompletionReceipt && params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
       focusReview(focusPickId);
       scrolledTo.current = focusPickId;
     }
-  }, [focusPickId, focusReview, user?.id, params.photo]);
+  }, [hasCompletionReceipt, focusPickId, focusReview, user?.id, params.photo]);
   useEffect(() => {
     if (!highlightedId) return;
     const timer = setTimeout(() => setHighlightedId(undefined), 4000);
@@ -371,10 +377,18 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.detailHeader}>
-        <Pressable accessibilityRole="button" accessibilityLabel="홈으로" onPress={() => router.replace('/')}
-          style={({ pressed }) => [styles.headerActionButton, pressed && styles.pressed]}>
-          <Icon name="home" />
-        </Pressable>
+        {/* Registration replaced itself with this screen, so its only sensible exit is
+            Home (#874 ③). Every other entry keeps the real previous screen (UX-SWIPE-001). */}
+        {hasCompletionReceipt
+          ? <Pressable accessibilityRole="button" accessibilityLabel="홈으로" onPress={() => router.replace('/')}
+            style={({ pressed }) => [styles.headerActionButton, pressed && styles.pressed]}>
+            <Icon name="home" />
+          </Pressable>
+          : <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기"
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+            style={({ pressed }) => [styles.headerActionButton, pressed && styles.pressed]}>
+            <Icon name="back" />
+          </Pressable>}
         <View style={styles.headerEnd}>
           {canSharePublicItem ? <Pressable accessibilityRole="button" accessibilityLabel="이 메뉴 화면 공유"
             disabled={isSharingItem} onPress={() => void onShareItem()}
@@ -501,7 +515,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
               reviewPositions.current[pick.id] = event.nativeEvent.layout.y;
-              if (params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
+              if (!hasCompletionReceipt && params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
                 focusReview(pick.id);
                 scrolledTo.current = pick.id;
               }
@@ -515,8 +529,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
-      {completionEligible ? <View style={styles.completionFooter}>
-        <Button label="완료" disabled={completionAcknowledged} onPress={onCompleteRegistration} />
+      {/* One click only: the CTA leaves with the acknowledgement, so it can never
+          be pressed twice and no dead control stays below the detail. */}
+      {completionEligible && !completionAcknowledged ? <View style={styles.completionFooter}>
+        <Button label="완료" fullWidth accessibilityLabel="원픽 등록 완료" onPress={onCompleteRegistration} />
       </View> : null}
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toastOverlay}>
         <View style={styles.toast}><Text style={styles.toastText}>원픽을 등록했어요.</Text></View>
@@ -549,14 +565,6 @@ const styles = StyleSheet.create({
     paddingVertical: OnePickSpace.md,
   },
   toastText: { ...OnePickType.bodyMedium, color: OnePick.onAction },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: OnePickSpace.xs,
-    marginLeft: -OnePickSpace.sm,
-  },
   revisionPanel: {
     borderWidth: 1,
     borderColor: OnePick.borderDefault,
