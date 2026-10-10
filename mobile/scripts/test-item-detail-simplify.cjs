@@ -150,7 +150,7 @@ assert.doesNotMatch(conversationSource, /✓ 이 집 원픽|✓ 원픽/, 'Conver
 
 // PickReplies keeps its existing CRUD/composer behavior.
 const repliesSource = source('components/pick-replies.tsx');
-assert.match(repliesSource, /useState\(!compact\)/);
+assert.match(repliesSource, /useState\(false\)/, 'Existing comments do not automatically open a new composer');
 assert.match(repliesSource, /canComment && !composing \?/);
 assert.match(repliesSource, /const canComment = canWrite && !isSessionLoading && !sessionError/);
 assert.match(repliesSource, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag mine=\{author\.id === user\?\.id\} \/> : null/,
