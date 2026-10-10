@@ -31,10 +31,10 @@ for (const source of [owner, publicProfile]) {
   assert.match(source, /key: 'followers', label: '팔로워'/);
   assert.match(source, /key: 'following', label: '팔로잉'/);
   assert.doesNotMatch(source, /label: '댓글'|statLabel\}>댓글/, 'No 댓글 count on profiles');
-  assert.match(source, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
+  assert.match(source, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
   assert.doesNotMatch(source, /minHeight: (724|675)/, 'No fixed-height profile body');
-  assert.doesNotMatch(source, /<Chip label="다른 취향"/, 'Chip names are 음식 / 기타 on both profiles');
-  assert.match(source, /<Chip label="기타"/);
+  // Early MVP (#757/#879): one food scope on both profiles, so no scope chips at all.
+  assert.doesNotMatch(source, /<Chip label="(다른 취향|음식|기타)"/, 'No scope chips on either profile in the early MVP');
 }
 
 // Nickname names (#804 via #863 data contract): identification falls back to the username,
@@ -60,15 +60,15 @@ const headerIndex = owner.indexOf('<View style={styles.profileHeader}>');
 const identityIndex = owner.indexOf('<ProfileIdentity');
 const actionsIndex = owner.indexOf('<View style={styles.profileActions}>');
 const tabsIndex = owner.indexOf('<ProfileTabs');
-const picksIndex = owner.indexOf('visibleProfilePicks.map');
+const picksIndex = owner.indexOf('profilePicks.map');
 const recordsIndex = owner.indexOf('<ProfileRecords');
 assert.ok(headerIndex >= 0 && identityIndex > headerIndex && actionsIndex > identityIndex && tabsIndex > actionsIndex
   && picksIndex > tabsIndex && recordsIndex > picksIndex, 'Header → identity → actions → tabs → 원픽 | 기록');
 assert.match(owner, /accessibilityLabel="설정 열기" onPress=\{\(\) => router\.push\('\/settings'\)\}/);
 assert.match(owner, /<Button variant="secondary" size="sm" label="프로필 편집"/);
 assert.match(owner, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/);
-assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: publicMainPicks\.length \}\)/,
-  'Owner share uses the same public food-only count as the public profile');
+assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: profilePicks\.length \}\)/,
+  'Owner share uses the same early-MVP food count as the list and the public profile');
 assert.match(owner, /\{profileTab === 'picks' \? <View style=\{styles\.tabBody\}>/, 'Tab row stays even with zero Picks');
 assert.match(owner, /hasOpenedEditor \? <View style=\{\[styles\.editor, !isEditingProfile && styles\.hidden\]\}>\s*<ProfileBioEditor/,
   'The editor stays mounted once opened so closing 프로필 편집 keeps an unsaved draft');
@@ -127,7 +127,7 @@ assert.match(publicProfile, /<Button variant="secondary" fullWidth style=\{style
   'Logged-out join stays secondary so 팔로우 is the single primary CTA');
 const publicHeaderIndex = publicProfile.indexOf('<View style={styles.publicHeader}>');
 const publicBodyIndex = publicProfile.indexOf('<View style={styles.publicBody}>');
-const publicPicksIndex = publicProfile.indexOf('visibleProfilePicks.map((item) => <ProfileCurrentPickRow');
+const publicPicksIndex = publicProfile.indexOf('profilePicks.map((item) => <ProfileCurrentPickRow');
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
 const publicAiIndex = publicProfile.indexOf('<ProfileAiComment');

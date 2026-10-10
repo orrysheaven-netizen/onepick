@@ -13,7 +13,7 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
-import { Button, Chip, Icon, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
@@ -23,7 +23,7 @@ import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
-import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { filterMvpProfilePicks } from '@/lib/profile/profilePickGroups';
 import { profileDisplayName, profileHandle, profileMentionName } from '@/lib/profile/profileName';
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
@@ -57,21 +57,20 @@ export default function PublicProfileScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
-  const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [loginSheetOpen, setLoginSheetOpen] = useState(false);
   const [loginTargetUsername, setLoginTargetUsername] = useState<string | null>(null);
   const [followToast, setFollowToast] = useState(false);
   const [autoFollow] = useState(() => typeof username === 'string' && consumeFollowProfileIntent(username));
   const socialSignIn = useSocialSignIn();
-  // 실험실 themes stay off the main profile and its share card while the lab is on.
-  const profileCategories = categoriesQuery.data ?? [];
-  const { main: mainPicks, lab: labPicks } = useMemo(
-    () => splitLabPicks(query.data?.currentPicks ?? [], profileCategories, OnePickMvp.mainThemeCode, OnePickFeatures.lab),
+  // Early MVP (#757/#879): the list, 원픽 N and the share card use one scope — food Picks
+  // from a store or an online order. Recipes and other themes stay stored, unlisted.
+  // Without the category catalog nothing can be classified, so the list waits.
+  const categoriesReady = Boolean(categoriesQuery.data);
+  const profilePicks = useMemo(
+    () => filterMvpProfilePicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels),
     [query.data?.currentPicks, categoriesQuery.data],
   );
-  const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
-  const publicPickCount = publicMainPicks.length + labPicks.length;
-  const visibleProfilePicks = profileScope === 'food' ? publicMainPicks : labPicks;
+  const pickCountLabel = categoriesReady ? `${profilePicks.length}${query.data?.currentPicksComplete === false ? '+' : ''}` : '—';
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
@@ -180,7 +179,7 @@ export default function PublicProfileScreen() {
   }, [followToast]);
 
   const publicStats: ProfileStat[] = [
-    { key: 'picks', label: '원픽', value: String(publicPickCount) },
+    { key: 'picks', label: '원픽', value: pickCountLabel },
     ...(OnePickFeatures.profileFollowConnections ? [
       {
         key: 'followers', label: '팔로워', value: publicFollowCounts.data ? String(publicFollowCounts.data.followerCount) : '—',
@@ -219,7 +218,7 @@ export default function PublicProfileScreen() {
   const handleShare = async () => {
     if (!query.data || isSharing) return;
     const { profile } = query.data;
-    const currentPicks = publicMainPicks;
+    const currentPicks = profilePicks;
     setIsSharing(true);
     setShareError(false);
     setCardNotice(null);
@@ -322,22 +321,18 @@ export default function PublicProfileScreen() {
             {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
             {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
 
-            {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-              <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'}
-                onPress={() => setProfileScope('food')} visualStyle={styles.profileScopeChip} />
-              <Chip label="기타" accessibilityLabel="기타 원픽 보기" selected={profileScope === 'other'}
-                onPress={() => setProfileScope('other')} visualStyle={styles.profileScopeChip} />
-            </View> : null}
-
-            {visibleProfilePicks.length > 0 ? <View style={styles.publicPickList}>
-              {visibleProfilePicks.map((item) => <ProfileCurrentPickRow
+            {!categoriesReady ? (categoriesQuery.isError
+              ? <StateCard tone="danger" title="원픽을 불러오지 못했어요."
+                action={{ label: '다시 불러오기', variant: 'secondary', onPress: () => void categoriesQuery.refetch() }} />
+              : <StateCard loading title="원픽을 불러오고 있어요." />)
+            : profilePicks.length > 0 ? <View style={styles.publicPickList}>
+              {profilePicks.map((item) => <ProfileCurrentPickRow
                 key={item.pick.id}
                 item={item}
-                isFood={profileScope === 'food'}
+                isFood
                 onOpenPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
               />)}
-            </View> : <StateCard title={profileScope === 'food' ? '아직 고른 원픽이 없어요.' : '아직 고른 기타 원픽이 없어요.'}
-              text={profileScope === 'food' ? '이 사용자가 원픽을 고르면 여기에 보여요.' : '이 사용자가 다른 취향을 고르면 여기에 보여요.'} />}
+            </View> : <StateCard title="아직 고른 원픽이 없어요." text="이 사용자가 원픽을 고르면 여기에 보여요." />}
           </View>
 
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
@@ -425,8 +420,6 @@ const styles = StyleSheet.create({
   publicHeaderIconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   publicHeaderTitle: { ...OnePickType.headline, flex: 1, minWidth: 0, textAlign: 'center', color: OnePick.textPrimary },
   publicBody: { paddingTop: OnePickSpace.sm, gap: OnePickSpace.lg },
-  profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
-  profileScopeChip: { paddingHorizontal: 13 },
   publicPickList: { borderTopWidth: 1, borderTopColor: OnePick.borderDefault },
   safetyCard: {
     backgroundColor: OnePick.bgMuted,

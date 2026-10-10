@@ -32,7 +32,7 @@ assert.match(invalidation, /queryKeys\.profileTaste\.all/);
 
 const actionsIndex = profile.indexOf('<View style={styles.profileActions}>');
 const infoIndex = profile.indexOf('<ProfileBioEditor');
-const picksIndex = profile.indexOf('visibleProfilePicks.map');
+const picksIndex = profile.indexOf('profilePicks.map');
 const tasteIndex = profile.indexOf('<ProfileTasteComposition');
 const aiIndex = profile.indexOf('<ProfileAiPanel');
 
@@ -44,7 +44,7 @@ assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposi
 assert.match(profile, /OnePickFeatures\.profileAi \? <ProfileAiPanel/);
 
 const publicBodyIndex = publicProfile.indexOf('<View style={styles.publicBody}>');
-const publicPicksIndex = publicProfile.indexOf('visibleProfilePicks.map((item) => <ProfileCurrentPickRow');
+const publicPicksIndex = publicProfile.indexOf('profilePicks.map((item) => <ProfileCurrentPickRow');
 const publicInfoIndex = publicProfile.indexOf('<ProfileSocialLinks');
 const publicTasteIndex = publicProfile.indexOf('<ProfileTasteComposition');
 const publicAiIndex = publicProfile.indexOf('<ProfileAiComment');

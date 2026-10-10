@@ -40,7 +40,7 @@ function home(count = 20, followingCount = 0) {
     },
     '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
     '@/lib/categories/categoryTree': tree,
-    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, filterMvpProfilePicks: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
     '@/components/onepick-brand': names('OnePickBrand'), '@/components/notification-button': names('NotificationButton'),
     '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'), '@/components/pick-photo': names('PickPhoto'),
@@ -60,7 +60,7 @@ function explore({ chips = true } = {}) {
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
       useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; },
       useFoodMenuPickCounts: (channel, enabled) => { calls.menuCounts = { channel, enabled }; return query(new Map([['ramen', 5]])); } },
-    '@/lib/categories/categoryTree': tree, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
+    '@/lib/categories/categoryTree': tree, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, filterMvpProfilePicks: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
   });
   view.render();
@@ -91,7 +91,7 @@ function profile(isPublic = false) {
     '@/hooks/useProfileAi': { useProfileAiComment: (id) => { calls.aiIds.push(id); return { data: { text: 'cached AI comment' } }; } },
     '@/hooks/useFollow': { usePublicFollowCounts: () => query({ followerCount: 0, followingCount: 0 }) },
     '@/lib/categories/categoryTree': tree, '@/lib/categories/registrationRoute': { registrationRoute: () => '/pick/find' },
-    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, filterMvpProfilePicks: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/seedProfiles': { isSeedProfileId: () => false },
     '@/lib/auth/authIntent': { getPostAuthRoute: () => '/u/owner' },
     '@/lib/auth/followProfileIntent': { armFollowProfileIntent: () => true, clearFollowProfileIntent() {}, consumeFollowProfileIntent: () => false },

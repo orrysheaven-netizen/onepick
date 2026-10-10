@@ -75,21 +75,47 @@ async function main() {
   );
   assert.deepEqual(Array.from(calls[1].statuses), ['active']);
   assert.equal(Object.hasOwn(calls[1], 'categoryId'), false, 'Public Profile must not apply an MVP restaurant category filter');
+  assert.equal(mine.currentPicksComplete, true);
+  assert.equal(publicProfile.currentPicksComplete, true);
+
+  // #757 A: 원픽 N is the full count, so current Picks are read past the first page of 100.
+  const many = Array.from({ length: 230 }, (_, index) => ({
+    pick: { id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`, status: 'active', updatedAt: `2026-10-10T00:00:00.${String(230 - index).padStart(6, '0')}+00:00` },
+    category: { id: `c${index}`, slug: `s${index}`, name: `n${index}` },
+    item: photo(`m${index}`),
+  }));
+  const pageCalls = [];
+  const pagedService = new ProfileService(profileRepository, {
+    getPicks: async (input) => {
+      pageCalls.push(input);
+      const start = input.cursor ? many.findIndex((entry) => entry.pick.id === input.cursor.id) + 1 : 0;
+      return many.slice(start, start + input.limit);
+    },
+  });
+  const pagedPublic = await pagedService.getProfileByUsername('mvp_profile_owner');
+  assert.equal(pagedPublic.currentPicks.length, 230, 'every current Pick is loaded, not just the first page');
+  assert.equal(pagedPublic.currentPicksComplete, true);
+  assert.deepEqual(pageCalls.map((call) => call.limit), [100, 100, 100]);
+  assert.equal(pageCalls[0].cursor, null);
+  assert.deepEqual({ ...pageCalls[1].cursor }, { timestamp: many[99].pick.updatedAt, id: many[99].pick.id }, 'pages continue by (updated_at, id)');
+  assert.ok(pageCalls.every((call) => call.orderBy === 'updated_at'));
+  const capped = new ProfileService(profileRepository, {
+    getPicks: async (input) => Array.from({ length: input.limit }, (_, index) => ({ ...many[index % many.length], pick: { ...many[index % many.length].pick } })),
+  });
+  assert.equal((await capped.getProfileByUsername('mvp_profile_owner')).currentPicksComplete, false, 'past the safety cap the count is marked incomplete');
 
   const ownerScreen = read('src/app/(tabs)/(profile)/profile.tsx');
   const publicScreen = read('src/app/(tabs)/(profile)/u/[username].tsx');
   const labScreen = read('src/app/lab/[username].tsx');
-  // Profiles split every current Pick: the main theme stays, the rest moves to 실험실 (never dropped).
+  // Early MVP (#757/#879): both profiles list one scope from the complete current collection —
+  // food from a store or an online order. Other themes stay stored and remain reachable via 실험실 routes.
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
-    assert.match(screen, /splitLabPicks\((query\.data\?\.)?currentPicks/, `${name} profile splits the complete current Pick collection`);
-    assert.match(screen, /const visibleProfilePicks = profileScope === 'food' \? publicMainPicks : labPicks/, `${name} profile narrows FOOD display without dropping other tastes`);
-    assert.match(screen, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/,
-      `${name} profile applies the shared offline FOOD exposure rule`);
-    assert.match(screen, /음식 원픽 보기/);
-    assert.match(screen, /기타 원픽 보기/, `${name} profile uses the shared 음식 / 기타 chip names (#757)`);
+    assert.match(screen, /filterMvpProfilePicks\((query\.data\?\.)?currentPicks/, `${name} profile filters the complete current Pick collection`);
+    assert.match(screen, /OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\)/, `${name} profile applies the shared MVP food scope (offline + online)`);
+    assert.doesNotMatch(screen, /OnePickMvp\.publicPickChannel/, `${name} profile does not narrow food to offline only`);
+    assert.doesNotMatch(screen, /음식 원픽 보기|기타 원픽 보기/, `${name} profile has no 음식 / 기타 chips in the early MVP`);
+    assert.match(screen, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, `${name} rows render every Pick in the MVP scope`);
   }
-  assert.match(ownerScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Owner rows render every Pick in the selected scope');
-  assert.match(publicScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Public rows render every Pick in the selected scope with the shared #757 row');
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 

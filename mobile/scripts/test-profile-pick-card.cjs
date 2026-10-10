@@ -73,7 +73,7 @@ const records = fs.readFileSync(path.join(root, 'src/components/profile-records.
 assert.match(records, /import \{ ProfilePickCard \} from '@\/components\/profile-pick-card'/);
 assert.doesNotMatch(owner, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/, 'Owner profile uses direct #757 rows instead of grouped cards');
 assert.match(owner, /import \{ ProfileCurrentPickRow \} from '@\/components\/profile-current-pick-row'/);
-assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
+assert.match(owner, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
 assert.doesNotMatch(publicProfile, /import \{ ProfilePickGroups \} from '@\/components\/profile-pick-groups'/, 'Public current Picks use direct rows');
 assert.match(publicProfile, /import \{ ProfileCurrentPickRow \} from '@\/components\/profile-current-pick-row'/);
 assert.ok((records.match(/<ProfilePickCard/g) || []).length >= 1, 'the owner 기록 tab still uses the shared card for past Picks');

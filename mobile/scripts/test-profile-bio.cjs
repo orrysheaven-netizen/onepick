@@ -182,7 +182,7 @@ async function main() {
       '@/components/ui/touch': { MIN_TOUCH_TARGET: 44, PRESSED_OPACITY: 0.9 },
     }),
     '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
-    '@/components/profile-pick-groups': { ProfilePickGroups: () => null }, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, 
+    '@/components/profile-pick-groups': { ProfilePickGroups: () => null }, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, filterMvpProfilePicks: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, 
     '@/components/profile-social-links': { ProfileSocialLinks: () => null }, '@/components/report-action': { ReportAction: () => null },
     '@/components/profile-ai-comment': { ProfileAiComment: () => null },
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },

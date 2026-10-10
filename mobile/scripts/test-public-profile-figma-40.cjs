@@ -17,10 +17,9 @@ assert.match(profile, /<ProfileIdentity\s+name=\{profileDisplayName\(query\.data
 assert.match(profile, /OnePickFeatures\.profileFollow && !query\.data\.isMine \? <FollowButton[\s\S]*?fullWidth \/> : null\}/,
   '#757: Follow/Following is the single primary CTA; share lives in the header');
 assert.doesNotMatch(profile, /followActions|followShareButton|label="공유"/);
-assert.match(profile, /<Chip label="음식"/);
-assert.match(profile, /<Chip label="기타"/);
-assert.match(profile, /profileScopeChip: \{ paddingHorizontal: 13 \}/);
-assert.match(profile, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
+// Early MVP (#757/#879): one food scope, so the 음식 / 기타 chips are gone.
+assert.doesNotMatch(profile, /<Chip label="음식"|<Chip label="기타"|profileScopeChip/);
+assert.match(profile, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/);
 assert.doesNotMatch(profile, /publicPickRow:|publicPickCopy:|publicPickBadge/, 'Rows come from the shared component');
 assert.doesNotMatch(profile, /<ProfilePickGroups/);
 assert.doesNotMatch(profile, /<SectionHeader/);

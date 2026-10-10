@@ -1,10 +1,13 @@
 import { AppError } from '@/errors/appError';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
-import type { ReadCursor, ReadRepository, RootCategoryScope } from '@/repositories/interfaces/readRepository';
+import type { PickReadItem, ReadCursor, ReadRepository, RootCategoryScope } from '@/repositories/interfaces/readRepository';
 import type { Item } from '@/types/domain/item';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
+// At most one current Pick per category and channel; 20 pages × 100 is a safety cap, not a product limit.
+const CURRENT_PICK_PAGE_SIZE = 100;
+const CURRENT_PICK_PAGE_CAP = 20;
 
 function normalizeUsername(value: string) {
   const username = value.trim().toLowerCase();
@@ -53,17 +56,36 @@ export class ProfileService {
     const profile = await this.profileRepository.getById(userId);
     if (!profile) throw new AppError('PROFILE_NOT_FOUND');
 
-    const currentPicks = await this.readRepository.getPicks({
-      userId,
-      statuses: ['active', 'needs_review'],
-      orderBy: 'updated_at',
-      limit: 100,
-    });
+    const { rows: currentPicks, complete } = await this.getAllCurrentPicks(userId, ['active', 'needs_review']);
 
     const withPendingPhotos = await this.withMyPendingPhotos(userId, currentPicks);
     // Keep my own legacy photo-less current Picks reachable so I can manage or replace them.
     // Public profiles filter them below.
-    return { profile, currentPicks: withPendingPhotos };
+    return { profile, currentPicks: withPendingPhotos, currentPicksComplete: complete };
+  }
+
+  /**
+   * Every current Pick, not just the first page: the profile's 원픽 N is the full count
+   * of the shown scope (#757 A). Pages of 100 by (updated_at, id); `complete` is false
+   * only past the safety cap, so the count can say so instead of passing as exact.
+   */
+  private async getAllCurrentPicks(userId: string, statuses: ('active' | 'needs_review')[]) {
+    const rows: PickReadItem[] = [];
+    let cursor: ReadCursor | null = null;
+    for (let page = 0; page < CURRENT_PICK_PAGE_CAP; page += 1) {
+      const batch = await this.readRepository.getPicks({
+        userId,
+        statuses,
+        orderBy: 'updated_at',
+        cursor,
+        limit: CURRENT_PICK_PAGE_SIZE,
+      });
+      rows.push(...batch);
+      const last = batch[batch.length - 1]?.pick;
+      if (batch.length < CURRENT_PICK_PAGE_SIZE || !last) return { rows, complete: true };
+      cursor = { timestamp: last.updatedAt, id: last.id };
+    }
+    return { rows, complete: false };
   }
 
   /**
@@ -128,16 +150,12 @@ export class ProfileService {
     const profile = await this.profileRepository.getByUsername(username);
     if (!profile) throw new AppError('PROFILE_NOT_FOUND');
 
-    const currentPicks = await this.readRepository.getPicks({
-      userId: profile.id,
-      statuses: ['active'],
-      orderBy: 'updated_at',
-      limit: 100,
-    });
+    const { rows: currentPicks, complete } = await this.getAllCurrentPicks(profile.id, ['active']);
 
     return {
       profile,
       currentPicks: visibleCurrentPicks(currentPicks),
+      currentPicksComplete: complete,
       isMine: currentUserId === profile.id,
     };
   }

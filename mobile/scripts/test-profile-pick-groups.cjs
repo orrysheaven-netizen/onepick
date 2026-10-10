@@ -155,15 +155,13 @@ assert.doesNotMatch(component, /creatorName \?\? item\.item\?\.name/, 'recipe ti
 assert.equal(grouping.remainingProfileCategories, undefined, 'the remaining-category helper is gone');
 
 assert.doesNotMatch(owner, /<ProfilePickGroups/, 'Owner profile intentionally renders direct #757 rows');
-assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'owner profile switches between 음식 and 기타 without dropping Picks');
-assert.match(owner, /음식 원픽 보기/);
-assert.match(owner, /기타 원픽 보기/);
+assert.match(owner, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'owner profile lists the early-MVP food scope with the shared row');
+assert.doesNotMatch(owner, /음식 원픽 보기|기타 원픽 보기/, 'no 음식 / 기타 chips in the early MVP');
 assert.doesNotMatch(owner, /pathname: '\/provider\/\[providerId\]'/, '#757: the whole row is one button to the Pick detail, which carries the provider link');
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
 assert.doesNotMatch(publicProfile, /<ProfilePickGroups/, 'Public profile intentionally renders direct #757 rows');
-assert.match(publicProfile, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'public profile uses the same in-place taste tabs with the shared row');
-assert.match(publicProfile, /음식 원픽 보기/);
-assert.match(publicProfile, /기타 원픽 보기/);
+assert.match(publicProfile, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'public profile lists the same scope with the shared row');
+assert.doesNotMatch(publicProfile, /음식 원픽 보기|기타 원픽 보기/, 'no 음식 / 기타 chips in the early MVP');
 assert.doesNotMatch(publicProfile, /pathname: '\/provider\/\[providerId\]'/, '#757: public rows are single buttons to the Pick detail');
 assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
 

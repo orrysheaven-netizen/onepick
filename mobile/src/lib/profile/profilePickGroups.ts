@@ -176,6 +176,57 @@ export function filterMainProfileByChannel(
   });
 }
 
+/**
+ * Early-MVP profile eligibility (#879 comment 6097734198, #757): one predicate for the
+ * profile list and its 원픽 N count, mirroring the server contract.
+ *
+ * - Food tree: some ancestor (the category itself, its parent, …) has slug `rootSlug`,
+ *   like `private.category_is_food`. Theme mapping is not used, so an unmapped or
+ *   unknown category, or one whose chain cannot be resolved (catalog not loaded,
+ *   missing parent), is excluded instead of passing by default.
+ * - Recipes wait for a later stage: anything under the `recipe` category or picked
+ *   under the `recipe` channel is excluded.
+ * - Channel: an explicit channel must be in `channels`. A legacy Pick without one uses
+ *   the `private.default_pick_channel` fallback (item channels, else online).
+ */
+export function isMvpProfilePick(
+  item: PickReadItem,
+  categories: Category[],
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  if (item.pick.channel === 'recipe') return false;
+  if (item.pick.channel && !channels.includes(item.pick.channel)) return false;
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const seen = new Set<string>();
+  // A Pick's own category may be hidden from the browse catalog; its embedded row still counts.
+  let current = categoryById.get(item.pick.categoryId) ?? item.category ?? undefined;
+  let inRoot = false;
+  while (current && !seen.has(current.id)) {
+    if (current.slug === RECIPE_CATEGORY_SLUG) return false;
+    if (current.slug === rootSlug) inRoot = true;
+    seen.add(current.id);
+    current = current.parentId ? categoryById.get(current.parentId) : undefined;
+  }
+  if (!inRoot) return false;
+  return channels.includes(item.pick.channel ?? legacyPickChannel(item));
+}
+
+/** `private.default_pick_channel` order for a Pick stored before channels: offline, online, recipe, else online. */
+function legacyPickChannel(item: PickReadItem): PickChannel {
+  const itemChannels = item.item?.channels ?? [];
+  return (['offline', 'online', 'recipe'] as const).find((channel) => itemChannels.includes(channel)) ?? 'online';
+}
+
+export function filterMvpProfilePicks(
+  picks: PickReadItem[],
+  categories: Category[],
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels));
+}
+
 /** Whether a category belongs to 실험실 (used to keep lab categories out of onboarding and search). */
 export function isLabCategory(categoryId: string, categories: Category[], mainThemeCode: string, labEnabled: boolean) {
   return labEnabled && isLabTheme(resolveCategoryTheme(categoryId, categories), mainThemeCode);

@@ -57,6 +57,52 @@ assert.deepEqual(
   'Explicit online/recipe channels stay hidden even before the category catalog loads',
 );
 
+// #757/#879 early-MVP profile scope: food from a store or an online order; recipes,
+// other themes and anything that cannot be placed in the food tree stay off the list.
+{
+  const mvpCategories = [
+    ...categories,
+    { id: 'gukbap', parentId: 'food', name: '국밥', slug: 'gukbap', sortOrder: 3 },
+    { id: 'sundae-gukbap', parentId: 'gukbap', name: '순대국밥', slug: 'sundae-gukbap', sortOrder: 1 },
+    { id: 'recipe-soup', parentId: 'recipe', name: '국 레시피', slug: 'recipe-soup', sortOrder: 1 },
+  ];
+  const at = (id, categoryId, channel, extra = {}) => ({
+    pick: { id, categoryId, channel, updatedAt: '2026-10-10T00:00:00Z' },
+    category: mvpCategories.find((c) => c.id === categoryId) ?? null,
+    item: extra.item ?? null,
+    profile: null,
+  });
+  const channels = constants.OnePickMvp.profileFoodChannels;
+  assert.deepEqual(Array.from(channels), ['offline', 'online'], 'early MVP profile channels: offline + online, no recipe');
+  const rows = [
+    at('offline', 'naengmyeon', 'offline'),
+    at('online', 'naengmyeon', 'online'),
+    at('grandchild-online', 'sundae-gukbap', 'online'),
+    at('recipe-channel', 'naengmyeon', 'recipe'),
+    at('recipe-category', 'recipe', 'online'),
+    at('recipe-descendant', 'recipe-soup', null),
+    at('movie', 'movie', null),
+    at('unmapped', 'misc', null),
+    at('unknown-category', 'not-in-catalog', 'offline'),
+    at('legacy-offline', 'naengmyeon', null, { item: { channels: ['offline', 'online'] } }),
+    at('legacy-recipe-item', 'gukbap', null, { item: { channels: ['recipe'] } }),
+    at('legacy-no-channel', 'gukbap', null, { item: { channels: [] } }),
+  ];
+  const ids = (list) => Array.from(list, (item) => item.pick.id);
+  assert.deepEqual(ids(grouping.filterMvpProfilePicks(rows, mvpCategories, 'food', channels)),
+    ['offline', 'online', 'grandchild-online', 'legacy-offline', 'legacy-no-channel'],
+    'online food stays; recipe (channel, category or descendant), other themes, unmapped and unknown categories drop out');
+  assert.deepEqual(ids(grouping.filterMvpProfilePicks(rows, [], 'food', channels)), [],
+    'without the category catalog nothing passes by default');
+  // A Pick whose own category is hidden from the browse catalog still inherits food through its parent.
+  const hidden = { ...at('hidden-leaf', 'hidden-leaf', 'online'), category: { id: 'hidden-leaf', parentId: 'food', name: '숨은 메뉴', slug: 'hidden-leaf', sortOrder: 9 } };
+  assert.equal(grouping.isMvpProfilePick(hidden, mvpCategories, 'food', channels), true, 'embedded category inherits the food root');
+  const orphan = { ...at('orphan', 'orphan', 'offline'), category: { id: 'orphan', parentId: 'missing-parent', name: '고아', slug: 'orphan', sortOrder: 9 } };
+  assert.equal(grouping.isMvpProfilePick(orphan, mvpCategories, 'food', channels), false, 'a broken ancestor chain is not food');
+  assert.equal(grouping.isMvpProfilePick(at('offline-only', 'naengmyeon', 'online'), mvpCategories, 'food', ['offline']), false,
+    'the channel set is honored as given');
+}
+
 const off = grouping.splitLabPicks(picks, categories, 'food', false);
 assert.equal(off.main.length, picks.length, 'with the lab off every Pick stays main');
 assert.equal(off.lab.length, 0);
@@ -82,24 +128,19 @@ assert.match(lab, /usePublicProfile\(username, user\?\.id\)/);
 assert.doesNotMatch(lab, /onPressCategory/, '실험실 lists Picks only; the owner starts categories from the list below');
 assert.match(lab, /isLabCategory\(category\.id, categories, OnePickMvp\.mainThemeCode, true\)/, 'the owner can start any lab category');
 assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: profileQuery\.data\.profile\.username \}/, '/lab opens my own 실험실');
-assert.match(owner, /profileScope === 'food' \? publicMainPicks : labPicks/, 'owner shows only the public FOOD channel while keeping other tastes in place');
-assert.match(owner, /음식 원픽 보기/);
-assert.match(owner, /기타 원픽 보기/);
-// 실험실 is the only place to start a non-food Pick; with Explore's door gone the
-// owner's 기타 tab must still lead there, whether it is empty or not.
-assert.match(owner, /const openLab = \(\) => router\.push\('\/lab'\);/, 'the owner profile can open 실험실');
-assert.match(owner, /label: '기타 원픽 고르기', variant: 'secondary', onPress: openLab/, 'an empty 기타 tab offers the 실험실 entry');
-assert.match(owner, /profileScope === 'other' && visibleProfilePicks\.length > 0 \? \(\s*<Button[^>]*label="기타 원픽 고르기"[\s\S]*?onPress=\{openLab\}/,
-  'a filled 기타 tab keeps the 실험실 entry');
-assert.match(publicProfile, /profileScope === 'food' \? publicMainPicks : labPicks/, 'public profile shows only the public FOOD channel while keeping other tastes in place');
-assert.match(publicProfile, /음식 원픽 보기/);
-assert.match(publicProfile, /기타 원픽 보기/);
-assert.match(owner, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/);
-assert.match(publicProfile, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/);
-assert.match(publicProfile, /const currentPicks = publicMainPicks;/, 'the share card carries only publicly exposed FOOD Picks');
+// Early MVP (#757/#879): both profiles list only the MVP food scope. No 음식/기타 chips and
+// no 실험실 entry; the 실험실 routes, components and data stay in place for later.
+for (const [name, screen] of [['owner', owner], ['public', publicProfile]]) {
+  assert.match(screen, /filterMvpProfilePicks\((query\.data\?\.)?currentPicks \?\? \[\]|filterMvpProfilePicks\(currentPicks,/, `${name} profile filters the full current collection`);
+  assert.match(screen, /OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\)/, `${name} profile uses the shared MVP scope`);
+  assert.doesNotMatch(screen, /음식 원픽 보기|기타 원픽 보기|profileScope|labPicks|filterMainProfileByChannel/, `${name} profile has no 음식/기타 scope tabs`);
+  assert.doesNotMatch(screen, /router\.push\('\/lab'\)/, `${name} profile does not advertise 실험실 during the early MVP`);
+  assert.match(screen, /key: 'picks', label: '원픽', value: pickCountLabel/, `${name} 원픽 N follows the listed scope`);
+}
+assert.match(publicProfile, /const currentPicks = profilePicks;/, 'the share card carries the same Picks as the list');
 assert.doesNotMatch(explore, /router\.push\('\/lab'\)/, 'Explore no longer duplicates the 다른 취향 entry with a 실험실 door');
 assert.doesNotMatch(explore, /ProfileLabEntry/, 'Explore does not render the legacy lab entry component');
 assert.match(find, /: !isLabCategory\(item\.categoryId, themeCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'unscoped search hides 실험실 results');
 assert.match(find, /\? item\.categoryId === selectedCategory\.id/, 'a category-scoped (실험실) search is unaffected');
 
-console.log('실험실 checks passed: main/lab split, profile taste tabs, hidden Explore entry, legacy routes and search scope.');
+console.log('실험실 checks passed: main/lab split, early-MVP profile scope, hidden Explore entry, legacy routes and search scope.');

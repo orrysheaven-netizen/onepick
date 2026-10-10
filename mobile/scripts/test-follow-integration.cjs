@@ -20,8 +20,9 @@ assert.ok(profile.includes('useLocalSearchParams<{ username?: string; connection
   'Public profile keeps username, connections and safe return origin in one route contract');
 assert.match(profile, /usePublicFollowCounts\([\s\S]*?query\.data\?\.profile\.id[\s\S]*?user\?\.id \?\? null/);
 assert.match(profile, /connections === 'followers' \|\| connections === 'following'/);
-assert.match(profile, /const publicPickCount = publicMainPicks\.length \+ labPicks\.length/);
-assert.match(profile, /key: 'picks', label: '원픽', value: String\(publicPickCount\)/);
+// #757 A: 원픽 N counts the listed early-MVP scope in full; '—' until the catalog can classify it.
+assert.match(profile, /const pickCountLabel = categoriesReady \? `\$\{profilePicks\.length\}\$\{query\.data\?\.currentPicksComplete === false \? '\+' : ''\}` : '—'/);
+assert.match(profile, /key: 'picks', label: '원픽', value: pickCountLabel/);
 assert.doesNotMatch(profile, /원픽 \{query\.data\.currentPicks\.length\}/,
   'Hidden FOOD online/recipe Picks must not inflate the public profile count');
 assert.match(profile, /label: '팔로워', value: publicFollowCounts\.data \? String\(publicFollowCounts\.data\.followerCount\) : '—'/);

@@ -54,11 +54,30 @@ export async function assertOwnProfile(page, username, timeout = 15_000, layout 
   await page.getByText(username, { exact: true }).filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
 }
 
+// #757 early MVP (#879): profiles list one food scope with no 음식 / 기타 chips, so the
+// collection itself is the signal — current Pick rows or that profile's normal empty card.
+// Hidden (still-mounted) screens are ignored. Returns the visible row count (0 = empty card).
+const PROFILE_PICK_EMPTY = Object.freeze({ own: '첫 원픽을 골라보세요.', public: '아직 고른 원픽이 없어요.' });
+export async function assertProfilePickList(page, timeout = 15_000, scope = 'own') {
+  const emptyCopy = PROFILE_PICK_EMPTY[scope];
+  if (!emptyCopy) throw new Error(`알 수 없는 프로필 범위: ${scope}`);
+  const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ }).filter({ visible: true });
+  const empty = page.getByText(emptyCopy, { exact: true }).filter({ visible: true });
+  await rows.first().or(empty.first()).first().waitFor({ state: 'visible', timeout });
+  const [rowCount, emptyCount] = await Promise.all([rows.count(), empty.count()]);
+  if (rowCount && emptyCount) throw new Error('원픽 목록이 빈 상태 문구와 원픽 행을 함께 보임');
+  return rowCount;
+}
+
 export async function assertPublicProfile(page, timeout = 15_000, layout = 'legacy') {
-  // Ignore controls on a still-mounted, hidden own-profile screen.
-  await page.getByRole('button', { name: '음식 원픽 보기', exact: true })
-    .filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
-  if (requireLayout(layout) === '757') {
+  if (requireLayout(layout) === 'legacy') {
+    // Ignore controls on a still-mounted, hidden own-profile screen.
+    await page.getByRole('button', { name: '음식 원픽 보기', exact: true })
+      .filter({ visible: true }).first().waitFor({ state: 'visible', timeout });
+  } else {
+    await assertProfilePickList(page, timeout, 'public');
+  }
+  if (layout === '757') {
     // #757: share lives in the header as an icon button; the body share card is gone.
     await publicShareButton(page, layout).waitFor({ state: 'visible', timeout });
     if (await page.getByRole('button', { name: '프로필 공유하기', exact: true }).filter({ visible: true }).count()) {

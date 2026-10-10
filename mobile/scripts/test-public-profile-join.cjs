@@ -22,7 +22,7 @@ assert.match(
 );
 
 // The visitor should read the collection before being asked to sign up.
-const picksIndex = profile.indexOf('visibleProfilePicks.map((item) => <ProfileCurrentPickRow');
+const picksIndex = profile.indexOf('profilePicks.map((item) => <ProfileCurrentPickRow');
 const safetyIndex = profile.indexOf('styles.safetyCard');
 assert.ok(picksIndex >= 0, 'the picks must stay on the public profile');
 assert.ok(joinIndex > picksIndex, 'the join call to action must follow the category picks');

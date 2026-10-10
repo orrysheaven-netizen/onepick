@@ -172,8 +172,8 @@ async function main() {
   );
   assert.match(
     profileSource,
-    /shareProfile\({ username: profile\.username, pickCount: publicMainPicks\.length }\)/,
-    'the owner profile must share the food-scope count used by the public profile',
+    /shareProfile\({ username: profile\.username, pickCount: profilePicks\.length }\)/,
+    'the owner profile must share the early-MVP food count used by the public profile',
   );
   assert.match(profileSource, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/, 'the owner profile exposes its direct share CTA');
   assert.match(

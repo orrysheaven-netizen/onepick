@@ -12,14 +12,14 @@ import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileTabs, type ProfileTabKey } from '@/components/profile-tabs';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { SignOutButton } from '@/components/sign-out-button';
-import { Button, Chip, Icon, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicFollowCounts } from '@/hooks/useFollow';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
-import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { filterMvpProfilePicks } from '@/lib/profile/profilePickGroups';
 import { profileDisplayName, profileHandle } from '@/lib/profile/profileName';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -38,7 +38,6 @@ export default function ProfileScreen() {
   );
   const categoriesQuery = useExploreCategories(Boolean(user && profileQuery.data));
   const [profileTab, setProfileTab] = useState<ProfileTabKey>('picks');
-  const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [hasOpenedEditor, setHasOpenedEditor] = useState(false);
   const [isSharingProfile, setIsSharingProfile] = useState(false);
@@ -80,18 +79,21 @@ export default function ProfileScreen() {
     </View></SafeAreaView>;
   }
 
-  const { profile, currentPicks } = profileQuery.data;
+  const { profile, currentPicks, currentPicksComplete } = profileQuery.data;
   const displayName = profileDisplayName(profile);
-  const profileCategories = categoriesQuery.data ?? [];
-  const { main: mainPicks, lab: labPicks } = splitLabPicks(currentPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickFeatures.lab);
-  const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
-  const visibleProfilePicks = profileScope === 'food' ? publicMainPicks : labPicks;
-  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching;
+  // Early MVP (#757/#879): the list and 원픽 N show only food Picks from a store or an online
+  // order. Recipes and other themes stay stored; they are just not listed here yet. Without
+  // the category catalog nothing can be classified, so the list waits instead of guessing.
+  const categoriesReady = Boolean(categoriesQuery.data);
+  const profilePicks = filterMvpProfilePicks(currentPicks, categoriesQuery.data ?? [], OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels);
+  const pickCountLabel = categoriesReady ? `${profilePicks.length}${currentPicksComplete === false ? '+' : ''}` : '—';
+  const isFetching = profileQuery.isFetching || historyQuery.isFetching || requestsQuery.isFetching || categoriesQuery.isFetching;
   const isRefetching = profileQuery.isRefetching || historyQuery.isRefetching || requestsQuery.isRefetching;
   const refreshAll = async () => {
     if (isFetching) return;
     await Promise.all([
       profileQuery.refetch({ cancelRefetch: false }),
+      categoriesQuery.isError ? categoriesQuery.refetch({ cancelRefetch: false }) : null,
       // refetch() ignores `enabled`, so skip hidden lists explicitly.
       OnePickFeatures.profilePickHistory ? historyQuery.refetch({ cancelRefetch: false }) : null,
       OnePickFeatures.profileItemRequests ? requestsQuery.refetch({ cancelRefetch: false }) : null,
@@ -105,13 +107,12 @@ export default function ProfileScreen() {
   };
   // Restored after review: previewing the public view differs from sharing it (decision pending).
   const openPublicProfile = () => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: '/profile' } });
-  const openLab = () => router.push('/lab');
   const shareMyProfile = async () => {
     if (isSharingProfile) return;
     setIsSharingProfile(true);
     setProfileShareError(false);
     try {
-      await shareProfile({ username: profile.username, pickCount: publicMainPicks.length });
+      await shareProfile({ username: profile.username, pickCount: profilePicks.length });
     } catch {
       setProfileShareError(true);
     } finally {
@@ -119,7 +120,7 @@ export default function ProfileScreen() {
     }
   };
   const stats: ProfileStat[] = [
-    { key: 'picks', label: '원픽', value: String(currentPicks.length) },
+    { key: 'picks', label: '원픽', value: pickCountLabel },
     ...(OnePickFeatures.profileFollowConnections ? [
       {
         key: 'followers', label: '팔로워', value: followCounts.data ? String(followCounts.data.followerCount) : '—',
@@ -175,31 +176,22 @@ export default function ProfileScreen() {
         <View style={styles.tabs}><ProfileTabs value={profileTab} onChange={setProfileTab} /></View>
 
         {profileTab === 'picks' ? <View style={styles.tabBody}>
-          {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-            <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'} onPress={() => setProfileScope('food')} visualStyle={styles.profileScopeChip} />
-            <Chip label="기타" accessibilityLabel="기타 원픽 보기" selected={profileScope === 'other'} onPress={() => setProfileScope('other')} visualStyle={styles.profileScopeChip} />
-          </View> : null}
-
-          {visibleProfilePicks.length > 0 ? <View>
-            {visibleProfilePicks.map((item) => <ProfileCurrentPickRow
+          {!categoriesReady ? (categoriesQuery.isError
+            ? <StateCard tone="danger" title="원픽을 불러오지 못했어요."
+              action={{ label: '다시 불러오기', variant: 'secondary', onPress: () => void categoriesQuery.refetch() }} />
+            : <StateCard loading title="원픽을 모으고 있어요." />)
+          : profilePicks.length > 0 ? <View>
+            {profilePicks.map((item) => <ProfileCurrentPickRow
               key={item.pick.id}
               item={item}
-              isFood={profileScope === 'food'}
+              isFood
               showPhotoReview
               onOpenPick={openPick}
             />)}
           </View> : (
-            <StateCard title={profileScope === 'food' ? '첫 원픽을 골라보세요.' : '기타 원픽도 골라보세요.'}
-              text={profileScope === 'food' ? '지금 가장 좋아하는 메뉴 하나면 돼요.' : '영화, 게임, 책 같은 취향을 고르면 여기에 모여요.'}
-              action={profileScope === 'food'
-                ? { label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }
-                : { label: '기타 원픽 고르기', variant: 'secondary', onPress: openLab }} />
+            <StateCard title="첫 원픽을 골라보세요." text="지금 가장 좋아하는 메뉴 하나면 돼요."
+              action={{ label: '원픽 고르러 가기', variant: 'secondary', onPress: () => router.push('/') }} />
           )}
-
-          {profileScope === 'other' && visibleProfilePicks.length > 0 ? (
-            <Button variant="secondary" fullWidth label="기타 원픽 고르기" accessibilityLabel="실험실에서 기타 원픽 고르기"
-              onPress={openLab} style={styles.otherTasteEntry} />
-          ) : null}
         </View> : <View style={styles.tabBody}>
           <ProfileRecords historyQuery={historyQuery} requestsQuery={requestsQuery} onOpenPick={openPick} />
         </View>}
@@ -238,9 +230,6 @@ const styles = StyleSheet.create({
   previewLink: { alignSelf: 'center', marginTop: OnePickSpace.xs },
   tabs: { marginTop: OnePickSpace.xl },
   tabBody: { paddingTop: OnePickSpace.lg, gap: OnePickSpace.md },
-  profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
-  profileScopeChip: { paddingHorizontal: 14 },
-  otherTasteEntry: { marginTop: OnePickSpace.md },
   centerState: {
     flex: 1,
     width: '100%',
