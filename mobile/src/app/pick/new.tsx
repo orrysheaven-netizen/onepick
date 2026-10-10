@@ -817,7 +817,7 @@ export default function NewPickScreen() {
               </View>
               <Text style={styles.helper}>{menuPrefilled && entryMenuName
                 ? '매장 메뉴명으로 고쳐 써도 돼요.'
-                : '매장 메뉴명을 그대로 적어주세요.'}</Text>
+                : '매장 메뉴명을 적어주세요.'}</Text>
             </View>
 
             {menus.isError && !effectiveMenu ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
