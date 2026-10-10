@@ -186,6 +186,43 @@ select is((select revision from private.profile_featured_picks
   where user_id='fa090000-0000-4000-8000-000000000001'),7::bigint,
   'ownership transfer advances revision');
 
+-- A second owner selects the transferred B, then hard-deletes the source.
+-- The BEFORE DELETE cleanup and FK SET NULL must produce one revision increment.
+select set_config('request.jwt.claim.sub','fa090000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+select is((public.set_my_featured_pick('fa090000-0000-4000-8000-000000000302',0)->>'revision')::bigint,
+  1::bigint,'new owner can highlight transferred B');
+reset role;
+delete from public.picks where id='fa090000-0000-4000-8000-000000000302';
+select is((select pick_id from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000002'),null::uuid,
+  'hard delete clears featured FK');
+select is((select revision from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000002'),2::bigint,
+  'hard delete advances revision exactly once');
+
+-- Suspension preserves the reference, but the source becoming private while
+-- suspended must permanently clear it; reinstatement does not resurrect it.
+select set_config('request.jwt.claim.sub','fa090000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+select is((public.set_my_featured_pick((select pick_id from featured_extra_ids where seq=1),7)->>'revision')::bigint,
+  8::bigint,'owner can highlight a 201st+ candidate');
+reset role;
+insert into private.user_moderation(user_id,reason)
+values ('fa090000-0000-4000-8000-000000000001','fixture suspended again');
+update public.items set status='hidden'
+where id=(select item_id from featured_extra_ids where seq=1);
+select is((select revision from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),9::bigint,
+  'source ineligibility while suspended advances revision');
+delete from private.user_moderation
+where user_id='fa090000-0000-4000-8000-000000000001';
+update public.items set status='active'
+where id=(select item_id from featured_extra_ids where seq=1);
+select is((select pick_id from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),null::uuid,
+  'reinstatement and republication do not restore invalidated highlight');
+
 -- Public API has a strictly allowlisted response; the revision is owner-only.
 select set_config('request.jwt.claim.sub','',true);
 set local role anon;
