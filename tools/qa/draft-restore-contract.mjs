@@ -12,19 +12,41 @@ export { assertSessionBudget, uuid };
 // Visibly synthetic inputs. The menu name must not match the taxonomy exactly, so
 // the AI pass is attempted (and intercepted) instead of an exact-match short cut.
 export const RESTORE_MENU = 'QA 복원 검증 메뉴 858';
+// Typed over RESTORE_MENU on 2/4 in the "edit after confirm" regression (#858): still synthetic.
+export const RESTORE_MENU_EDITED = 'QA 복원 검증 메뉴 858 수정';
 export const RESTORE_REVIEW = 'QA 초안 복원 검증용 한줄평이에요. 등록하지 않아요.';
 export const DRAFT_KEY = 'onepick:pick-draft:v1';
 export const DRAFT_PHOTO_KEY = 'onepick:pick-draft-photo:v1';
 export const AI_PATH = '/functions/v1/suggest-item-categories';
 export const PLACE_CATALOG_RPC = '/rest/v1/rpc/category_uses_place_catalog';
 
-// Database functions the registration screen calls through POST that only read.
-// Re-review whenever a listed function gains side effects.
-export const READ_RPCS = new Set(['search_store_catalog_page', 'search_store_catalog', 'search_place_catalog',
-  'store_menu_options', 'current_user_is_admin', 'home_pick_feed_page', 'item_review_page',
-  'notification_unread_count', 'item_brands', 'search_items']);
+// Database functions the web app calls through POST that only read. Every entry is
+// declared STABLE with no INSERT/UPDATE/DELETE in its latest migration (checked
+// 2026-10-10 against supabase/migrations). Re-review whenever a listed function gains
+// side effects. Two groups, one policy:
+//  - the registration screen (`/pick/new`) during the restore scenario itself;
+//  - the bootstrap the restore run performs under the same guard before the scenario:
+//    Supabase discovery on `/` (home feed, rankings, brands), the signed-in `/profile`
+//    check (own picks, comments, requests, follow counts, taste composition) and the tab
+//    bar's unread badge. The bootstrap must not need anything outside this list; a POST
+//    to any other RPC fails the run closed.
+export const RESTORE_READ_RPCS = new Set(['search_store_catalog_page', 'search_store_catalog', 'search_place_catalog',
+  'store_menu_options', 'current_user_is_admin', 'item_review_page', 'item_brands', 'search_items', 'search_item_pick_counts',
+  'item_photo_credit', 'brand_profile']);
+export const BOOTSTRAP_READ_RPCS = new Set(['home_pick_feed_page', 'home_following_feed_page', 'home_showcase_page', 'home_editorial_items',
+  'food_item_recent_ranking', 'food_menu_recent_ranking', 'food_menu_pick_counts', 'ranking_categories', 'category_ranking',
+  'category_top_items', 'explore_recent_items_page', 'dish_channel_overview', 'notification_unread_count',
+  'profile_follow_counts', 'follow_counts', 'profile_follow_connections_page', 'profile_taste_composition',
+  'my_comment_page', 'pick_comment_page', 'comment_locate']);
+export const READ_RPCS = new Set([...RESTORE_READ_RPCS, ...BOOTSTRAP_READ_RPCS]);
 // Best-effort telemetry: dropped silently, never a finding and never forwarded.
 const TELEMETRY_PATHS = new Set(['/rest/v1/client_error_events', '/rest/v1/rpc/capture_product_event']);
+// Third-party hosts whose beacons the deployed page may POST to (Cloudflare Web Analytics).
+// Dropped silently like telemetry; any other outside-origin mutation is a finding.
+export const KNOWN_TELEMETRY_HOSTS = new Set(['cloudflareinsights.com', 'static.cloudflareinsights.com']);
+// The Supabase project is discovered from the deployed bundle at run time, so a guard
+// may start unbound and bind to the first request whose host matches this pattern.
+export const SUPABASE_HOST_PATTERN = /\.supabase\.co$/;
 
 // Only a manual run of the dedicated workflow on main may use the QA account for this flow.
 export function assertDraftRestoreExecution(env) {
@@ -70,12 +92,19 @@ export function requestKind(url, api, site) {
 }
 
 // The only Supabase Auth mutations the signed-in web app may need during the run:
-// a token refresh and the local sign-out. Sign-up, password/identity changes,
-// recovery mails and new password grants are account changes and fail closed.
+// a token refresh and the *local* sign-out (this browser's session only). A global
+// sign-out would revoke the QA account's other sessions; sign-up, password/identity
+// changes, recovery mails and new password grants are account changes. All fail closed.
 export function isAllowedAuthMutation(u, method) {
   if (method !== 'POST') return false;
-  if (u.pathname === '/auth/v1/logout') return true;
+  if (u.pathname === '/auth/v1/logout') return u.searchParams.get('scope') === 'local';
   return u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'refresh_token';
+}
+
+// The harness's own sign-in from Node (the app only offers social login). Allowed to the
+// Node policy exactly once per run and never to the browser.
+export function isPasswordGrant(u, method) {
+  return method === 'POST' && u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'password';
 }
 
 // Storage reads the screen may issue for already-published images. Anything else on
@@ -105,36 +134,53 @@ export function isCurrentPickSlotRead(u, method) {
  * Returns one of:
  *   { action: 'continue' }                      forward unchanged (reads only)
  *   { action: 'hold' }                          park the request until release() (fault)
- *   { action: 'abort', reason, silent: true }   drop without a finding (telemetry, 3rd-party, AI failure, injected fault)
+ *   { action: 'abort', reason, silent: true }   drop without a finding (telemetry, 3rd-party reads, AI failure, injected fault)
  *   { action: 'fulfill', status, json }         answer locally with a fixture
- *   { action: 'abort', reason, fail: CODE }     blocked write / paid call: the run fails closed
+ *   { action: 'abort', reason, fail: CODE }     blocked write / paid call / outside write: the run fails closed
  * `kind` (closed vocabulary from requestKind) is attached for the report; no URL leaks.
+ *
+ * `api` may be null: the Supabase origin is then bound to the first request whose host
+ * matches SUPABASE_HOST_PATTERN (the discovery visit), so the very first browser context
+ * of a run is already under this policy. `bindApi()` pins it explicitly afterwards.
  *
  * Order matters: Functions and Storage are judged BEFORE the generic read allowance so a
  * GET to an Edge Function (paid AI) or a non-public Storage path can never slip through.
+ * Outside the two origins only GET/HEAD/OPTIONS (fonts, images) and known analytics
+ * beacons are dropped silently; any other outside mutation attempt is a finding, even
+ * though it is never forwarded.
  */
-export function createRestoreGuard({ api, site }) {
-  need(typeof api === 'string' && typeof site === 'string', 'GUARD_CONFIG_INVALID');
+export function createRestoreGuard({ api = null, site }) {
+  need((api === null || typeof api === 'string') && typeof site === 'string', 'GUARD_CONFIG_INVALID');
   let mode = 'fail';
   let fixture = null;
   const faults = { holdMenuOptions: false, failPickSlotRead: false };
   const counts = { aiFailed: 0, aiFixture: 0, placeCatalogFixture: 0, telemetryDropped: 0, externalDropped: 0,
-    blockedWrites: 0, blockedFunctions: 0, held: 0, slotReadFailed: 0 };
+    blockedWrites: 0, blockedFunctions: 0, blockedOutside: 0, blockedNodeCalls: 0, nodeLogins: 0, held: 0, slotReadFailed: 0 };
   const blocked = [];
   const parked = [];
   const fail = (code, url) => {
-    if (code === 'UNEXPECTED_FUNCTION') counts.blockedFunctions += 1; else counts.blockedWrites += 1;
+    if (code === 'UNEXPECTED_FUNCTION') counts.blockedFunctions += 1;
+    else if (code === 'UNEXPECTED_ORIGIN') counts.blockedOutside += 1;
+    else if (code === 'NODE_CALL_BLOCKED') counts.blockedNodeCalls += 1;
+    else counts.blockedWrites += 1;
     const kind = requestKind(url, api, site);
     if (blocked.length < 10) blocked.push({ code, kind });
     return { action: 'abort', reason: 'blockedbyclient', fail: code, kind };
   };
-  return {
+  const bind = (origin) => {
+    need(typeof origin === 'string' && (api === null || api === origin), 'API_ORIGIN_MISMATCH');
+    api = origin;
+  };
+  const isApiHost = (u) => (api === null ? SUPABASE_HOST_PATTERN.test(u.hostname) : u.origin === api);
+  const guard = {
+    get api() { return api; },
     get mode() { return mode; },
     get faults() { return { ...faults }; },
     get counts() { return { ...counts }; },
     get blocked() { return blocked.slice(); },
-    get failed() { return counts.blockedWrites > 0 || counts.blockedFunctions > 0; },
+    get failed() { return counts.blockedWrites > 0 || counts.blockedFunctions > 0 || counts.blockedOutside > 0 || counts.blockedNodeCalls > 0; },
     get parkedCount() { return parked.length; },
+    bindApi: bind,
     setMode(next, category = null) {
       need(next === 'fail' || next === 'success', 'GUARD_MODE_INVALID');
       fixture = next === 'success' ? aiSuccessFixture(category) : null;
@@ -155,12 +201,17 @@ export function createRestoreGuard({ api, site }) {
       let u;
       try { u = new URL(url); } catch { return fail('UNEXPECTED_ORIGIN', 'invalid:'); }
       const read = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
-      if (u.origin !== api && u.origin !== site) {
-        // Fonts, analytics beacons and the like. Never forwarded, never a finding.
-        counts.externalDropped += 1;
-        return { action: 'abort', reason: 'blockedbyclient', silent: true };
-      }
       if (u.origin === site) return read ? { action: 'continue' } : fail('UNEXPECTED_WRITE', url);
+      if (!isApiHost(u)) {
+        // Never forwarded. Fonts/images (reads) and known analytics beacons are not findings;
+        // any other mutation aimed outside the two origins is, even though it is dropped.
+        if (read || KNOWN_TELEMETRY_HOSTS.has(u.hostname)) {
+          counts.externalDropped += 1;
+          return { action: 'abort', reason: 'blockedbyclient', silent: true };
+        }
+        return fail('UNEXPECTED_ORIGIN', url);
+      }
+      if (api === null) bind(u.origin);
       // Supabase origin from here on. Paid/side-effect surfaces first, whatever the method.
       if (u.pathname.startsWith('/functions/v1/')) {
         if (method === 'POST' && u.pathname === AI_PATH) {
@@ -207,6 +258,69 @@ export function createRestoreGuard({ api, site }) {
       // Everything else — registration RPCs, table inserts/updates, unknown RPCs — fails closed.
       return fail('UNEXPECTED_WRITE', url);
     },
+    // Policy for the harness's own fetches from Node (login, execution gate, Pick count,
+    // sign-out). Same read/auth allowance as the browser, plus the password grant exactly
+    // once. Fixtures, holds and silent drops are browser-only: Node asking for one of
+    // those paths is itself a finding. Returns { allowed, code? }; nothing is fetched here.
+    decideNode({ url, method }) {
+      let u;
+      try { u = new URL(url); } catch { return { allowed: false, code: fail('NODE_CALL_BLOCKED', 'invalid:').fail }; }
+      if (isApiHost(u) && isPasswordGrant(u, method)) {
+        if (counts.nodeLogins >= 1) return { allowed: false, code: fail('NODE_CALL_BLOCKED', url).fail };
+        counts.nodeLogins += 1;
+        if (api === null) bind(u.origin);
+        return { allowed: true };
+      }
+      const verdict = guard.decide({ url, method });
+      if (verdict.action === 'continue') return { allowed: true };
+      if (verdict.fail) return { allowed: false, code: verdict.fail };
+      return { allowed: false, code: fail('NODE_CALL_BLOCKED', url).fail };
+    },
+  };
+  return guard;
+}
+
+// `fetch` for the harness's Node side: consults the guard first and never sends a request
+// it would not allow. The thrown error carries only the closed code.
+export function guardedFetch(guard, fetchImpl = globalThis.fetch) {
+  return async (url, init = {}) => {
+    const method = String(init.method ?? 'GET').toUpperCase();
+    const verdict = guard.decideNode({ url: String(url), method });
+    if (!verdict.allowed) throw new Error(verdict.code);
+    return fetchImpl(url, init);
+  };
+}
+
+// Restore-mode runtime events are reported as closed codes and counts, never as the
+// browser's message text, a URL or a status line that could carry page content, a token
+// or the account. The code set is small on purpose: it tells whether the page broke
+// (JS_EXCEPTION), a request was refused by the guard or the network (REQUEST_BLOCKED,
+// NETWORK_ERROR), the server answered an error (HTTP_ERROR) or something else was logged.
+export const RUNTIME_EVENT_CODES = new Set(['JS_EXCEPTION', 'REQUEST_BLOCKED', 'NETWORK_ERROR', 'HTTP_ERROR', 'REACT_WARNING', 'CONSOLE_ERROR']);
+export function classifyRuntimeMessage(kind, text) {
+  const t = String(text ?? '');
+  if (/ERR_BLOCKED_BY_CLIENT|blockedbyclient|net::ERR_FAILED|ERR_CONNECTION_FAILED|connectionfailed/i.test(t)) return 'REQUEST_BLOCKED';
+  if (/Failed to fetch|NetworkError|Load failed|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|fetch failed/i.test(t)) return 'NETWORK_ERROR';
+  if (/the server responded with a status of \d{3}|\b(4\d\d|5\d\d) \(/i.test(t)) return 'HTTP_ERROR';
+  if (kind === 'pageerror') return 'JS_EXCEPTION';
+  if (/^Warning:|React|act\(\)|key prop|forwardRef/i.test(t)) return 'REACT_WARNING';
+  return 'CONSOLE_ERROR';
+}
+
+// Collector used for every browser context of a restore run. Only counts per code plus
+// (status, kind) pairs for HTTP errors are kept; `kind` is requestKind's closed vocabulary.
+export function createRestoreRuntime() {
+  const events = {};
+  const responses = [];
+  return {
+    pageError(message) { const code = classifyRuntimeMessage('pageerror', message); events[code] = (events[code] ?? 0) + 1; },
+    consoleError(message) { const code = classifyRuntimeMessage('console', message); events[code] = (events[code] ?? 0) + 1; },
+    response(url, status, api, site) {
+      if (status < 400) return;
+      if (responses.length < 50) responses.push({ status, kind: requestKind(url, api, site) });
+    },
+    get summary() { return { events: { ...events }, responses: responses.slice() }; },
+    get total() { return Object.values(events).reduce((a, b) => a + b, 0) + responses.length; },
   };
 }
 
@@ -263,12 +377,12 @@ export function reassignDraftOwner(rawDraft, otherUserId) {
 }
 
 // Expected draft after the review step was reached: resume target 5 with everything kept.
-export function assertReviewDraft(draft, { storeName, userId }) {
+export function assertReviewDraft(draft, { storeName, userId, menuQuery = RESTORE_MENU }) {
   need(draft, 'DRAFT_MISSING');
   need(draft.userId === userId, 'DRAFT_OWNER_MISMATCH');
   need(draft.step === 5, 'DRAFT_STEP_LOST');
   need(draft.review === RESTORE_REVIEW, 'DRAFT_REVIEW_LOST');
-  need(draft.menuQuery === RESTORE_MENU, 'DRAFT_MENU_LOST');
+  need(draft.menuQuery === menuQuery, 'DRAFT_MENU_LOST');
   need(!storeName || draft.storeName === storeName, 'DRAFT_STORE_LOST');
   need(draft.photo === 'stored' && draft.photoRecordMatches === true, 'DRAFT_PHOTO_LOST');
 }
@@ -279,7 +393,9 @@ export function assertReviewDraft(draft, { storeName, userId }) {
 export const RESTORE_FAILURE_CODES = new Set(['EXECUTION_NOT_AUTHORIZED', 'DEPLOYMENT_NOT_CURRENT', 'GENERAL_USER_REQUIRED',
   'SESSION_EXPIRY_INVALID', 'SESSION_BUDGET_INSUFFICIENT', 'PICK_COUNT_READ_FAILED',
   'FIXTURE_CATEGORY_INVALID', 'GUARD_MODE_INVALID', 'GUARD_FAULT_INVALID', 'GUARD_CONFIG_INVALID',
-  'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_ORIGIN',
+  'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_ORIGIN', 'NODE_CALL_BLOCKED', 'API_ORIGIN_MISMATCH',
+  'SUPABASE_NOT_DISCOVERED', 'LOGIN_FAILED', 'APP_SESSION_NOT_RECOGNIZED', 'QA_USERNAME_MISSING', 'PROFILE_NOT_SHOWN',
+  'MENU_EDIT_NOT_RESET', 'RESUME_SKIPPED_PHOTO_STEP', 'STORE_CHANGE_NOT_RESET',
   'DRAFT_MISSING', 'DRAFT_OWNER_MISMATCH', 'DRAFT_STEP_LOST', 'DRAFT_REVIEW_LOST', 'DRAFT_MENU_LOST',
   'DRAFT_STORE_LOST', 'DRAFT_PHOTO_LOST', 'DRAFT_PHOTO_NOT_STORED', 'DRAFT_REASSIGN_INVALID',
   'PICK_COUNT_CHANGED', 'MENU_AI_NOT_ATTEMPTED', 'MENU_OPTIONS_NOT_CAPTURED', 'MENU_OPTIONS_NOT_HELD',

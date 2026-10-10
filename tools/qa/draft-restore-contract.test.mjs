@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import {
   createRestoreGuard, aiSuccessFixture, pickFixtureCategory, assertDraftRestoreExecution,
   inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode, RESTORE_FAILURE_CODES,
-  isAllowedAuthMutation, isStorageRead, isMenuOptionsRequest, isCurrentPickSlotRead,
-  RESTORE_MENU, RESTORE_REVIEW,
+  isAllowedAuthMutation, isStorageRead, isMenuOptionsRequest, isCurrentPickSlotRead, isPasswordGrant,
+  guardedFetch, classifyRuntimeMessage, createRestoreRuntime, RUNTIME_EVENT_CODES,
+  READ_RPCS, RESTORE_READ_RPCS, BOOTSTRAP_READ_RPCS, KNOWN_TELEMETRY_HOSTS,
+  RESTORE_MENU, RESTORE_MENU_EDITED, RESTORE_REVIEW,
 } from './draft-restore-contract.mjs';
 
 const API = 'https://qa-project.supabase.co';
@@ -43,6 +45,9 @@ test('reads pass through on both origins; every other write fails closed', () =>
     ['PUT', `${API}/auth/v1/user`],
     ['POST', `${API}/auth/v1/recover`],
     ['POST', `${API}/auth/v1/user/identities`],
+    ['POST', `${API}/auth/v1/logout`],
+    ['POST', `${API}/auth/v1/logout?scope=global`],
+    ['POST', `${API}/auth/v1/logout?scope=others`],
     ['POST', `${SITE}/anything`],
     ['PUT', `${SITE}/api/profile`],
     ['PATCH', `${SITE}/pick/new`],
@@ -110,11 +115,18 @@ test('storage: only GET/HEAD of public objects and renders pass; everything else
   assert.equal(isStorageRead(new URL(`${API}/storage/v1/object/public/x/y`), 'POST'), false);
 });
 
-test('auth allow-list is exact: refresh grant and logout only', () => {
+// GPT review of #873 (Medium): a global sign-out would revoke the QA account's other sessions.
+test('auth allow-list is exact: refresh grant and LOCAL logout only', () => {
   const ok = (p) => isAllowedAuthMutation(new URL(`${API}${p}`), 'POST');
   assert.equal(ok('/auth/v1/token?grant_type=refresh_token'), true);
-  assert.equal(ok('/auth/v1/logout'), true);
-  assert.equal(ok('/auth/v1/logout?scope=global'), true);
+  assert.equal(ok('/auth/v1/logout?scope=local'), true);
+  assert.equal(ok('/auth/v1/logout'), false, 'scope defaults to global on the server');
+  assert.equal(ok('/auth/v1/logout?scope=global'), false);
+  assert.equal(ok('/auth/v1/logout?scope=others'), false);
+  assert.equal(ok('/auth/v1/logout?scope=local&scope=global'), true, 'first value wins, as URLSearchParams.get does — same as the server');
+  assert.equal(isPasswordGrant(new URL(`${API}/auth/v1/token?grant_type=password`), 'POST'), true);
+  assert.equal(isPasswordGrant(new URL(`${API}/auth/v1/token?grant_type=refresh_token`), 'POST'), false);
+  assert.equal(ok('/auth/v1/token?grant_type=password'), false, 'the password grant is never a browser allowance');
   assert.equal(ok('/auth/v1/token?grant_type=password'), false);
   assert.equal(ok('/auth/v1/token'), false);
   assert.equal(ok('/auth/v1/signup'), false);
@@ -125,19 +137,35 @@ test('auth allow-list is exact: refresh grant and logout only', () => {
   assert.equal(isAllowedAuthMutation(new URL(`${API}/auth/v1/token?grant_type=refresh_token`), 'PATCH'), false);
 });
 
-test('a non-Supabase origin never receives a write: same-site and third-party mutations do not continue', () => {
+// GPT review of #873 (Medium): an outside-origin mutation attempt must be a finding, not a
+// silent drop that leaves the run green. Reads and known analytics beacons stay silent.
+test('a non-Supabase origin never receives a write, and an outside mutation attempt fails the run', () => {
   const guard = createRestoreGuard({ api: API, site: SITE });
   for (const [method, url] of [['POST', `${SITE}/api/picks`], ['DELETE', `${SITE}/pick/1`], ['PUT', `${SITE}/`]]) {
     const result = decide(guard, method, url);
     assert.equal(result.action, 'abort'); assert.equal(result.fail, 'UNEXPECTED_WRITE'); assert.equal(result.kind, 'SITE_REQUEST');
   }
-  for (const [method, url] of [['POST', 'https://other-project.supabase.co/rest/v1/picks'], ['PUT', 'https://api.example.com/upload'],
-    ['DELETE', 'http://localhost:54321/rest/v1/picks'], ['POST', `https://evil.example/${encodeURIComponent(API)}`]]) {
+  const outsideWrites = [['POST', 'https://other-project.supabase.co/rest/v1/picks'], ['PUT', 'https://api.example.com/upload'],
+    ['DELETE', 'http://localhost:54321/rest/v1/picks'], ['POST', `https://evil.example/${encodeURIComponent(API)}`],
+    ['PATCH', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks'], ['POST', 'https://static.cloudflareinsights.com.evil.example/beacon']];
+  for (const [method, url] of outsideWrites) {
     const result = decide(guard, method, url);
-    assert.equal(result.action, 'abort', url); assert.equal(result.silent, true, url); assert.equal(result.fail, undefined, url);
+    assert.equal(result.action, 'abort', url); assert.equal(result.fail, 'UNEXPECTED_ORIGIN', url); assert.equal(result.kind, 'OUTSIDE_ORIGIN', url);
+    assert.equal(result.reason, 'blockedbyclient', 'still never forwarded');
+    assert.ok(!JSON.stringify(result).includes('evil') && !JSON.stringify(result).includes('example'), 'no host leaks');
   }
   assert.equal(guard.counts.blockedWrites, 3);
-  assert.equal(guard.counts.externalDropped, 4);
+  assert.equal(guard.counts.blockedOutside, outsideWrites.length);
+  assert.equal(guard.failed, true);
+  // Reads outside and the known analytics beacon are dropped silently.
+  const silent = createRestoreGuard({ api: API, site: SITE });
+  for (const [method, url] of [['GET', 'https://fonts.gstatic.com/x.woff2'], ['HEAD', 'https://cdn.example/x.png'], ['OPTIONS', 'https://api.example.com/upload'],
+    ['POST', 'https://static.cloudflareinsights.com/beacon'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum']]) {
+    assert.deepEqual(decide(silent, method, url), { action: 'abort', reason: 'blockedbyclient', silent: true }, `${method} ${url}`);
+  }
+  assert.equal(silent.counts.externalDropped, 5);
+  assert.equal(silent.failed, false);
+  for (const host of KNOWN_TELEMETRY_HOSTS) assert.match(host, /cloudflareinsights\.com$/);
   // No request decision ever returns 'continue' for a non-read outside the Supabase origin.
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
     for (const url of [`${SITE}/x`, 'https://cdn.example/x', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks']) {
@@ -178,6 +206,144 @@ test('restore faults: classification can be held and the current-Pick lookup fai
   assert.equal(isCurrentPickSlotRead(new URL(slot), 'DELETE'), false);
 });
 
+// GPT review of #873 (High): the guard must cover the run from its first browser context,
+// before the Supabase project is even known. An unbound guard binds to the first
+// *.supabase.co request and refuses to be re-bound to another origin.
+test('unbound guard: binds to the first Supabase host, judges it with the same policy, rejects a different origin', () => {
+  const guard = createRestoreGuard({ api: null, site: SITE });
+  assert.equal(guard.api, null);
+  assert.deepEqual(decide(guard, 'GET', `${SITE}/`), { action: 'continue' });
+  assert.deepEqual(decide(guard, 'GET', 'https://fonts.gstatic.com/x.woff2'), { action: 'abort', reason: 'blockedbyclient', silent: true });
+  assert.equal(guard.api, null, 'site and outside requests never bind');
+  // A write to a Supabase host before binding is still judged by the Supabase policy, not treated as "outside".
+  const early = decide(guard, 'POST', `${API}/rest/v1/rpc/register_item_pick`);
+  assert.equal(early.fail, 'UNEXPECTED_WRITE'); assert.equal(early.kind, 'OTHER_RPC');
+  assert.equal(guard.api, API, 'bound by the first Supabase request');
+  assert.equal(decide(guard, 'GET', `${API}/functions/v1/youtube-catalog`).fail, 'UNEXPECTED_FUNCTION');
+  // A second Supabase project is now an outside origin.
+  const other = decide(guard, 'GET', 'https://other-project.supabase.co/rest/v1/picks');
+  assert.deepEqual(other, { action: 'abort', reason: 'blockedbyclient', silent: true });
+  assert.equal(decide(guard, 'POST', 'https://other-project.supabase.co/rest/v1/rpc/home_pick_feed_page').fail, 'UNEXPECTED_ORIGIN');
+  assert.doesNotThrow(() => guard.bindApi(API));
+  assert.throws(() => guard.bindApi('https://other-project.supabase.co'), /API_ORIGIN_MISMATCH/);
+  assert.throws(() => createRestoreGuard({ api: 42, site: SITE }), /GUARD_CONFIG_INVALID/);
+  // bindApi first, then discovery requests: the bound origin wins.
+  const pinned = createRestoreGuard({ api: null, site: SITE });
+  pinned.bindApi(API);
+  assert.equal(decide(pinned, 'POST', 'https://other-project.supabase.co/rest/v1/rpc/home_pick_feed_page').fail, 'UNEXPECTED_ORIGIN');
+});
+
+// The bootstrap (home visit for discovery, signed-in /profile, tab bar) may only POST the
+// STABLE read RPCs listed for it; the restore scenario only its own. Anything else the app
+// might call during either phase — notification read marks, follows, registrations — fails.
+test('bootstrap and restore read RPC allow-lists are explicit; other RPCs fail closed', () => {
+  const guard = createRestoreGuard({ api: API, site: SITE });
+  for (const rpc of ['home_pick_feed_page', 'food_item_recent_ranking', 'home_showcase_page', 'item_brands', 'notification_unread_count',
+    'profile_follow_counts', 'follow_counts', 'profile_taste_composition', 'my_comment_page', 'ranking_categories']) {
+    assert.ok(BOOTSTRAP_READ_RPCS.has(rpc) || RESTORE_READ_RPCS.has(rpc), rpc);
+    assert.deepEqual(decide(guard, 'POST', `${API}/rest/v1/rpc/${rpc}`), { action: 'continue' }, rpc);
+  }
+  for (const rpc of ['mark_notification_group_read', 'notification_group_page', 'follow_user', 'unfollow_user', 'register_pick',
+    'change_pick', 'remove_pick', 'update_pick_review', 'delete_comment', 'save_profile_bio', 'set_profile_ai_visibility',
+    'brand_branch_page', 'search_online_sellers', 'admin_operations_snapshot']) {
+    assert.ok(!READ_RPCS.has(rpc), rpc);
+    assert.equal(decide(guard, 'POST', `${API}/rest/v1/rpc/${rpc}`).fail, 'UNEXPECTED_WRITE', rpc);
+  }
+  // Table GETs the bootstrap issues (profiles, categories, item_providers) are reads; table writes are not.
+  assert.deepEqual(decide(guard, 'GET', `${API}/rest/v1/profiles?select=*&id=eq.${USER}`), { action: 'continue' });
+  assert.deepEqual(decide(guard, 'GET', `${API}/rest/v1/item_providers?select=*`), { action: 'continue' });
+  assert.equal(decide(guard, 'PATCH', `${API}/rest/v1/profiles?id=eq.${USER}`).fail, 'UNEXPECTED_WRITE');
+  assert.equal(decide(guard, 'DELETE', `${API}/rest/v1/profile_social_links?id=eq.1`).fail, 'UNEXPECTED_WRITE');
+  for (const rpc of READ_RPCS) assert.match(rpc, /^[a-z_]+$/, rpc);
+  assert.equal(READ_RPCS.size, RESTORE_READ_RPCS.size + BOOTSTRAP_READ_RPCS.size, 'the two lists do not overlap');
+});
+
+// GPT review of #873 (High): the harness's own Node fetches are under the same policy. The
+// password grant is allowed once; fixtures, holds and silent drops are browser-only.
+test('Node policy: reads, refresh, local logout and ONE password grant; everything else is a finding and never fetched', async () => {
+  const guard = createRestoreGuard({ api: null, site: SITE });
+  const calls = [];
+  const fetchStub = async (url, init) => { calls.push(`${(init?.method ?? 'GET').toUpperCase()} ${url}`); return { ok: true, status: 200, json: async () => ({}) }; };
+  const nodeFetch = guardedFetch(guard, fetchStub);
+  // Login binds the API origin and is counted.
+  await nodeFetch(`${API}/auth/v1/token?grant_type=password`, { method: 'POST', body: '{}' });
+  assert.equal(guard.api, API);
+  assert.equal(guard.counts.nodeLogins, 1);
+  await assert.rejects(nodeFetch(`${API}/auth/v1/token?grant_type=password`, { method: 'POST', body: '{}' }), /NODE_CALL_BLOCKED/, 'a second login is a finding');
+  assert.equal(guard.counts.nodeLogins, 1);
+  // Allowed harness calls.
+  await nodeFetch(`${SITE}/deployment.json`);
+  await nodeFetch(`${API}/rest/v1/picks?user_id=eq.${USER}&select=id`);
+  await nodeFetch(`${API}/rest/v1/rpc/current_user_is_admin`, { method: 'POST', body: '{}' });
+  await nodeFetch(`${API}/auth/v1/logout?scope=local`, { method: 'POST' });
+  await nodeFetch(`${API}/auth/v1/token?grant_type=refresh_token`, { method: 'post' });
+  assert.equal(calls.length, 6);
+  // Refused before any network: writes, functions (GET too), global logout, other origins, browser-only paths.
+  for (const [method, url, code] of [
+    ['POST', `${API}/rest/v1/rpc/register_item_pick`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/rest/v1/picks`, 'UNEXPECTED_WRITE'],
+    ['GET', `${API}/functions/v1/profile-ai-status`, 'UNEXPECTED_FUNCTION'],
+    ['POST', `${API}/functions/v1/suggest-item-categories`, 'NODE_CALL_BLOCKED'], // browser-only fixture path
+    ['POST', `${API}/rest/v1/rpc/capture_product_event`, 'NODE_CALL_BLOCKED'], // silent drop is browser-only
+    ['POST', `${API}/auth/v1/logout?scope=global`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/auth/v1/logout`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/auth/v1/signup`, 'UNEXPECTED_WRITE'],
+    ['POST', 'https://other-project.supabase.co/auth/v1/token?grant_type=password', 'UNEXPECTED_ORIGIN'],
+    ['POST', 'https://api.example.com/upload', 'UNEXPECTED_ORIGIN'],
+    ['GET', 'https://api.example.com/x', 'NODE_CALL_BLOCKED'],
+    ['DELETE', `${SITE}/x`, 'UNEXPECTED_WRITE'],
+    ['GET', 'not a url', 'NODE_CALL_BLOCKED'],
+  ]) {
+    await assert.rejects(nodeFetch(url, { method }), new RegExp(`^Error: ${code}$`), `${method} ${url}`);
+  }
+  assert.equal(calls.length, 6, 'a refused call never reaches fetch');
+  assert.equal(guard.failed, true);
+  assert.ok(guard.counts.blockedNodeCalls >= 4);
+  // A pre-bound guard refuses a password grant to another project outright.
+  const bound = createRestoreGuard({ api: API, site: SITE });
+  assert.deepEqual(bound.decideNode({ url: 'https://other-project.supabase.co/auth/v1/token?grant_type=password', method: 'POST' }), { allowed: false, code: 'UNEXPECTED_ORIGIN' });
+  assert.equal(bound.counts.nodeLogins, 0);
+});
+
+// GPT review of #873 (Medium/Low): restore-mode runtime events are codes and counts. A
+// message carrying a token, the account e-mail, a username or a URL never reaches the
+// collector's output in any form.
+test('restore runtime collector: closed codes and counts only, no message text, URL or account detail', () => {
+  const secrets = [`eyJ${'a'.repeat(20)}.${'b'.repeat(20)}.${'c'.repeat(20)}`, 'qa-user@example.com', 'qa_user_42', USER, `${API}/rest/v1/picks?user_id=eq.${USER}`, 'sb_secret_abcdef'];
+  const runtime = createRestoreRuntime();
+  runtime.pageError(`TypeError: Failed to fetch ${secrets[4]}`);
+  runtime.pageError(`Uncaught Error: token ${secrets[0]} for ${secrets[1]}`);
+  runtime.consoleError(`Failed to load resource: net::ERR_BLOCKED_BY_CLIENT ${secrets[4]}`);
+  runtime.consoleError(`Failed to load resource: the server responded with a status of 401 () ${secrets[4]}`);
+  runtime.consoleError(`Warning: Each child in a list should have a unique "key" prop. ${secrets[2]}`);
+  runtime.consoleError(`[supabase] ${secrets[5]} rejected for ${secrets[3]}`);
+  runtime.response(`${API}/rest/v1/picks?user_id=eq.${USER}`, 401, API, SITE);
+  runtime.response(`${API}/functions/v1/suggest-item-categories?token=${secrets[0]}`, 502, API, SITE);
+  runtime.response(`${SITE}/pick/new?u=${secrets[2]}`, 404, API, SITE);
+  runtime.response(`https://cdn.example/${secrets[1]}`, 500, API, SITE);
+  runtime.response(`${API}/rest/v1/items`, 200, API, SITE);
+  const out = runtime.summary;
+  assert.deepEqual(out.events, { NETWORK_ERROR: 1, JS_EXCEPTION: 1, REQUEST_BLOCKED: 1, HTTP_ERROR: 1, REACT_WARNING: 1, CONSOLE_ERROR: 1 });
+  assert.deepEqual(out.responses, [{ status: 401, kind: 'TABLE_REQUEST' }, { status: 502, kind: 'FUNCTION_REQUEST' }, { status: 404, kind: 'SITE_REQUEST' }, { status: 500, kind: 'OUTSIDE_ORIGIN' }]);
+  assert.equal(runtime.total, 10);
+  const text = JSON.stringify(out);
+  for (const secret of secrets) assert.ok(!text.includes(secret), `leaked: ${secret.slice(0, 12)}`);
+  assert.ok(!/https?:|\/rest\/|\/functions\/|@/.test(text), 'no URL, path or e-mail shape at all');
+  for (const code of Object.keys(out.events)) assert.ok(RUNTIME_EVENT_CODES.has(code), code);
+  assert.equal(classifyRuntimeMessage('pageerror', 'anything else'), 'JS_EXCEPTION');
+  assert.equal(classifyRuntimeMessage('console', undefined), 'CONSOLE_ERROR');
+  // The flow's own failure path is closed too: nothing from a message, URL or account survives.
+  for (const raw of [`HTTP 400 (${secrets[1]})`, `Error: ${secrets[0]}`, `매장 표시 변경: "${secrets[2]}"`, secrets[4]]) {
+    assert.equal(safeRestoreFailureCode(new Error(raw)), 'UNCLASSIFIED_FAILURE', raw);
+  }
+  for (const code of ['SUPABASE_NOT_DISCOVERED', 'LOGIN_FAILED', 'APP_SESSION_NOT_RECOGNIZED', 'QA_USERNAME_MISSING', 'PROFILE_NOT_SHOWN',
+    'NODE_CALL_BLOCKED', 'API_ORIGIN_MISMATCH', 'MENU_EDIT_NOT_RESET', 'RESUME_SKIPPED_PHOTO_STEP', 'STORE_CHANGE_NOT_RESET']) {
+    assert.equal(safeRestoreFailureCode(new Error(code)), code);
+  }
+  assert.notEqual(RESTORE_MENU_EDITED, RESTORE_MENU);
+  assert.ok(RESTORE_MENU_EDITED.startsWith(RESTORE_MENU), 'edited name stays visibly synthetic');
+});
+
 test('third-party and telemetry requests are dropped without a finding', () => {
   const guard = createRestoreGuard({ api: API, site: SITE });
   assert.deepEqual(decide(guard, 'GET', 'https://fonts.gstatic.com/x.woff2'), { action: 'abort', reason: 'blockedbyclient', silent: true });
@@ -187,7 +353,8 @@ test('third-party and telemetry requests are dropped without a finding', () => {
   assert.equal(decide(guard, 'GET', 'not a url').fail, 'UNEXPECTED_ORIGIN');
   assert.equal(guard.counts.externalDropped, 2);
   assert.equal(guard.counts.telemetryDropped, 2);
-  assert.equal(guard.counts.blockedWrites, 1);
+  assert.equal(guard.counts.blockedOutside, 1);
+  assert.equal(guard.counts.blockedWrites, 0);
 });
 
 test('menu AI is failed or answered by fixture per mode; never forwarded', () => {
@@ -208,7 +375,7 @@ test('menu AI is failed or answered by fixture per mode; never forwarded', () =>
   guard.setMode('fail');
   assert.equal(decide(guard, 'POST', ai).reason, 'failed');
   assert.deepEqual(guard.counts, { aiFailed: 2, aiFixture: 1, placeCatalogFixture: 0, telemetryDropped: 0, externalDropped: 0,
-    blockedWrites: 0, blockedFunctions: 0, held: 0, slotReadFailed: 0 });
+    blockedWrites: 0, blockedFunctions: 0, blockedOutside: 0, blockedNodeCalls: 0, nodeLogins: 0, held: 0, slotReadFailed: 0 });
 });
 
 test('category_uses_place_catalog is answered locally with false', () => {
@@ -332,12 +499,17 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     const fnGet = await call('GET', `${API}/functions/v1/youtube-catalog?q=x`);
     const authSignup = await call('POST', `${API}/auth/v1/signup`, '{}');
     const sitePost = await call('POST', `${SITE}/api/anything`, '{}');
+    const outsidePost = await call('POST', 'https://api.example.com/upload', '{}');
+    const globalLogout = await call('POST', `${API}/auth/v1/logout?scope=global`, '{}');
     const telemetry = await call('POST', `${API}/rest/v1/client_error_events`, '{}');
-    for (const result of [register, upload, del, fnGet, authSignup, sitePost, telemetry]) assert.ok(result.error, 'write never reaches a server');
-    assert.deepEqual(blocked.map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE']);
-    assert.deepEqual(blocked.map((b) => b.kind), ['OTHER_RPC', 'STORAGE_REQUEST', 'TABLE_REQUEST', 'FUNCTION_REQUEST', 'AUTH_REQUEST', 'SITE_REQUEST']);
-    assert.equal(guard.counts.blockedWrites, 5);
+    const beacon = await call('POST', 'https://static.cloudflareinsights.com/beacon', '{}');
+    for (const result of [register, upload, del, fnGet, authSignup, sitePost, outsidePost, globalLogout, telemetry, beacon]) assert.ok(result.error, 'write never reaches a server');
+    assert.deepEqual(blocked.map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE']);
+    assert.deepEqual(blocked.map((b) => b.kind), ['OTHER_RPC', 'STORAGE_REQUEST', 'TABLE_REQUEST', 'FUNCTION_REQUEST', 'AUTH_REQUEST', 'SITE_REQUEST', 'OUTSIDE_ORIGIN', 'AUTH_REQUEST']);
+    assert.equal(guard.counts.blockedWrites, 6);
     assert.equal(guard.counts.blockedFunctions, 1);
+    assert.equal(guard.counts.blockedOutside, 1);
+    assert.equal(guard.counts.externalDropped, 1, 'the analytics beacon is dropped silently');
     assert.equal(guard.counts.telemetryDropped, 1);
     assert.equal(guard.counts.aiFailed, 1);
     assert.equal(guard.counts.aiFixture, 1);
@@ -345,7 +517,9 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     assert.equal(forwarded, 2, 'only the page itself and the read RPC were forwarded');
     const refresh = await call('POST', `${API}/auth/v1/token?grant_type=refresh_token`, '{}');
     assert.equal(refresh.ok, true, 'token refresh is forwarded (answered by the fixture origin here)');
-    assert.equal(forwarded, 3);
+    const localLogout = await call('POST', `${API}/auth/v1/logout?scope=local`, '{}');
+    assert.equal(localLogout.ok, true, 'local sign-out is forwarded');
+    assert.equal(forwarded, 4);
 
     // Fault switches in the browser: a held classification request stays pending until
     // release(), and the current-Pick lookup fails without becoming a finding.
@@ -365,8 +539,8 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     guard.setFault('failPickSlotRead', false);
     assert.equal(guard.counts.held, 1);
     assert.equal(guard.counts.slotReadFailed, 1);
-    assert.equal(guard.counts.blockedWrites, 5, 'faults added no findings');
-    assert.equal(forwarded, 4);
+    assert.equal(guard.counts.blockedWrites, 6, 'faults added no findings');
+    assert.equal(forwarded, 5);
   } finally {
     await context.close();
     await browser.close();
