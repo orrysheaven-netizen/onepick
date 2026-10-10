@@ -169,17 +169,34 @@ assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
 assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
 
-// #826 GPT review: the owner's share counts only what visitors see — active, with a
-// reviewed photo. Awaiting review, photo-less, or a pending candidate photo does not count.
+// #826 GPT review + #757 PM 6098494493: the share counts only what visitors see — active,
+// with a reviewed photo, in a visible category. Awaiting review, photo-less, a pending
+// candidate photo or a hidden category does not count.
 {
-  const shown = (status, item) => ({ pick: { id: 'p', status }, item });
+  const visible = { id: 'leaf', parentId: 'food', name: '냉면', slug: 'leaf', isVisible: true };
+  const hiddenLeaf = { id: 'hidden', parentId: 'food', name: '숨은 메뉴', slug: 'hidden', isVisible: false };
+  const catalog = [{ id: 'food', parentId: null, name: '음식', slug: 'food', isVisible: true }, visible];
+  const shown = (status, item, categoryId = 'leaf', category = visible) => ({ pick: { id: 'p', status, categoryId, channel: 'offline' }, item, category });
   const photo = { imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: 'https://onepick.test/a.jpg' };
-  assert.equal(grouping.isPublicProfilePick(shown('active', photo)), true, 'active with a photo is public');
-  assert.equal(grouping.isPublicProfilePick(shown('needs_review', photo)), false, 'awaiting review is not public');
-  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: '  ' })), false, 'blank photo fields are not a photo');
-  assert.equal(grouping.isPublicProfilePick(shown('active', null)), false, 'no item is not public');
-  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: null, imageUrl: 'https://onepick.test/c.jpg', photoPendingReview: true })), false,
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo), catalog), true, 'active with a photo is public');
+  assert.equal(grouping.isPublicProfilePick(shown('needs_review', photo), catalog), false, 'awaiting review is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: '  ' }), catalog), false, 'blank photo fields are not a photo');
+  assert.equal(grouping.isPublicProfilePick(shown('active', null), catalog), false, 'no item is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: null, imageUrl: 'https://onepick.test/c.jpg', photoPendingReview: true }), catalog), false,
     'my own candidate photo overlay does not make a Pick public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'hidden', hiddenLeaf), catalog), false, 'a hidden own category is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'hidden', null), catalog), false, 'an unknown own category is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'leaf', null), catalog), true, 'a catalog (visible-only) category is public without an embedded row');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'leaf', visible), []), true, 'an embedded visible row counts before the catalog has it');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'leaf', { ...visible, id: 'other' }), []), false, 'an embedded row for another category does not vouch for this one');
+
+  // Public list / N / share count = MVP food scope ∩ public; the owner's management list keeps the hidden one.
+  const picks = [shown('active', photo), shown('active', photo, 'hidden', hiddenLeaf), shown('needs_review', photo)];
+  assert.equal(grouping.filterMvpProfilePicks(picks, catalog, 'food', ['offline', 'online']).length, 3, 'owner list keeps hidden-category and pending Picks to manage');
+  assert.equal(grouping.filterPublicMvpProfilePicks(picks, catalog, 'food', ['offline', 'online']).length, 1, 'public scope drops hidden-category and pending Picks');
+  assert.equal(grouping.publicProfileShareCount(picks, catalog, 'food', ['offline', 'online']), 1, 'share count is the public scope');
+  assert.equal(grouping.publicProfileShareCount(picks, undefined, 'food', ['offline', 'online']), null, 'an unverified catalog shares no count instead of 0');
+  assert.equal(grouping.publicProfileShareCount([], catalog, 'food', ['offline', 'online']), 0, 'a verified empty scope may share 0');
 }
 
 console.log('Profile Pick groups checks passed: grouping helpers remain for library use while Figma 03 owner and Figma 40 public profiles use direct compact rows.');

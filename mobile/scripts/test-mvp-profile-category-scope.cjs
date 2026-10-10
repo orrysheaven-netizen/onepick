@@ -136,7 +136,7 @@ async function main() {
   // Early MVP (#757/#879): both profiles list one scope from the complete current collection —
   // food from a store or an online order. Other themes stay stored and remain reachable via 실험실 routes.
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
-    assert.match(screen, /filterMvpProfilePicks\((query\.data\?\.)?currentPicks/, `${name} profile filters the complete current Pick collection`);
+    assert.match(screen, /filter(Public)?MvpProfilePicks\((query\.data\?\.)?currentPicks/, `${name} profile filters the complete current Pick collection`);
     assert.match(screen, /OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\)/, `${name} profile applies the shared MVP food scope (offline + online)`);
     assert.doesNotMatch(screen, /OnePickMvp\.publicPickChannel/, `${name} profile does not narrow food to offline only`);
     assert.doesNotMatch(screen, /음식 원픽 보기|기타 원픽 보기/, `${name} profile has no 음식 / 기타 chips in the early MVP`);

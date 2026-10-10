@@ -23,7 +23,7 @@ import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
-import { filterMvpProfilePicks } from '@/lib/profile/profilePickGroups';
+import { filterPublicMvpProfilePicks, publicProfileShareCount } from '@/lib/profile/profilePickGroups';
 import { profileDisplayName, profileHandle, profileMentionName } from '@/lib/profile/profileName';
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
@@ -63,11 +63,12 @@ export default function PublicProfileScreen() {
   const [autoFollow] = useState(() => typeof username === 'string' && consumeFollowProfileIntent(username));
   const socialSignIn = useSocialSignIn();
   // Early MVP (#757/#879): the list, 원픽 N and the share card use one scope — food Picks
-  // from a store or an online order. Recipes and other themes stay stored, unlisted.
+  // from a store or an online order, in a visible category (#757 PM 6098494493). Recipes,
+  // other themes and hidden categories stay stored, unlisted.
   // Without the category catalog nothing can be classified, so the list waits.
   const categoriesReady = Boolean(categoriesQuery.data);
   const profilePicks = useMemo(
-    () => filterMvpProfilePicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels),
+    () => filterPublicMvpProfilePicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels),
     [query.data?.currentPicks, categoriesQuery.data],
   );
   const pickCountLabel = categoriesReady ? `${profilePicks.length}${query.data?.currentPicksComplete === false ? '+' : ''}` : '—';
@@ -218,31 +219,39 @@ export default function PublicProfileScreen() {
   const handleShare = async () => {
     if (!query.data || isSharing) return;
     const { profile } = query.data;
-    const currentPicks = profilePicks;
     setIsSharing(true);
     setShareError(false);
     setCardNotice(null);
     try {
-      let needsLink = false;
-      try {
-        const result = await shareProfileCardImage({
-          username: profile.username,
-          picks: currentPicks.map((entry) => ({
-            categoryName: entry.category?.name ?? '',
-            itemName: entry.item?.name ?? '',
-          })),
-          aiComment: OnePickFeatures.profileAi ? (aiCommentQuery.data ?? null) : null,
-        });
-        if (result === 'downloaded-with-link') {
-          setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
+      // No verified catalog: retry once. If it still is not there, skip the card (it would
+      // list no Picks) and share the link without a count rather than as 0.
+      const catalog = categoriesQuery.data ?? (await categoriesQuery.refetch({ cancelRefetch: false })).data;
+      const pickCount = publicProfileShareCount(query.data.currentPicks, catalog, OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels);
+      const currentPicks = catalog
+        ? filterPublicMvpProfilePicks(query.data.currentPicks, catalog, OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels)
+        : [];
+      let needsLink = pickCount === null;
+      if (!needsLink) {
+        try {
+          const result = await shareProfileCardImage({
+            username: profile.username,
+            picks: currentPicks.map((entry) => ({
+              categoryName: entry.category?.name ?? '',
+              itemName: entry.item?.name ?? '',
+            })),
+            aiComment: OnePickFeatures.profileAi ? (aiCommentQuery.data ?? null) : null,
+          });
+          if (result === 'downloaded-with-link') {
+            setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
+          }
+          needsLink = result === 'downloaded';
+        } catch (error) {
+          if (error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError') return;
+          needsLink = true;
         }
-        needsLink = result === 'downloaded';
-      } catch (error) {
-        if (error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError') return;
-        needsLink = true;
       }
       if (!needsLink) return;
-      await shareProfile({ username: profile.username, pickCount: currentPicks.length, pickCountComplete: query.data.currentPicksComplete });
+      await shareProfile({ username: profile.username, pickCount, pickCountComplete: query.data.currentPicksComplete });
     } catch {
       setShareError(true);
     } finally {

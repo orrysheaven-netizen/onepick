@@ -199,7 +199,8 @@ export function isMvpProfilePick(
   if (item.pick.channel && !channels.includes(item.pick.channel)) return false;
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const seen = new Set<string>();
-  // A Pick's own category may be hidden from the browse catalog; its embedded row still counts.
+  // A Pick's own category may be hidden from the browse catalog; its embedded row still counts
+  // here so the owner can manage it. What visitors see also needs `isPublicProfilePick`.
   let current = categoryById.get(item.pick.categoryId) ?? item.category ?? undefined;
   let inRoot = false;
   while (current && !seen.has(current.id)) {
@@ -220,17 +221,39 @@ function legacyPickChannel(item: PickReadItem): PickChannel {
 
 /**
  * Whether a current Pick is one a visitor sees on the public profile: active, with a
- * reviewed photo (the same rule as `ProfileService.getProfileByUsername`). My own
- * profile also lists Picks awaiting review and photo-less legacy Picks so I can manage
- * them, but what I share counts only these (#826 GPT review). A candidate photo laid
- * over my own Pick while it waits for review does not count.
+ * reviewed photo (the same rule as `ProfileService.getProfileByUsername`), in a category
+ * that is itself visible (`categories.is_visible`, like the #881 public eligibility). My
+ * own profile also lists Picks awaiting review, photo-less legacy Picks and Picks in a
+ * hidden category so I can manage them, but what I share counts only these (#826 GPT
+ * review, #757 PM 6098494493). A candidate photo laid over my own Pick while it waits
+ * for review does not count.
+ *
+ * The browse catalog holds visible categories only, so a Pick's own category is visible
+ * when the catalog has it; otherwise its embedded row must say so. Without either the
+ * Pick is not counted as public.
  */
-export function isPublicProfilePick(item: PickReadItem) {
+export function isPublicProfilePick(item: PickReadItem, categories: Category[]) {
   const photo = item.item;
   return item.pick.status === 'active'
+    && isVisibleOwnCategory(item, categories)
     && !photo?.photoPendingReview
     && [photo?.imagePath, photo?.imageUrl, photo?.thumbnailUrl, photo?.imageSourceUrl]
       .some((value) => typeof value === 'string' && value.trim().length > 0);
+}
+
+function isVisibleOwnCategory(item: PickReadItem, categories: Category[]) {
+  if (categories.some((category) => category.id === item.pick.categoryId && category.isVisible)) return true;
+  return item.category?.id === item.pick.categoryId && item.category?.isVisible === true;
+}
+
+/** The public profile's list, 원픽 N and shared count: the early-MVP scope narrowed to what visitors may see. */
+export function filterPublicMvpProfilePicks(
+  picks: PickReadItem[],
+  categories: Category[],
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels) && isPublicProfilePick(item, categories));
 }
 
 export function filterMvpProfilePicks(
@@ -240,6 +263,20 @@ export function filterMvpProfilePicks(
   channels: readonly PickChannel[],
 ) {
   return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels));
+}
+
+/**
+ * The 원픽 count a profile share may state. `null` while the category catalog is
+ * unverified (never loaded, or its fetch failed with nothing cached): an unclassified
+ * list would read as 0 or a partial number, so the share leaves the count out instead.
+ */
+export function publicProfileShareCount(
+  picks: PickReadItem[],
+  categories: Category[] | undefined,
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  return categories ? filterPublicMvpProfilePicks(picks, categories, rootSlug, channels).length : null;
 }
 
 /** Whether a category belongs to 실험실 (used to keep lab categories out of onboarding and search). */

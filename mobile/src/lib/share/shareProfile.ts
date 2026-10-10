@@ -12,12 +12,14 @@ function isAbort(error: unknown) {
 /**
  * `pickCountComplete: false` means the count stopped at the profile's safety cap (shown
  * as `N+` there), so the message says "N개 이상" instead of passing as exact.
+ * `pickCount: null` means the count could not be verified (the category catalog did not
+ * load), so the message leaves the count out rather than sharing 0 or a partial number.
  */
-export async function shareProfile(input: { username: string; pickCount: number; pickCountComplete?: boolean }): Promise<ShareProfileResult> {
+export async function shareProfile(input: { username: string; pickCount: number | null; pickCountComplete?: boolean }): Promise<ShareProfileResult> {
   const url = createProfileShareUrl(input.username);
   const message = [
     `@${input.username}의 OnePick`,
-    `음식 원픽 ${input.pickCount}개${input.pickCountComplete === false ? ' 이상' : ''}`,
+    ...(input.pickCount === null ? [] : [`음식 원픽 ${input.pickCount}개${input.pickCountComplete === false ? ' 이상' : ''}`]),
     '',
     url,
   ].join('\n');

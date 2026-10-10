@@ -19,7 +19,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicFollowCounts } from '@/hooks/useFollow';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
-import { filterMvpProfilePicks, isPublicProfilePick } from '@/lib/profile/profilePickGroups';
+import { filterMvpProfilePicks, publicProfileShareCount } from '@/lib/profile/profilePickGroups';
 import { profileDisplayName, profileHandle } from '@/lib/profile/profileName';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -112,8 +112,12 @@ export default function ProfileScreen() {
     setIsSharingProfile(true);
     setProfileShareError(false);
     try {
-      // Share what visitors see: my list also keeps Picks awaiting review and photo-less ones.
-      await shareProfile({ username: profile.username, pickCount: profilePicks.filter(isPublicProfilePick).length, pickCountComplete: currentPicksComplete });
+      // Share what visitors see: my list also keeps Picks awaiting review, photo-less ones and
+      // ones in a hidden category. With no verified catalog, retry it once; if it still is not
+      // there, the count is left out rather than shared as 0.
+      const catalog = categoriesQuery.data ?? (await categoriesQuery.refetch({ cancelRefetch: false })).data;
+      const pickCount = publicProfileShareCount(currentPicks, catalog, OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels);
+      await shareProfile({ username: profile.username, pickCount, pickCountComplete: currentPicksComplete });
     } catch {
       setProfileShareError(true);
     } finally {

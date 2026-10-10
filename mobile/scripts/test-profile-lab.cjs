@@ -131,13 +131,16 @@ assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: pr
 // Early MVP (#757/#879): both profiles list only the MVP food scope. No 음식/기타 chips and
 // no 실험실 entry; the 실험실 routes, components and data stay in place for later.
 for (const [name, screen] of [['owner', owner], ['public', publicProfile]]) {
-  assert.match(screen, /filterMvpProfilePicks\((query\.data\?\.)?currentPicks \?\? \[\]|filterMvpProfilePicks\(currentPicks,/, `${name} profile filters the full current collection`);
+  assert.match(screen, /filter(Public)?MvpProfilePicks\((query\.data\?\.)?currentPicks \?\? \[\]|filterMvpProfilePicks\(currentPicks,/, `${name} profile filters the full current collection`);
   assert.match(screen, /OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\)/, `${name} profile uses the shared MVP scope`);
   assert.doesNotMatch(screen, /음식 원픽 보기|기타 원픽 보기|profileScope|labPicks|filterMainProfileByChannel/, `${name} profile has no 음식/기타 scope tabs`);
   assert.doesNotMatch(screen, /router\.push\('\/lab'\)/, `${name} profile does not advertise 실험실 during the early MVP`);
   assert.match(screen, /key: 'picks', label: '원픽', value: pickCountLabel/, `${name} 원픽 N follows the listed scope`);
 }
-assert.match(publicProfile, /const currentPicks = profilePicks;/, 'the share card carries the same Picks as the list');
+assert.match(publicProfile, /filterPublicMvpProfilePicks\(query\.data\?\.currentPicks \?\? \[\]/, 'the public list is the MVP scope narrowed to visible categories (#757 PM 6098494493)');
+assert.match(publicProfile, /const currentPicks = catalog\s*\? filterPublicMvpProfilePicks\(query\.data\.currentPicks, catalog, OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\)/,
+  'the share card carries the same Picks as the list');
+assert.doesNotMatch(owner, /filterPublicMvpProfilePicks\(currentPicks, categoriesQuery/, 'the owner list keeps hidden-category Picks to manage; only its share narrows');
 assert.doesNotMatch(explore, /router\.push\('\/lab'\)/, 'Explore no longer duplicates the 다른 취향 entry with a 실험실 door');
 assert.doesNotMatch(explore, /ProfileLabEntry/, 'Explore does not render the legacy lab entry component');
 assert.match(find, /: !isLabCategory\(item\.categoryId, themeCatalog\.data \?\? \[\], OnePickMvp\.mainThemeCode, OnePickFeatures\.lab\)/, 'unscoped search hides 실험실 results');
