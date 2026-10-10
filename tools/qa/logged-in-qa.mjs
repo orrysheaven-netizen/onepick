@@ -30,7 +30,7 @@ import {
   assertProfileTabs, assertBioDraftPersists, assertProfileLayoutFits, publicShareButton,
 } from './logged-in-contract.mjs';
 import {
-  createRestoreGuard, handleRoute, guardedFetch, createRestoreRuntime, pickFixtureCategory,
+  createRestoreGuard, handleRoute, guardedFetch, forwardWithoutRedirects, createRestoreRuntime, pickFixtureCategory,
   assertDraftRestoreExecution, assertSessionBudget,
   inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode,
   RESTORE_MENU, RESTORE_MENU_EDITED, RESTORE_REVIEW, DRAFT_KEY, DRAFT_PHOTO_KEY,
@@ -261,6 +261,7 @@ async function runDraftRestoreMode({ browser, startedAt }) {
   const nodeFetch = guardedFetch(guard);
   const restoreRuntime = createRestoreRuntime();
   const blockedLog = { first: null };
+  const onBlocked = ({ code, kind }) => { blockedLog.first ??= { code, kind, flowStep: steps.length }; };
   let supabase = null;
   let session = null;
   let loginLabel = '실패';
@@ -268,7 +269,8 @@ async function runDraftRestoreMode({ browser, startedAt }) {
   // Every browser context of this mode: routed through the guard, runtime kept as codes.
   const newGuardedContext = async () => {
     const context = await browser.newContext({ ...device, locale: 'ko-KR', serviceWorkers: 'block' });
-    await context.route('**/*', (route) => handleRoute(guard, route, { onBlocked: ({ code, kind }) => { blockedLog.first ??= { code, kind, flowStep: steps.length }; } }));
+    // Admitted requests are forwarded by handleRoute's default (forwardWithoutRedirects): a 3xx answer is a finding, never followed.
+    await context.route('**/*', (route) => handleRoute(guard, route, { onBlocked }));
     context.on('page', (page) => {
       page.on('pageerror', (e) => restoreRuntime.pageError(e?.message));
       page.on('console', (m) => { if (m.type() === 'error') restoreRuntime.consoleError(m.text()); });
@@ -353,7 +355,7 @@ async function runDraftRestoreMode({ browser, startedAt }) {
     loginLabel = appReady ? '성공' : '세션 발급됨, 앱 인식 실패';
     if (!appReady) return;
 
-    await runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blockedLog, storageKey, newGuardedContext });
+    await runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blockedLog, onBlocked, storageKey, newGuardedContext });
   } catch (error) {
     record(flow, '스크립트', 'fail', safeRestoreFailureCode(error));
   } finally {
@@ -366,7 +368,7 @@ async function runDraftRestoreMode({ browser, startedAt }) {
     const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
     for (const s of steps) counts[s.status] += 1;
     writeReport({ baseUrl: BASE_URL, startedAt, login: loginLabel, counts, restoreRuntime: restoreRuntime.summary,
-      note: `복원 모드 · 가드 집계: 쓰기 ${guard.counts.blockedWrites} · 함수 ${guard.counts.blockedFunctions} · 외부 쓰기 ${guard.counts.blockedOutside} · Node ${guard.counts.blockedNodeCalls} 차단 · Node 로그인 ${guard.counts.nodeLogins}회` });
+      note: `복원 모드 · 가드 집계: 쓰기 ${guard.counts.blockedWrites} · 함수 ${guard.counts.blockedFunctions} · 외부 쓰기 ${guard.counts.blockedOutside} · Node ${guard.counts.blockedNodeCalls} · 리다이렉트 ${guard.counts.blockedRedirects} 차단 · Node 로그인 ${guard.counts.nodeLogins}회` });
   }
 }
 
@@ -379,7 +381,7 @@ async function runDraftRestoreMode({ browser, startedAt }) {
 // draft is discarded; changing the store resets menu and photo. No registration, upload,
 // AI call or other write ever leaves the browser (guard fails closed) and the account's
 // Pick count is compared read-only before and after.
-async function runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blockedLog, storageKey, newGuardedContext }) {
+async function runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blockedLog, onBlocked, storageKey, newGuardedContext }) {
   const flow = '초안 복원';
   const userId = session.user.id;
   const restoreCheck = restoreCheckFor(flow);
@@ -533,7 +535,7 @@ async function runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blocke
     guard.setFault('holdMenuOptions', false);
     await restoreCheck('보류 해제 → 분류 실패로 정착 · 2/4 유지 · "다음" 활성 · 자동 등록 없음', async () => {
       const aiBefore = guard.counts.aiFailed;
-      await guard.release((route) => route.continue());
+      await guard.release((route) => forwardWithoutRedirects(guard, route, onBlocked));
       if ((await waitCount(page, () => guard.counts.aiFailed, aiBefore + 1)) <= aiBefore) throw new Error('MENU_AI_NOT_ATTEMPTED');
       await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
       await page.waitForTimeout(1_000);
@@ -740,11 +742,11 @@ async function runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blocke
     await context.close().catch(() => {});
     // The blocked-request facts of the WHOLE run (discovery, login, bootstrap, scenario, Node)
     // are reported as counts and closed codes only.
-    await check(flow, '쓰기·유료 호출·외부 쓰기·Node 호출 차단 가드 (전 구간) · 원픽 수 불변 (읽기 전용 비교)', async () => {
+    await check(flow, '쓰기·유료 호출·외부 쓰기·Node 호출·리다이렉트 차단 가드 (전 구간) · 원픽 수 불변 (읽기 전용 비교)', async () => {
       const c = guard.counts;
       const picksAfter = await countPicks().catch(() => null);
       const first = blockedLog.first ? `${blockedLog.first.code} (${blockedLog.first.kind}, 검사 #${blockedLog.first.flowStep + 1})` : null;
-      const summary = `차단된 쓰기 ${c.blockedWrites}건 · 함수 호출 ${c.blockedFunctions}건 · 외부 쓰기 ${c.blockedOutside}건 · Node 호출 ${c.blockedNodeCalls}건${first ? ` · 최초 ${first}` : ''} · 원픽 ${picksBefore ?? '?'}→${picksAfter ?? '?'}`;
+      const summary = `차단된 쓰기 ${c.blockedWrites}건 · 함수 호출 ${c.blockedFunctions}건 · 외부 쓰기 ${c.blockedOutside}건 · Node 호출 ${c.blockedNodeCalls}건 · 리다이렉트 ${c.blockedRedirects}건${first ? ` · 최초 ${first}` : ''} · 원픽 ${picksBefore ?? '?'}→${picksAfter ?? '?'}`;
       if (picksAfter === null) return { status: 'fail', detail: `PICK_COUNT_READ_FAILED · ${summary}` };
       if (picksBefore !== null && picksAfter !== picksBefore) return { status: 'fail', detail: `PICK_COUNT_CHANGED · ${summary}` };
       if (guard.failed) return { status: 'fail', detail: `${blockedLog.first?.code ?? 'UNEXPECTED_WRITE'} · ${summary}` };

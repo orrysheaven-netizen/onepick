@@ -5,10 +5,11 @@ import {
   createRestoreGuard, aiSuccessFixture, pickFixtureCategory, assertDraftRestoreExecution,
   inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode, RESTORE_FAILURE_CODES,
   isAllowedAuthMutation, isStorageRead, isMenuOptionsRequest, isCurrentPickSlotRead, isPasswordGrant,
-  guardedFetch, classifyRuntimeMessage, createRestoreRuntime, RUNTIME_EVENT_CODES,
-  READ_RPCS, RESTORE_READ_RPCS, BOOTSTRAP_READ_RPCS, KNOWN_TELEMETRY_HOSTS,
+  guardedFetch, forwardWithoutRedirects, handleRoute, classifyRuntimeMessage, createRestoreRuntime, RUNTIME_EVENT_CODES,
+  READ_RPCS, RESTORE_READ_RPCS, BOOTSTRAP_READ_RPCS, KNOWN_TELEMETRY_BEACONS, isKnownTelemetryBeacon, REDIRECT_STATUSES,
   RESTORE_MENU, RESTORE_MENU_EDITED, RESTORE_REVIEW,
 } from './draft-restore-contract.mjs';
+import http from 'node:http';
 
 const API = 'https://qa-project.supabase.co';
 const SITE = 'https://onepick-5cl.pages.dev';
@@ -123,7 +124,13 @@ test('auth allow-list is exact: refresh grant and LOCAL logout only', () => {
   assert.equal(ok('/auth/v1/logout'), false, 'scope defaults to global on the server');
   assert.equal(ok('/auth/v1/logout?scope=global'), false);
   assert.equal(ok('/auth/v1/logout?scope=others'), false);
-  assert.equal(ok('/auth/v1/logout?scope=local&scope=global'), true, 'first value wins, as URLSearchParams.get does — same as the server');
+  // GPT review L1 (head 085bdc8): a repeated scope parameter is refused outright, whatever a server would pick.
+  assert.equal(ok('/auth/v1/logout?scope=local&scope=global'), false, 'duplicate scope is never allowed');
+  assert.equal(ok('/auth/v1/logout?scope=global&scope=local'), false);
+  assert.equal(ok('/auth/v1/logout?scope=local&scope=local'), false);
+  assert.equal(ok('/auth/v1/logout?scope=local&other=1'), true, 'one scope=local with unrelated params is still the local sign-out');
+  assert.equal(ok('/auth/v1/logout?scope=Local'), false);
+  assert.equal(ok('/auth/v1/logout?scope=local%20'), false);
   assert.equal(isPasswordGrant(new URL(`${API}/auth/v1/token?grant_type=password`), 'POST'), true);
   assert.equal(isPasswordGrant(new URL(`${API}/auth/v1/token?grant_type=refresh_token`), 'POST'), false);
   assert.equal(ok('/auth/v1/token?grant_type=password'), false, 'the password grant is never a browser allowance');
@@ -147,7 +154,11 @@ test('a non-Supabase origin never receives a write, and an outside mutation atte
   }
   const outsideWrites = [['POST', 'https://other-project.supabase.co/rest/v1/picks'], ['PUT', 'https://api.example.com/upload'],
     ['DELETE', 'http://localhost:54321/rest/v1/picks'], ['POST', `https://evil.example/${encodeURIComponent(API)}`],
-    ['PATCH', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks'], ['POST', 'https://static.cloudflareinsights.com.evil.example/beacon']];
+    ['PATCH', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks'], ['POST', 'https://static.cloudflareinsights.com.evil.example/beacon'],
+    // GPT review L2 (head 085bdc8): the beacon allowance is host + path + method, not the host.
+    ['POST', 'https://cloudflareinsights.com/cdn-cgi/other'], ['PUT', 'https://cloudflareinsights.com/cdn-cgi/rum'], ['DELETE', 'https://cloudflareinsights.com/cdn-cgi/rum'],
+    ['POST', 'https://static.cloudflareinsights.com/beacon'], ['POST', 'https://static.cloudflareinsights.com/cdn-cgi/rum'], ['POST', 'https://cloudflareinsights.com/'],
+    ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum/extra'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum%2F'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/RUM']];
   for (const [method, url] of outsideWrites) {
     const result = decide(guard, method, url);
     assert.equal(result.action, 'abort', url); assert.equal(result.fail, 'UNEXPECTED_ORIGIN', url); assert.equal(result.kind, 'OUTSIDE_ORIGIN', url);
@@ -160,12 +171,17 @@ test('a non-Supabase origin never receives a write, and an outside mutation atte
   // Reads outside and the known analytics beacon are dropped silently.
   const silent = createRestoreGuard({ api: API, site: SITE });
   for (const [method, url] of [['GET', 'https://fonts.gstatic.com/x.woff2'], ['HEAD', 'https://cdn.example/x.png'], ['OPTIONS', 'https://api.example.com/upload'],
-    ['POST', 'https://static.cloudflareinsights.com/beacon'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum']]) {
+    ['GET', 'https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum'],
+    ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum?x=1']]) {
     assert.deepEqual(decide(silent, method, url), { action: 'abort', reason: 'blockedbyclient', silent: true }, `${method} ${url}`);
   }
-  assert.equal(silent.counts.externalDropped, 5);
+  assert.equal(silent.counts.externalDropped, 6);
   assert.equal(silent.failed, false);
-  for (const host of KNOWN_TELEMETRY_HOSTS) assert.match(host, /cloudflareinsights\.com$/);
+  assert.deepEqual(KNOWN_TELEMETRY_BEACONS, [{ host: 'cloudflareinsights.com', path: '/cdn-cgi/rum', method: 'POST' }], 'exactly the Cloudflare Web Analytics report call');
+  assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com/cdn-cgi/rum'), 'POST'), true);
+  assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com/cdn-cgi/rum'), 'PUT'), false);
+  assert.equal(isKnownTelemetryBeacon(new URL('https://static.cloudflareinsights.com/cdn-cgi/rum'), 'POST'), false);
+  assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com/cdn-cgi/rum2'), 'POST'), false);
   // No request decision ever returns 'continue' for a non-read outside the Supabase origin.
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
     for (const url of [`${SITE}/x`, 'https://cdn.example/x', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks']) {
@@ -347,7 +363,7 @@ test('restore runtime collector: closed codes and counts only, no message text, 
 test('third-party and telemetry requests are dropped without a finding', () => {
   const guard = createRestoreGuard({ api: API, site: SITE });
   assert.deepEqual(decide(guard, 'GET', 'https://fonts.gstatic.com/x.woff2'), { action: 'abort', reason: 'blockedbyclient', silent: true });
-  assert.deepEqual(decide(guard, 'POST', 'https://static.cloudflareinsights.com/beacon'), { action: 'abort', reason: 'blockedbyclient', silent: true });
+  assert.deepEqual(decide(guard, 'POST', 'https://cloudflareinsights.com/cdn-cgi/rum'), { action: 'abort', reason: 'blockedbyclient', silent: true });
   assert.deepEqual(decide(guard, 'POST', `${API}/rest/v1/client_error_events`), { action: 'abort', reason: 'blockedbyclient', silent: true });
   assert.deepEqual(decide(guard, 'POST', `${API}/rest/v1/rpc/capture_product_event`), { action: 'abort', reason: 'blockedbyclient', silent: true });
   assert.equal(decide(guard, 'GET', 'not a url').fail, 'UNEXPECTED_ORIGIN');
@@ -375,7 +391,7 @@ test('menu AI is failed or answered by fixture per mode; never forwarded', () =>
   guard.setMode('fail');
   assert.equal(decide(guard, 'POST', ai).reason, 'failed');
   assert.deepEqual(guard.counts, { aiFailed: 2, aiFixture: 1, placeCatalogFixture: 0, telemetryDropped: 0, externalDropped: 0,
-    blockedWrites: 0, blockedFunctions: 0, blockedOutside: 0, blockedNodeCalls: 0, nodeLogins: 0, held: 0, slotReadFailed: 0 });
+    blockedWrites: 0, blockedFunctions: 0, blockedOutside: 0, blockedNodeCalls: 0, blockedRedirects: 0, nodeLogins: 0, held: 0, slotReadFailed: 0 });
 });
 
 test('category_uses_place_catalog is answered locally with false', () => {
@@ -502,13 +518,15 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     const outsidePost = await call('POST', 'https://api.example.com/upload', '{}');
     const globalLogout = await call('POST', `${API}/auth/v1/logout?scope=global`, '{}');
     const telemetry = await call('POST', `${API}/rest/v1/client_error_events`, '{}');
-    const beacon = await call('POST', 'https://static.cloudflareinsights.com/beacon', '{}');
-    for (const result of [register, upload, del, fnGet, authSignup, sitePost, outsidePost, globalLogout, telemetry, beacon]) assert.ok(result.error, 'write never reaches a server');
-    assert.deepEqual(blocked.map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE']);
-    assert.deepEqual(blocked.map((b) => b.kind), ['OTHER_RPC', 'STORAGE_REQUEST', 'TABLE_REQUEST', 'FUNCTION_REQUEST', 'AUTH_REQUEST', 'SITE_REQUEST', 'OUTSIDE_ORIGIN', 'AUTH_REQUEST']);
-    assert.equal(guard.counts.blockedWrites, 6);
+    const beacon = await call('POST', 'https://cloudflareinsights.com/cdn-cgi/rum', '{}');
+    const beaconHostOther = await call('POST', 'https://static.cloudflareinsights.com/beacon', '{}');
+    const dupScopeLogout = await call('POST', `${API}/auth/v1/logout?scope=local&scope=global`, '{}');
+    for (const result of [register, upload, del, fnGet, authSignup, sitePost, outsidePost, globalLogout, telemetry, beacon, beaconHostOther, dupScopeLogout]) assert.ok(result.error, 'write never reaches a server');
+    assert.deepEqual(blocked.map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE', 'UNEXPECTED_ORIGIN', 'UNEXPECTED_WRITE']);
+    assert.deepEqual(blocked.map((b) => b.kind), ['OTHER_RPC', 'STORAGE_REQUEST', 'TABLE_REQUEST', 'FUNCTION_REQUEST', 'AUTH_REQUEST', 'SITE_REQUEST', 'OUTSIDE_ORIGIN', 'AUTH_REQUEST', 'OUTSIDE_ORIGIN', 'AUTH_REQUEST']);
+    assert.equal(guard.counts.blockedWrites, 7);
     assert.equal(guard.counts.blockedFunctions, 1);
-    assert.equal(guard.counts.blockedOutside, 1);
+    assert.equal(guard.counts.blockedOutside, 2);
     assert.equal(guard.counts.externalDropped, 1, 'the analytics beacon is dropped silently');
     assert.equal(guard.counts.telemetryDropped, 1);
     assert.equal(guard.counts.aiFailed, 1);
@@ -539,10 +557,215 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     guard.setFault('failPickSlotRead', false);
     assert.equal(guard.counts.held, 1);
     assert.equal(guard.counts.slotReadFailed, 1);
-    assert.equal(guard.counts.blockedWrites, 6, 'faults added no findings');
+    assert.equal(guard.counts.blockedWrites, 7, 'faults added no findings');
     assert.equal(forwarded, 5);
   } finally {
     await context.close();
     await browser.close();
+  }
+});
+
+// ---------------------------------------------------------------------------------------
+// GPT review (head 085bdc8, High): an admitted request answered with a redirect must not
+// make the browser or Node issue a second request the guard never judged. The fixtures below
+// are two isolated loopback servers: `allowed` plays the site and the Supabase origin (bound
+// explicitly) and answers chosen paths with 3xx; `forbidden` plays every redirect target
+// (another origin, a registration RPC, an Edge Function) and counts what reaches it. The
+// credentials are visibly fake; no real host, account, token or network is involved.
+// ---------------------------------------------------------------------------------------
+const FAKE = { email: 'fake-qa-858@example.invalid', password: 'not-a-real-password-858', token: `eyJ${'f'.repeat(24)}.${'a'.repeat(24)}.${'k'.repeat(24)}`, apikey: 'fake-anon-key-858' };
+const listen = (handler) => new Promise((resolve) => { const server = http.createServer(handler); server.listen(0, '127.0.0.1', () => resolve(server)); });
+const origin = (server) => `http://127.0.0.1:${server.address().port}`;
+async function startRedirectFixture() {
+  const forbiddenHits = [];
+  const forbidden = await listen((req, res) => { forbiddenHits.push(`${req.method} ${req.url}`); res.writeHead(200, { 'content-type': 'application/json' }); res.end('{"written":true}'); });
+  const F = origin(forbidden);
+  const allowedHits = [];
+  let api;
+  const redirectTo = (res, status, location) => { res.writeHead(status, { location, 'content-type': 'text/plain' }); res.end('redirecting'); };
+  // One handler, two listeners: the site origin and the (explicitly bound) Supabase origin.
+  const handler = (req, res) => {
+    allowedHits.push(`${req.method} ${req.url}`);
+    const A = origin(api);
+    const path = req.url.split('?')[0];
+    if (path === '/' || path === '/pick/new') { res.writeHead(200, { 'content-type': 'text/html' }); return res.end('<!doctype html><body>fixture site</body>'); }
+    if (path === '/deployment.json') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"sha":"fixture"}'); }
+    if (path === '/moved-site') return redirectTo(res, 302, `${F}/landing`);                              // allowed site GET → other origin
+    if (path === '/rest/v1/items') return redirectTo(res, 301, `${F}/rest/v1/items`);                      // allowed API read GET → other origin
+    if (path === '/rest/v1/rpc/store_menu_options') return redirectTo(res, 307, `${A}/rest/v1/rpc/register_item_pick`); // read RPC → write RPC, same origin, method kept
+    if (path === '/rest/v1/rpc/current_user_is_admin') return redirectTo(res, 308, `${A}/functions/v1/suggest-item-categories`); // read RPC → Edge Function
+    if (path === '/rest/v1/rpc/home_pick_feed_page') return redirectTo(res, 303, `${F}/rest/v1/rpc/home_pick_feed_page`);          // read RPC → other project
+    if (path === '/auth/v1/token') return redirectTo(res, 307, `${F}/auth/v1/token?grant_type=password`);   // Node password grant → other origin
+    if (path === '/auth/v1/logout') return redirectTo(res, 308, `${A}/auth/v1/logout?scope=global`);        // local logout → global logout
+    if (path === '/rest/v1/rpc/register_item_pick' || path.startsWith('/functions/v1/') || path.startsWith('/auth/v1/logout')) {
+      forbiddenHits.push(`${req.method} ${req.url}`); res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"written":true}');
+    }
+    if (path === '/rest/v1/picks') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end('[]'); }
+    if (path === '/not-modified') { res.writeHead(304); return res.end(); }
+    res.writeHead(200, { 'content-type': 'application/json' }); res.end('{"ok":true}');
+  };
+  const site = await listen(handler);
+  api = await listen(handler);
+  const close = () => Promise.all([site, api, forbidden].map((s) => new Promise((r) => s.close(r))));
+  return { site: origin(site), api: origin(api), forbidden: F, forbiddenHits, allowedHits, close };
+}
+const secretsIn = (text) => Object.values(FAKE).filter((v) => text.includes(v));
+
+test('Node redirects: guardedFetch never follows a 3xx, a caller cannot opt back in, the target receives nothing', async () => {
+  const fx = await startRedirectFixture();
+  try {
+    const guard = createRestoreGuard({ api: fx.api, site: fx.site });
+    const nodeFetch = guardedFetch(guard);
+    const authHeaders = { apikey: FAKE.apikey, authorization: `Bearer ${FAKE.token}`, 'content-type': 'application/json' };
+    // Plain reads still work, and a 304 is not treated as a redirect.
+    assert.equal((await nodeFetch(`${fx.site}/deployment.json`)).status, 200);
+    assert.equal((await nodeFetch(`${fx.api}/rest/v1/picks?select=id`, { headers: authHeaders })).status, 200);
+    assert.equal((await nodeFetch(`${fx.api}/not-modified`, { headers: authHeaders })).status, 304);
+    const errors = [];
+    const attempt = async (url, init) => { try { await nodeFetch(url, init); errors.push('NO_ERROR'); } catch (error) { errors.push(error.message); } };
+    // The password grant is admitted once — and its 307 to another origin is refused, even though
+    // the caller asked fetch to follow redirects.
+    const body = JSON.stringify({ email: FAKE.email, password: FAKE.password });
+    await attempt(`${fx.api}/auth/v1/token?grant_type=password`, { method: 'POST', headers: authHeaders, body, redirect: 'follow' });
+    await attempt(`${fx.api}/rest/v1/rpc/store_menu_options`, { method: 'POST', headers: authHeaders, body: '{}', redirect: 'follow' });
+    await attempt(`${fx.api}/rest/v1/rpc/current_user_is_admin`, { method: 'POST', headers: authHeaders, body: '{}' });
+    await attempt(`${fx.api}/rest/v1/rpc/home_pick_feed_page`, { method: 'POST', headers: authHeaders, body: '{}', redirect: 'error' });
+    await attempt(`${fx.api}/rest/v1/items?select=*`, { headers: authHeaders });
+    await attempt(`${fx.api}/auth/v1/logout?scope=local`, { method: 'POST', headers: authHeaders });
+    await attempt(`${fx.site}/moved-site`);
+    assert.deepEqual(errors, Array(7).fill('REDIRECT_BLOCKED'));
+    assert.equal(guard.counts.blockedRedirects, 7);
+    assert.equal(guard.counts.nodeLogins, 1);
+    assert.equal(guard.failed, true);
+    assert.deepEqual(fx.forbiddenHits, [], 'no redirect target was ever requested');
+    assert.equal(fx.allowedHits.filter((h) => h.includes('register_item_pick') || h.includes('/functions/') || h.includes('scope=global')).length, 0);
+    // The report carries closed codes only: kind of the original URL and of the target, status.
+    const kinds = guard.blocked.map((b) => [b.code, b.kind, b.target, b.status]);
+    assert.deepEqual(kinds, [
+      ['REDIRECT_BLOCKED', 'AUTH_REQUEST', 'OUTSIDE_ORIGIN', 307], ['REDIRECT_BLOCKED', 'OTHER_RPC', 'OTHER_RPC', 307],
+      ['REDIRECT_BLOCKED', 'OTHER_RPC', 'FUNCTION_REQUEST', 308], ['REDIRECT_BLOCKED', 'OTHER_RPC', 'OUTSIDE_ORIGIN', 303],
+      ['REDIRECT_BLOCKED', 'TABLE_REQUEST', 'OUTSIDE_ORIGIN', 301], ['REDIRECT_BLOCKED', 'AUTH_REQUEST', 'AUTH_REQUEST', 308],
+      ['REDIRECT_BLOCKED', 'SITE_REQUEST', 'OUTSIDE_ORIGIN', 302]]);
+    const text = JSON.stringify({ blocked: guard.blocked, counts: guard.counts, errors });
+    assert.deepEqual(secretsIn(text), [], 'no fake credential or token in the report');
+    assert.ok(!/127\.0\.0\.1|https?:|\/rest\/|\/auth\//.test(text), 'no URL, host or path in the report');
+    assert.equal(RESTORE_FAILURE_CODES.has('REDIRECT_BLOCKED'), true);
+    assert.equal(safeRestoreFailureCode(new Error('REDIRECT_BLOCKED')), 'REDIRECT_BLOCKED');
+    for (const status of [300, 301, 302, 303, 305, 307, 308]) assert.ok(REDIRECT_STATUSES.has(status));
+    assert.equal(REDIRECT_STATUSES.has(304), false);
+  } finally { await fx.close(); }
+});
+
+test('Node redirects: the fetch implementation is always called with redirect=manual, whatever init says', async () => {
+  const guard = createRestoreGuard({ api: API, site: SITE });
+  const seen = [];
+  const stub = async (url, init) => { seen.push(init.redirect); return { status: 200, headers: new Headers() }; };
+  const nodeFetch = guardedFetch(guard, stub);
+  await nodeFetch(`${SITE}/deployment.json`);
+  await nodeFetch(`${SITE}/deployment.json`, { redirect: 'follow' });
+  await nodeFetch(`${SITE}/deployment.json`, { redirect: 'error' });
+  await nodeFetch(`${API}/rest/v1/picks?select=id`, { method: 'GET', redirect: undefined });
+  assert.deepEqual(seen, ['manual', 'manual', 'manual', 'manual']);
+  // A stub answering 3xx without a Location header is still a finding (target INVALID_URL).
+  const redirecting = guardedFetch(guard, async () => ({ status: 302, headers: new Headers() }));
+  await assert.rejects(redirecting(`${SITE}/x`), /^Error: REDIRECT_BLOCKED$/);
+  assert.deepEqual(guard.blocked.at(-1), { code: 'REDIRECT_BLOCKED', kind: 'SITE_REQUEST', status: 302, target: 'INVALID_URL' });
+  // Relative Location is resolved against the request URL before classification.
+  const relative = guardedFetch(guard, async () => ({ status: 307, headers: new Headers({ location: '/functions/v1/paid' }) }));
+  await assert.rejects(relative(`${API}/rest/v1/rpc/store_menu_options`, { method: 'POST' }), /REDIRECT_BLOCKED/);
+  assert.equal(guard.blocked.at(-1).target, 'FUNCTION_REQUEST');
+});
+
+test('browser redirects: the route handler performs admitted requests itself and aborts any 3xx before the browser can follow it', async () => {
+  const { chromium } = await import('playwright');
+  const fx = await startRedirectFixture();
+  const browser = await chromium.launch(process.env.QA_CHROMIUM_PATH ? { executablePath: process.env.QA_CHROMIUM_PATH } : {});
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const guard = createRestoreGuard({ api: fx.api, site: fx.site });
+  const blocked = [];
+  // Exactly what the live runner installs: no `forward` override, so forwardWithoutRedirects is used.
+  await context.route('**/*', (route) => handleRoute(guard, route, { onBlocked: (entry) => blocked.push(entry) }));
+  const page = await context.newPage();
+  const consoleText = [];
+  page.on('console', (m) => consoleText.push(m.text()));
+  try {
+    await page.goto(`${fx.site}/pick/new`);
+    assert.equal(await page.evaluate(() => document.body.textContent), 'fixture site', 'admitted navigation is fulfilled from the fetched response');
+    const call = (method, url, body, redirect = 'follow') => page.evaluate(async ([m, u, b, r]) => {
+      try {
+        const res = await fetch(u, { method: m, redirect: r, headers: { 'content-type': 'application/json', apikey: 'fake-anon-key-858', authorization: 'Bearer eyJ' + 'f'.repeat(24) + '.' + 'a'.repeat(24) + '.' + 'k'.repeat(24) }, body: b });
+        return { ok: res.ok, status: res.status, type: res.type };
+      } catch (error) { return { error: String(error?.name ?? error) }; }
+    }, [method, url, body ?? null, redirect]);
+    // Admitted and answered without a redirect: a read.
+    assert.equal((await call('GET', `${fx.api}/rest/v1/picks?select=id`)).ok, true);
+    // Every redirecting admitted request fails in the page, with the browser's default `follow`.
+    const results = [
+      await call('GET', `${fx.site}/moved-site`),
+      await call('GET', `${fx.api}/rest/v1/items?select=*`),
+      await call('POST', `${fx.api}/rest/v1/rpc/store_menu_options`, '{}'),
+      await call('POST', `${fx.api}/rest/v1/rpc/current_user_is_admin`, '{}'),
+      await call('POST', `${fx.api}/rest/v1/rpc/home_pick_feed_page`, '{}'),
+      await call('POST', `${fx.api}/auth/v1/logout?scope=local`, '{}'),
+      await call('POST', `${fx.api}/auth/v1/token?grant_type=refresh_token`, JSON.stringify({ refresh_token: FAKE.token }), 'manual'),
+    ];
+    for (const result of results) assert.ok(result.error, `redirecting request fails in the page: ${JSON.stringify(result)}`);
+    // A top-level navigation that redirects is refused too (the browser would otherwise follow it).
+    const nav = await page.goto(`${fx.site}/moved-site`).then(() => 'navigated', (error) => error.message);
+    assert.notEqual(nav, 'navigated');
+    assert.ok(/ERR_BLOCKED_BY_CLIENT|ERR_FAILED|blocked/i.test(nav), nav);
+    assert.equal(blocked.length, 8);
+    assert.ok(blocked.every((b) => b.code === 'REDIRECT_BLOCKED'));
+    assert.deepEqual(blocked.map((b) => b.kind), ['SITE_REQUEST', 'TABLE_REQUEST', 'OTHER_RPC', 'OTHER_RPC', 'OTHER_RPC', 'AUTH_REQUEST', 'AUTH_REQUEST', 'SITE_REQUEST']);
+    assert.equal(guard.counts.blockedRedirects, 8);
+    assert.equal(guard.failed, true);
+    assert.deepEqual(fx.forbiddenHits, [], 'no redirect target (other origin, write RPC, Edge Function, global logout) received a request');
+    // The browser never issued the follow-up request itself either: the allowed server saw each
+    // redirecting path exactly once, from Playwright's fetch, and nothing else.
+    const follow = fx.allowedHits.filter((h) => /register_item_pick|\/functions\/|scope=global|landing/.test(h));
+    assert.deepEqual(follow, []);
+    // Nothing in the guard's report or in the page's own console carries URLs or the fake credentials.
+    const text = JSON.stringify({ blocked: guard.blocked, counts: guard.counts });
+    assert.deepEqual(secretsIn(text), []);
+    assert.ok(!/127\.0\.0\.1|https?:/.test(text));
+    const runtime = createRestoreRuntime();
+    for (const line of consoleText) runtime.consoleError(line);
+    assert.deepEqual(secretsIn(JSON.stringify(runtime.summary)), []);
+    assert.ok(!/https?:|127\.0\.0\.1/.test(JSON.stringify(runtime.summary)));
+  } finally {
+    await context.close();
+    await browser.close();
+    await fx.close();
+  }
+});
+
+test('browser redirects: a held classification request released later is forwarded under the same no-redirect rule', async () => {
+  const { chromium } = await import('playwright');
+  const fx = await startRedirectFixture();
+  const browser = await chromium.launch(process.env.QA_CHROMIUM_PATH ? { executablePath: process.env.QA_CHROMIUM_PATH } : {});
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const guard = createRestoreGuard({ api: fx.api, site: fx.site });
+  const blocked = [];
+  const onBlocked = (entry) => blocked.push(entry);
+  await context.route('**/*', (route) => handleRoute(guard, route, { onBlocked }));
+  const page = await context.newPage();
+  try {
+    await page.goto(`${fx.site}/pick/new`);
+    guard.setFault('holdMenuOptions', true);
+    const held = page.evaluate(async (u) => { try { const r = await fetch(u, { method: 'POST', body: '{}' }); return { status: r.status }; } catch (error) { return { error: String(error?.name ?? error) }; } }, `${fx.api}/rest/v1/rpc/store_menu_options`);
+    for (let i = 0; i < 40 && guard.parkedCount === 0; i += 1) await new Promise((r) => setTimeout(r, 50));
+    assert.equal(guard.parkedCount, 1);
+    guard.setFault('holdMenuOptions', false);
+    // The live runner's release path.
+    assert.equal(await guard.release((route) => forwardWithoutRedirects(guard, route, onBlocked)), 1);
+    assert.ok((await held).error, 'the released request redirected to a write RPC and was aborted');
+    assert.deepEqual(blocked.map((b) => [b.code, b.kind]), [['REDIRECT_BLOCKED', 'OTHER_RPC']]);
+    assert.deepEqual(fx.forbiddenHits, []);
+    assert.equal(guard.counts.held, 1);
+    assert.equal(guard.counts.blockedRedirects, 1);
+  } finally {
+    await context.close();
+    await browser.close();
+    await fx.close();
   }
 });

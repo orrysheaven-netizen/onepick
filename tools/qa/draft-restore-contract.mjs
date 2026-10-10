@@ -41,9 +41,18 @@ export const BOOTSTRAP_READ_RPCS = new Set(['home_pick_feed_page', 'home_followi
 export const READ_RPCS = new Set([...RESTORE_READ_RPCS, ...BOOTSTRAP_READ_RPCS]);
 // Best-effort telemetry: dropped silently, never a finding and never forwarded.
 const TELEMETRY_PATHS = new Set(['/rest/v1/client_error_events', '/rest/v1/rpc/capture_product_event']);
-// Third-party hosts whose beacons the deployed page may POST to (Cloudflare Web Analytics).
-// Dropped silently like telemetry; any other outside-origin mutation is a finding.
-export const KNOWN_TELEMETRY_HOSTS = new Set(['cloudflareinsights.com', 'static.cloudflareinsights.com']);
+// The one third-party beacon the deployed page sends: Cloudflare Web Analytics, injected by
+// Cloudflare Pages, loads `static.cloudflareinsights.com/beacon.min.js` (a GET — a read like
+// any other outside read) and reports with `POST https://cloudflareinsights.com/cdn-cgi/rum`.
+// Only that exact host + path + method is dropped silently; any other mutation aimed at
+// those hosts (or anywhere else outside the two origins) is a finding (GPT review L2).
+export const KNOWN_TELEMETRY_BEACONS = [{ host: 'cloudflareinsights.com', path: '/cdn-cgi/rum', method: 'POST' }];
+export function isKnownTelemetryBeacon(u, method) {
+  return KNOWN_TELEMETRY_BEACONS.some((b) => u.hostname === b.host && u.pathname === b.path && method === b.method);
+}
+// Responses a forwarded request may NOT come back with: a redirect would make the browser
+// (or Node's fetch) issue a second request the guard never judged. 304 is not a redirect.
+export const REDIRECT_STATUSES = new Set([300, 301, 302, 303, 305, 307, 308]);
 // The Supabase project is discovered from the deployed bundle at run time, so a guard
 // may start unbound and bind to the first request whose host matches this pattern.
 export const SUPABASE_HOST_PATTERN = /\.supabase\.co$/;
@@ -95,9 +104,14 @@ export function requestKind(url, api, site) {
 // a token refresh and the *local* sign-out (this browser's session only). A global
 // sign-out would revoke the QA account's other sessions; sign-up, password/identity
 // changes, recovery mails and new password grants are account changes. All fail closed.
+// `scope` must be given exactly once (GPT review L1): a repeated parameter such as
+// `?scope=local&scope=global` is refused whatever the server would pick.
 export function isAllowedAuthMutation(u, method) {
   if (method !== 'POST') return false;
-  if (u.pathname === '/auth/v1/logout') return u.searchParams.get('scope') === 'local';
+  if (u.pathname === '/auth/v1/logout') {
+    const scopes = u.searchParams.getAll('scope');
+    return scopes.length === 1 && scopes[0] === 'local';
+  }
   return u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'refresh_token';
 }
 
@@ -132,7 +146,7 @@ export function isCurrentPickSlotRead(u, method) {
  * `faults` are the two restore fault switches: `holdMenuOptions` parks the classification
  * request so the screen stays "pending"; `failPickSlotRead` fails the current-Pick lookup.
  * Returns one of:
- *   { action: 'continue' }                      forward unchanged (reads only)
+ *   { action: 'continue' }                      forward (reads only) — without following redirects, see forwardWithoutRedirects
  *   { action: 'hold' }                          park the request until release() (fault)
  *   { action: 'abort', reason, silent: true }   drop without a finding (telemetry, 3rd-party reads, AI failure, injected fault)
  *   { action: 'fulfill', status, json }         answer locally with a fixture
@@ -155,17 +169,18 @@ export function createRestoreGuard({ api = null, site }) {
   let fixture = null;
   const faults = { holdMenuOptions: false, failPickSlotRead: false };
   const counts = { aiFailed: 0, aiFixture: 0, placeCatalogFixture: 0, telemetryDropped: 0, externalDropped: 0,
-    blockedWrites: 0, blockedFunctions: 0, blockedOutside: 0, blockedNodeCalls: 0, nodeLogins: 0, held: 0, slotReadFailed: 0 };
+    blockedWrites: 0, blockedFunctions: 0, blockedOutside: 0, blockedNodeCalls: 0, blockedRedirects: 0, nodeLogins: 0, held: 0, slotReadFailed: 0 };
   const blocked = [];
   const parked = [];
-  const fail = (code, url) => {
+  const fail = (code, url, extra = {}) => {
     if (code === 'UNEXPECTED_FUNCTION') counts.blockedFunctions += 1;
     else if (code === 'UNEXPECTED_ORIGIN') counts.blockedOutside += 1;
     else if (code === 'NODE_CALL_BLOCKED') counts.blockedNodeCalls += 1;
+    else if (code === 'REDIRECT_BLOCKED') counts.blockedRedirects += 1;
     else counts.blockedWrites += 1;
     const kind = requestKind(url, api, site);
-    if (blocked.length < 10) blocked.push({ code, kind });
-    return { action: 'abort', reason: 'blockedbyclient', fail: code, kind };
+    if (blocked.length < 10) blocked.push({ code, kind, ...extra });
+    return { action: 'abort', reason: 'blockedbyclient', fail: code, kind, ...extra };
   };
   const bind = (origin) => {
     need(typeof origin === 'string' && (api === null || api === origin), 'API_ORIGIN_MISMATCH');
@@ -178,9 +193,17 @@ export function createRestoreGuard({ api = null, site }) {
     get faults() { return { ...faults }; },
     get counts() { return { ...counts }; },
     get blocked() { return blocked.slice(); },
-    get failed() { return counts.blockedWrites > 0 || counts.blockedFunctions > 0 || counts.blockedOutside > 0 || counts.blockedNodeCalls > 0; },
+    get failed() { return counts.blockedWrites > 0 || counts.blockedFunctions > 0 || counts.blockedOutside > 0 || counts.blockedNodeCalls > 0 || counts.blockedRedirects > 0; },
     get parkedCount() { return parked.length; },
     bindApi: bind,
+    // An admitted request answered with a redirect (GPT review High, head 085bdc8): the
+    // follow-up request is never issued, in the browser or from Node. Recorded as a finding
+    // with the closed kind of the original URL and of the redirect target (never the URLs).
+    rejectRedirect({ url, status, location }) {
+      let target = 'INVALID_URL';
+      if (location) { try { target = requestKind(new URL(String(location), url).href, api, site); } catch { target = 'INVALID_URL'; } }
+      return fail('REDIRECT_BLOCKED', url, { status: Number(status) || 0, target });
+    },
     setMode(next, category = null) {
       need(next === 'fail' || next === 'success', 'GUARD_MODE_INVALID');
       fixture = next === 'success' ? aiSuccessFixture(category) : null;
@@ -203,9 +226,9 @@ export function createRestoreGuard({ api = null, site }) {
       const read = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
       if (u.origin === site) return read ? { action: 'continue' } : fail('UNEXPECTED_WRITE', url);
       if (!isApiHost(u)) {
-        // Never forwarded. Fonts/images (reads) and known analytics beacons are not findings;
-        // any other mutation aimed outside the two origins is, even though it is dropped.
-        if (read || KNOWN_TELEMETRY_HOSTS.has(u.hostname)) {
+        // Never forwarded. Fonts/images (reads) and the one known analytics beacon are not
+        // findings; any other mutation aimed outside the two origins is, even though it is dropped.
+        if (read || isKnownTelemetryBeacon(u, method)) {
           counts.externalDropped += 1;
           return { action: 'abort', reason: 'blockedbyclient', silent: true };
         }
@@ -281,14 +304,47 @@ export function createRestoreGuard({ api = null, site }) {
 }
 
 // `fetch` for the harness's Node side: consults the guard first and never sends a request
-// it would not allow. The thrown error carries only the closed code.
+// it would not allow. Redirects are never followed: `redirect` is forced to 'manual' whatever
+// the caller passed (a caller cannot opt back into 'follow'), and a 3xx answer is a finding
+// (`REDIRECT_BLOCKED`) — the Location target is never requested. The thrown error carries
+// only the closed code.
 export function guardedFetch(guard, fetchImpl = globalThis.fetch) {
   return async (url, init = {}) => {
     const method = String(init.method ?? 'GET').toUpperCase();
     const verdict = guard.decideNode({ url: String(url), method });
     if (!verdict.allowed) throw new Error(verdict.code);
-    return fetchImpl(url, init);
+    const response = await fetchImpl(url, { ...init, redirect: 'manual' });
+    if (REDIRECT_STATUSES.has(response.status)) {
+      guard.rejectRedirect({ url: String(url), status: response.status, location: response.headers?.get?.('location') });
+      throw new Error('REDIRECT_BLOCKED');
+    }
+    return response;
   };
+}
+
+// Forwarding of an admitted browser request. `route.continue()` would let the browser follow
+// a redirect to a destination the guard never judged (route handlers run once per request:
+// https://playwright.dev/docs/network#redirects), so the request is performed by Playwright
+// with redirects disabled and the first response is fulfilled as-is; a 3xx is aborted and
+// recorded as `REDIRECT_BLOCKED` without any request to its target. A transport failure
+// (connection refused, DNS) is aborted the way a plain continue() would have failed.
+export async function forwardWithoutRedirects(guard, route, onBlocked = () => {}) {
+  let response;
+  try {
+    response = await route.fetch({ maxRedirects: 0 });
+  } catch {
+    await route.abort('failed').catch(() => {});
+    return { action: 'abort', reason: 'failed', silent: true };
+  }
+  const status = response.status();
+  if (REDIRECT_STATUSES.has(status)) {
+    const verdict = guard.rejectRedirect({ url: route.request().url(), status, location: response.headers()['location'] });
+    onBlocked({ code: verdict.fail, kind: verdict.kind });
+    await route.abort('blockedbyclient').catch(() => {});
+    return verdict;
+  }
+  await route.fulfill({ response });
+  return { action: 'continue' };
 }
 
 // Restore-mode runtime events are reported as closed codes and counts, never as the
@@ -326,11 +382,14 @@ export function createRestoreRuntime() {
 
 // Playwright route handler shared by the live flow and the offline browser test, so
 // what is tested is what runs. `onBlocked` receives { code, kind } for a failed write;
-// `forward` (default: route.continue()) lets the offline test answer admitted reads locally.
-export async function handleRoute(guard, route, { onBlocked = () => {}, forward = (r) => r.continue() } = {}) {
+// `forward` (default: forwardWithoutRedirects) lets the offline test answer admitted reads
+// locally. The live flow never passes `forward`, so admitted requests cannot redirect.
+export async function handleRoute(guard, route, { onBlocked = () => {}, forward = null } = {}) {
   const request = route.request();
   const verdict = guard.decide({ url: request.url(), method: request.method() });
-  if (verdict.action === 'continue') { await forward(route); return verdict; }
+  if (verdict.action === 'continue') {
+    return forward ? (await forward(route), verdict) : forwardWithoutRedirects(guard, route, onBlocked);
+  }
   if (verdict.action === 'hold') { guard.park(route); return verdict; }
   if (verdict.action === 'fulfill') {
     await route.fulfill({ status: verdict.status, contentType: 'application/json', body: JSON.stringify(verdict.json) });
@@ -393,7 +452,7 @@ export function assertReviewDraft(draft, { storeName, userId, menuQuery = RESTOR
 export const RESTORE_FAILURE_CODES = new Set(['EXECUTION_NOT_AUTHORIZED', 'DEPLOYMENT_NOT_CURRENT', 'GENERAL_USER_REQUIRED',
   'SESSION_EXPIRY_INVALID', 'SESSION_BUDGET_INSUFFICIENT', 'PICK_COUNT_READ_FAILED',
   'FIXTURE_CATEGORY_INVALID', 'GUARD_MODE_INVALID', 'GUARD_FAULT_INVALID', 'GUARD_CONFIG_INVALID',
-  'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_ORIGIN', 'NODE_CALL_BLOCKED', 'API_ORIGIN_MISMATCH',
+  'UNEXPECTED_WRITE', 'UNEXPECTED_FUNCTION', 'UNEXPECTED_ORIGIN', 'NODE_CALL_BLOCKED', 'REDIRECT_BLOCKED', 'API_ORIGIN_MISMATCH',
   'SUPABASE_NOT_DISCOVERED', 'LOGIN_FAILED', 'APP_SESSION_NOT_RECOGNIZED', 'QA_USERNAME_MISSING', 'PROFILE_NOT_SHOWN',
   'MENU_EDIT_NOT_RESET', 'RESUME_SKIPPED_PHOTO_STEP', 'STORE_CHANGE_NOT_RESET',
   'DRAFT_MISSING', 'DRAFT_OWNER_MISMATCH', 'DRAFT_STEP_LOST', 'DRAFT_REVIEW_LOST', 'DRAFT_MENU_LOST',
