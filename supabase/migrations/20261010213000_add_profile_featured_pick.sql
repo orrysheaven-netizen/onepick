@@ -18,7 +18,9 @@ grant all on private.profile_featured_picks to service_role;
 comment on table private.profile_featured_picks is
   'One optional featured Pick per owner. NULL clears only the highlight; revision survives resets. Access through narrow RPCs.';
 
--- Content eligibility is independent of MVP profile tabs and viewer relations.
+-- Content eligibility is independent of UI tabs and channel (online is not excluded).
+-- Restaurant-first MVP: the food category tree is the sole allowed theme.
+-- Reuse the canonical existing food-tree helper rather than a new category list.
 -- Suspensions and mutual blocks hide on READ; they do not destroy this reference.
 create function private.featured_pick_content_eligible(p public.picks)
 returns boolean language sql stable security definer set search_path = '' as $$
@@ -33,6 +35,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
         and i.status in ('active','discontinued')
         and c.is_visible
         and c.status in ('open','paused','closed')
+        and private.category_is_food(p.category_id)
         and coalesce(
           nullif(btrim(i.thumbnail_path),''),
           nullif(btrim(i.image_path),''),
@@ -289,7 +292,9 @@ declare v_id uuid;
 begin
   for v_id in
     select f.pick_id from private.profile_featured_picks f
-    join public.picks p on p.id=f.pick_id where p.category_id=new.id
+    join public.picks p on p.id=f.pick_id
+    where p.category_id=new.id
+       or (old.parent_id is distinct from new.parent_id)
   loop
     perform private.featured_pick_unset_if_invalid(v_id);
   end loop;
@@ -299,9 +304,9 @@ $$;
 revoke all on function private.featured_pick_after_category_change()
   from public,anon,authenticated;
 create trigger categories_unset_invalid_featured
-after update of status,is_visible
+after update of status,is_visible,parent_id
 on public.categories for each row execute function private.featured_pick_after_category_change();
 
 comment on function public.set_my_featured_pick(uuid,bigint) is
-  'Owner-only revision-CAS highlight change. No mutation of public.picks. Production apply requires explicit approval.';
+  'Owner-only revision-CAS highlight change. MVP: only existing public food-tree Picks; all channels. No mutation of public.picks. Production apply requires explicit approval.';
 commit;
