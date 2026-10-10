@@ -226,8 +226,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   // Came from a review's comments (pick-first prompt): go back there to comment.
   const backToComments = () => {
     if (!returnPickId) return;
-    if (router.canGoBack()) router.back();
-    else router.replace({ pathname: '/pick/[pickId]', params: { pickId: returnPickId } });
+    // Restore the exact originating conversation, not an unrelated history entry.
+    // dismissTo replaces this screen when a direct link has no matching stack entry.
+    router.dismissTo({ pathname: '/pick/[pickId]', params: { pickId: returnPickId } });
   };
   const skipPhoto = () => { photoOfferClosed.current = true; setPhotoOfferSkipped(true); };
 
