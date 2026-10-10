@@ -48,7 +48,7 @@ function harness(file, imports) {
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: 'PickPhoto' }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/item-review-card': { ItemReviewCard: 'ItemReviewCard' },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
-    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'), '@/lib/items/pickSavedToast': load('lib/items/pickSavedToast.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'), '@/lib/items/pickSavedToast': load('lib/items/pickSavedToast.ts'), '@/lib/share/shareItem': { shareItem: async () => 'copied' }, '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } }, ...imports }).default;
   function walk(v, location) {
     if (v == null || typeof v !== 'object') return v;
