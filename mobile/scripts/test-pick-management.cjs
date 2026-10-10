@@ -108,6 +108,7 @@ async function main() {
   };
   const { PickManagement, PickManagementActions } = loadSource('components/pick-management.tsx', {
     'react-native': native,
+    '@/components/ui': { Icon: () => React.createElement('i', null, '⋯') },
     '@/errors/appError': { AppError },
     '@/hooks/useManagePick': { useManagePick: () => ({ updateReview: {}, removePick: {}, deleteReview: {} }) },
   });
@@ -137,8 +138,9 @@ async function main() {
   });
   const render = () => renderToStaticMarkup(React.createElement(ItemReviewCard, { pick: data.pick, profile: data.profile, categoryName: data.category.name, itemName: data.item.name, focused: false, highlighted: false, onRemoved() {} }));
   // The owner's corner actions replace the old 내 원픽 관리 box and badge.
-  const manage = />수정<[\s\S]*>원픽 해제</;
+  const manage = /내 한줄평 더보기/;
   assert.match(render(), manage);
+  assert.doesNotMatch(render(), /원픽 해제|한줄평 삭제/, 'three actions stay collapsed by default');
   assert.match(render(), /내 한줄평/);
   assert.doesNotMatch(render(), /내 원픽 관리|내 원픽</);
   session = { user: { id: 'someone' }, isLoading: false };
@@ -155,6 +157,10 @@ async function main() {
   data.pick.status = 'needs_review';
   assert.match(render(), manage);
 
+  const managementSource = fs.readFileSync(path.join(__dirname, '..', 'src/components/pick-management.tsx'), 'utf8');
+  for (const text of ['한줄평 수정', '원픽 해제', '한줄평 삭제']) assert.ok(managementSource.includes(text), 'menu retains ' + text);
+  assert.match(managementSource, /moreButton: \{ width: 44, height: 44/);
+  assert.match(managementSource, /menuRow: \{ minHeight: 48/);
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
