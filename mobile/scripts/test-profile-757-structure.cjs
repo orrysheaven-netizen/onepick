@@ -82,7 +82,10 @@ assert.match(settings, /<SignOutButton showSettingsLink=\{false\} \/>/, 'Sign-ou
 
 // Tabs: 원픽 | 기록 underline tabs with 44px+ targets; 기록 is owner-only.
 assert.match(tabs, /\{ key: 'picks', label: '원픽' \},\s*\{ key: 'records', label: '기록' \}/);
-assert.match(tabs, /accessibilityRole="tab" accessibilityState=\{\{ selected \}\}/);
+// Web QA reads the DOM `aria-selected` on role=tab; react-native-web 0.21 does not forward
+// `accessibilityState`, so the tab must use the `aria-selected` prop (mapped on native by RN ≥ 0.71).
+assert.match(tabs, /accessibilityRole="tab" aria-selected=\{selected\}/);
+assert.doesNotMatch(tabs, /accessibilityState=/, 'No duplicate selected state next to aria-selected');
 assert.match(tabs, /minHeight: MIN_TOUCH_TARGET \+ 4/);
 assert.doesNotMatch(publicProfile, /<ProfileTabs|<ProfileRecords/, 'Public profiles have no tab row and no 기록');
 assert.match(records, /const VISIBLE_REQUEST_STATUSES = new Set\(\['pending', 'rejected'\]\);/);

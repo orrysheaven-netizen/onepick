@@ -19,8 +19,10 @@ export function ProfileTabs({ value, onChange }: { value: ProfileTabKey; onChang
     <View accessibilityRole="tablist" style={styles.tabs}>
       {TABS.map((tab) => {
         const selected = tab.key === value;
+        // `aria-selected` reaches both the web DOM (react-native-web 0.21 drops
+        // `accessibilityState`) and native accessibilityState (RN >= 0.71 maps it).
         return (
-          <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected }}
+          <Pressable key={tab.key} accessibilityRole="tab" aria-selected={selected}
             accessibilityLabel={`${tab.label} 탭`} onPress={() => onChange(tab.key)} style={styles.tab}>
             <Text style={[styles.label, selected && styles.labelSelected]}>{tab.label}</Text>
             <View style={[styles.indicator, selected && styles.indicatorSelected]} />
