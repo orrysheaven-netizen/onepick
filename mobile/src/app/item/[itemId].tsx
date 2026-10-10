@@ -106,7 +106,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const acknowledgedNotification = useRef<string | undefined>(undefined);
   // /pick/new grants a one-shot completion CTA, never an automatic toast.
   // A reload or unrelated deep link cannot replay the registration result.
-  const [hasCompletionReceipt] = useState(() => consumePickSavedToast(focusPickId));
+  const [hasCompletionReceipt] = useState(() => Boolean(!isSessionLoading && user && consumePickSavedToast(focusPickId)));
   const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
   const [pickSavedToast, setPickSavedToast] = useState(false);
   const [isSharingItem, setIsSharingItem] = useState(false);
