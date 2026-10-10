@@ -413,7 +413,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           {/* Restaurants name the menu in the title (중앙해장 내장탕); only the channel stays above it. */}
           {isRestaurant
             ? homeChannelLabel(displayChannels) ? <Text style={styles.category}>{homeChannelLabel(displayChannels)}</Text> : null
-            : <Text style={styles.category}>{categoryWithChannels(category?.name ?? '카테고리', item.channels)}</Text>}
+            : category?.name ? <Text style={styles.category}>{categoryWithChannels(category.name, item.channels)}</Text> : null}
           {brand ? <View style={styles.brandRow}>
             {brand.logoUrl ? <View style={styles.brandLogo}>
               <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
@@ -454,7 +454,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
                 scrolledTo.current = pick.id;
               }
             }}>
-              <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '카테고리'}
+              <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '이 메뉴'}
                 itemName={item.name} itemId={item.id} highlighted={pick.id === highlightedId}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
