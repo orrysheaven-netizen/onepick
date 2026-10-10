@@ -90,6 +90,8 @@ async function main() {
   const replies = source('components/pick-replies.tsx');
   assert.doesNotMatch(replies, /usePickDetail/, 'Conversation permission must not re-read Pick lifecycle state');
   assert.match(replies, /const canComment = canWrite && !isSessionLoading && !sessionError/);
+  assert.doesNotMatch(replies, /ownReview/, 'Review owners keep their approved top-level comment and reply composer');
+  assert.match(replies, /!isReply && canComment && !deleted \?/, 'Eligible review owners may reply under their own comments');
   assert.match(replies, /parentCommentId: replyingTo\?\.id \?\? null/);
   assert.match(replies, /\(entry\.replies \?\? \[\]\)\.map\(\(reply\) => renderComment\(reply, true\)\)/);
   assert.match(replies, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag mine=\{author\.id === user\?\.id\} \/> : null/);
@@ -111,6 +113,15 @@ async function main() {
   assert.match(pickDetail, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/);
   assert.match(pickDetail, /<CurrentPickFlag mine=\{focused\.pick\.userId === user\?\.id\} \/>/);
   assert.doesNotMatch(pickDetail, /✓ 이 집 원픽|✓ 원픽/);
+  assert.match(pickDetail, /myPickStatus\.type === 'not_selected'/,
+    'Comment CTA must not route selected_other into an unconfirmed replacement');
+  const commentChoose = source('app/pick/choose.tsx');
+  assert.match(commentChoose, /if \(returnPickId\)[\s\S]*?await itemQuery\.refetch\(\)/,
+    'Comment-entry save rechecks the current Pick before mutation');
+  assert.match(commentChoose, /latest\.data\.myPickStatus\.type !== 'not_selected'/,
+    'Comment-entry save declines a replacement');
+  assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| Boolean\(returnPickId/,
+    'Comment-entry replacement cannot be submitted from a stale screen');
 
   const myComments = source('components/profile-my-comments.tsx');
   assert.match(myComments, /commentService\.locateComment\(entry\.comment\.id\)/);

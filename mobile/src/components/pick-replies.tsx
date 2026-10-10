@@ -41,14 +41,13 @@ function getCommentErrorMessage(error: unknown) {
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
  * `onPickFirst` is offered when the viewer cannot comment only because they have no Pick of this menu yet:
  * "댓글 남기기" then asks in a popup whether to pick this menu first. `autoOpenPickFirst` (back from
- * login/signup) opens that popup once on arrival. `ownReview`: the review author only replies to other
- * people's comments; there is no top-level composer on their own review.
+ * login/signup) opens that popup once on arrival. The server-provided `canWrite`
+ * covers review authors as well as members with the same current Pick.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, ownReview = false, onPickFirst, autoOpenPickFirst = false, onPickFirstAutoOpened, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, onPickFirst, autoOpenPickFirst = false, onPickFirstAutoOpened, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
-  ownReview?: boolean;
   onPickFirst?: () => void;
   autoOpenPickFirst?: boolean;
   onPickFirstAutoOpened?: () => void;
@@ -59,15 +58,14 @@ export function PickReplies({ pickId, compact = false, canWrite = true, ownRevie
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} ownReview={ownReview} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} onPickFirstAutoOpened={onPickFirstAutoOpened} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} onPickFirstAutoOpened={onPickFirstAutoOpened} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirst, autoOpenPickFirst, onPickFirstAutoOpened, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, autoOpenPickFirst, onPickFirstAutoOpened, focusCommentId, initialCursor, onFocusLoaded }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
   canWrite: boolean;
-  ownReview: boolean;
   onPickFirst?: () => void;
   autoOpenPickFirst: boolean;
   onPickFirstAutoOpened?: () => void;
@@ -188,7 +186,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirs
           <ReportAction reporterUserId={user.id} targetType="comment" targetId={comment.id} />
         </View> : null}
 
-        {!isReply && canComment && !deleted && !(ownReview && comment.userId === user?.id) ? <Pressable accessibilityRole="button"
+        {!isReply && canComment && !deleted ? <Pressable accessibilityRole="button"
           accessibilityLabel={`@${username}에게 답글 달기`}
           onPress={() => {
             setReplyingTo({ id: comment.id, username });
@@ -257,7 +255,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirs
               ) : null}
 
               {!compact && !commentsQuery.isPending && !commentsQuery.isError && commentsQuery.data?.length === 0 ? (
-                <Text style={styles.emptyComments}>{canComment && !ownReview ? '첫 댓글을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
+                <Text style={styles.emptyComments}>{canComment ? '첫 댓글을 남겨보세요.' : '아직 댓글이 없어요.'}</Text>
               ) : null}
 
               {commentsQuery.data?.map((entry) => <View key={entry.comment.id}>
@@ -279,9 +277,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, ownReview, onPickFirs
                 </Pressable>
               ) : null}
 
-              {canComment && ownReview && !replyingTo ? (
-                compact ? null : <Text style={styles.historyCommentNotice}>내 한줄평에서는 다른 사람이 남긴 댓글에 답글을 달 수 있어요.</Text>
-              ) : canComment && !composing ? (
+              {canComment && !composing ? (
                 <Pressable accessibilityRole="button" accessibilityLabel="댓글 쓰기" onPress={() => {
                   setReplyingTo(null);
                   setComposing(true);

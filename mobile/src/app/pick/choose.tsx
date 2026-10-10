@@ -65,6 +65,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [tipAnswer, setTipAnswer] = useState<'unanswered' | 'yes' | 'no'>('unanswered');
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
+  const [commentPickError, setCommentPickError] = useState<string | null>(null);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
   // The item as returned by a photo saved in step 1; keeps the new photo on
   // screen even before the detail query refreshes.
@@ -97,6 +98,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
+  // Only a valid return ID identifies the comment-originated flow.
+  const returnPickId = typeof params.returnPickId === 'string' && UUID_PATTERN.test(params.returnPickId) ? params.returnPickId : null;
   const formTitle = pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
     : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
   const submitLabel = useMemo(() => {
@@ -115,6 +118,22 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
     submitPhase.current = 'saving';
     try {
+      // Comment-entry signup is never consent to replace an existing Pick.
+      // Refresh immediately before save rather than trusting the entry-screen snapshot.
+      // This client check cannot prevent a simultaneous change after the refresh;
+      // an atomic expected-previous-Pick DB guard would require a separate approval.
+      if (returnPickId) {
+        const latest = await itemQuery.refetch();
+        if (latest.isError || !latest.data) {
+          setCommentPickError('원픽 상태를 확인하지 못했어요. 다시 시도해주세요.');
+          return;
+        }
+        if (latest.data.myPickStatus.type !== 'not_selected') {
+          setCommentPickError('원픽 상태가 바뀌었어요. 기존 원픽은 변경하지 않았어요. 댓글 화면으로 돌아가주세요.');
+          return;
+        }
+      }
+      setCommentPickError(null);
       const result = await choosePick.mutateAsync({
         categoryId: item.categoryId, itemId: item.id, oneLineReview: trimmedReview,
         ...(pickChannel ? { channel: pickChannel } : {}),
@@ -168,7 +187,6 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     router.replace({ pathname: '/item/[itemId]', params: { itemId: savedChoice.pick.itemId, pickId: savedChoice.pick.id, photo: '1' } });
   };
   // Came from a review's comments (pick-first prompt): go back there to comment.
-  const returnPickId = typeof params.returnPickId === 'string' && UUID_PATTERN.test(params.returnPickId) ? params.returnPickId : null;
   const backToComments = () => {
     if (!returnPickId) return;
     if (router.canGoBack()) router.back();
@@ -258,6 +276,11 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
           </> : null}
           </> : null}
+          {commentPickError || (returnPickId && pickStatus?.type !== 'not_selected') ? (
+            <Text accessibilityRole="alert" style={styles.reviewError}>
+              {commentPickError ?? '댓글 작성 때문에 기존 원픽을 변경하지 않아요. 댓글 화면으로 돌아가주세요.'}
+            </Text>
+          ) : null}
           {saveError ? <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(saveError)}</Text>
             {saveError instanceof AppError && saveError.code === 'PROFILE_NOT_FOUND' ?
@@ -265,7 +288,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {saveError instanceof AppError && saveError.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || Boolean(returnPickId && pickStatus?.type !== 'not_selected')} onPress={() => void handleSubmit()} style={styles.submit} />
           {needsPhotoStep ? <Text style={styles.footnote}>사진을 먼저 등록하면 저장할 수 있어요.</Text> : null}
           <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}
