@@ -25,6 +25,12 @@ function load(file, imports) {
       })) };
     }
     if (name in imports) return imports[name];
+    // The choose screen reads its originating comment thread only for a
+    // comment-origin entry; ordinary entries keep the lookup disabled.
+    if (name === '@/hooks/usePickDetail') return { usePickDetail: (pickId) => {
+      if (pickId) throw new Error('unexpected comment-thread lookup');
+      return { data: undefined, isPending: true, isError: false, isFetching: false };
+    } };
     // Pure channel helpers of the choose screen load as-is.
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
@@ -158,7 +164,11 @@ function commentChoice() {
       return { isError: false, data: { ...data, myPickStatus: latestStatus } };
     },
   };
-  const registrationWrites = [], ordinaryWrites = [], destinations = [];
+  const registrationWrites = [], ordinaryWrites = [], destinations = [], threadLookups = [];
+  // The originating thread as the existing Pick lookup returns it (trusted read).
+  const thread = { data: { pick: { id: returnPickId, itemId, categoryId, channel: 'offline' } },
+    isPending: false, isError: false, isFetching: false, refreshes: 0,
+    refetch: async () => { thread.refreshes++; } };
   const registration = { isPending: false, error: null,
     mutateAsync: async (payload) => {
       registrationWrites.push(payload);
@@ -194,6 +204,7 @@ function commentChoice() {
     '@/hooks/useItemDetail': { useItemDetail: () => query },
     '@/hooks/useChoosePick': { useChoosePick: () => ordinary },
     '@/hooks/useRegisterPick': { useRegisterItemPick: () => registration },
+    '@/hooks/usePickDetail': { usePickDetail: (...args) => { threadLookups.push(args); return thread; } },
   });
   const draft = () => {
     view.render();
@@ -201,7 +212,7 @@ function commentChoice() {
     view.render();
   };
   return { view, auth, params, data, query, registration, registrationWrites, ordinaryWrites, destinations,
-    returnPickId, draft, setLatestStatus: (status) => { latestStatus = status; },
+    returnPickId, draft, thread, threadLookups, setLatestStatus: (status) => { latestStatus = status; },
     setRegisterMode: (mode) => { registerMode = mode; },
     queueRegisterModes: (...modes) => { registerQueue.push(...modes); },
   };
@@ -455,6 +466,95 @@ async function main() {
     c.view.render(); c.view.button('다시 로그인하고 계속').onPress();
     assert.equal(c.destinations.at(-1).route.pathname, '/auth/login');
     assert.equal(c.destinations.at(-1).route.params.action, 'comment_pick');
+  });
+  await check('Ordinary entry without a returnPickId key keeps the regular save path', async () => {
+    const c = choice(); c.draft();
+    assert.ok(!('returnPickId' in c.params));
+    c.view.button('내 원픽으로 고르기').onPress();
+    assert.equal(c.writes.length, 1, 'The regular choose entry is unchanged');
+    c.pending[0].resolve(c.result); await flush();
+    assert.match(c.view.render(), /내 원픽 보기/);
+  });
+  await check('A valid return ID reads the originating thread before allowing a save', async () => {
+    const c = commentChoice(); c.draft();
+    assert.deepEqual(c.threadLookups.at(-1), [c.returnPickId, 'owner', true]);
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+    assert.equal(c.ordinaryWrites.length, 0);
+  });
+  for (const [label, value] of [
+    ['malformed UUID', 'not-a-uuid'],
+    ['UUID with trailing text', 'c3333333-3333-4333-8333-333333333333x'],
+    ['array', ['c3333333-3333-4333-8333-333333333333', 'c3333333-3333-4333-8333-333333333333']],
+    ['empty value', ''],
+  ]) {
+    await check(`Damaged returnPickId (${label}) ends the comment entry with zero saves`, async () => {
+      const c = commentChoice(); c.params.returnPickId = value;
+      const screen = c.view.render();
+      assert.match(screen, /댓글에서 연 링크가 올바르지 않아요/);
+      assert.match(screen, /원픽은 저장하지 않았어요/);
+      assert.equal(c.view.input(), undefined, 'No review form on a damaged comment link');
+      assert.ok(!c.view.nodes().some((n) => n.type === 'Pressable' && /내 원픽으로 고르기|원픽 바꾸기|로그인하고 계속/.test(text(n))),
+        'Neither a save nor an ordinary login intent is offered');
+      assert.deepEqual(c.threadLookups.at(-1), [undefined, 'owner', false], 'A damaged ID is never looked up');
+      c.view.button('돌아가기').onPress();
+      assert.notEqual(c.destinations.at(-1)?.kind, 'dismissTo', 'There is no trusted thread to return to');
+      assert.equal(c.registrationWrites.length, 0);
+      assert.equal(c.ordinaryWrites.length, 0, 'Never falls back to change_pick');
+      // Signed-out viewers also get the terminal state, not a choose_pick login intent.
+      c.auth.user = null;
+      assert.match(c.view.render(), /댓글에서 연 링크가 올바르지 않아요/);
+      assert.ok(!c.destinations.some((d) => d.route?.params?.action === 'choose_pick'));
+    });
+  }
+  for (const [label, change] of [
+    ['different item', (pick) => { pick.itemId = 'd4444444-4444-4444-8444-444444444444'; }],
+    ['different category', (pick) => { pick.categoryId = 'e5555555-5555-4555-8555-555555555555'; }],
+    ['different channel', (pick) => { pick.channel = 'online'; }],
+    ['no channel', (pick) => { pick.channel = null; }],
+  ]) {
+    await check(`Thread/target mismatch (${label}) is refused before any write`, async () => {
+      const c = commentChoice(); change(c.thread.data.pick);
+      const screen = c.view.render();
+      assert.match(screen, /이 댓글과 다른 메뉴예요/);
+      assert.equal(c.view.input(), undefined);
+      assert.ok(!c.view.nodes().some((n) => n.type === 'Pressable' && /내 원픽으로 고르기/.test(text(n))));
+      c.view.button('댓글 화면으로 돌아가기').onPress();
+      assert.equal(c.destinations.at(-1).kind, 'dismissTo');
+      assert.equal(c.destinations.at(-1).route.params.pickId, c.returnPickId);
+      assert.equal(c.query.refreshes, 0, 'Blocked before the save preflight');
+      assert.equal(c.registrationWrites.length, 0);
+      assert.equal(c.ordinaryWrites.length, 0);
+    });
+  }
+  await check('URL values cannot vouch for a thread that points elsewhere', async () => {
+    // Route params agree with the target, but the trusted thread read does not.
+    const c = commentChoice(); c.thread.data.pick.itemId = 'd4444444-4444-4444-8444-444444444444';
+    assert.equal(c.params.itemId, itemId);
+    assert.match(c.view.render(), /이 댓글과 다른 메뉴예요/);
+    assert.equal(c.registrationWrites.length + c.ordinaryWrites.length, 0);
+  });
+  await check('An unreadable thread blocks saving until it is confirmed', async () => {
+    const c = commentChoice(); c.thread.isError = true; c.thread.data = undefined;
+    let screen = c.view.render();
+    assert.match(screen, /댓글 정보를 확인하지 못했어요/);
+    assert.equal(c.view.input(), undefined);
+    await c.view.button('댓글 정보 다시 확인하기').onPress();
+    assert.equal(c.thread.refreshes, 1);
+    assert.equal(c.registrationWrites.length + c.ordinaryWrites.length, 0);
+    // Still checking: no form and no save.
+    c.thread.isError = false; c.thread.isPending = true;
+    screen = c.view.render();
+    assert.match(screen, /정보를 확인하고 있어요/);
+    assert.equal(c.view.input(), undefined);
+    // Confirmed match: the guarded save is available again.
+    c.thread.isPending = false;
+    c.thread.data = { pick: { id: c.returnPickId, itemId, categoryId, channel: 'offline' } };
+    c.draft();
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+    assert.equal(c.registrationWrites[0].expectedPreviousPickId, null);
+    assert.equal(c.ordinaryWrites.length, 0);
   });
   console.log(`Pre-pilot recovery: ${checks - failures}/${checks} checks passed.`);
   if (failures) process.exitCode = 1;

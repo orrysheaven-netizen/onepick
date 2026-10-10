@@ -158,6 +158,14 @@ async function main() {
     'Recoverable auth/profile errors keep their recovery actions');
   assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
     'Unsupported comment-origin flows fail closed before reaching change_pick');
+  assert.match(commentChoose, /const hasReturnKey = params\.returnPickId !== undefined;[\s\S]*?const invalidReturnLink = hasReturnKey && !returnPickId;/,
+    'A present but unusable returnPickId is a damaged comment entry, not an ordinary entry');
+  assert.match(commentChoose, /if \(invalidReturnLink\) return;[\s\S]*?if \(returnPickId && threadBinding !== 'match'\)/,
+    'Damaged links and unconfirmed threads stop before any save');
+  assert.match(commentChoose, /usePickDetail\(returnPickId \?\? undefined/,
+    'The originating thread is read through the existing Pick lookup, not from URL values');
+  assert.match(commentChoose, /threadPick\.itemId === loadedItem\.id && threadPick\.categoryId === loadedItem\.categoryId[\s\S]*?threadPick\.channel === OnePickMvp\.publicPickChannel/,
+    'Thread item, category and channel must match the registration target');
   assert.match(commentChoose, /published: result\.published/,
     'Registration receipt distinguishes a pending photo review from a commentable Pick');
   assert.match(commentChoose, /const intent = returnPickId[\s\S]*?action: 'comment_pick', pickId: returnPickId[\s\S]*?action: 'choose_pick'/,

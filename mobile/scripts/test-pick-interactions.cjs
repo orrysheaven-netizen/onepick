@@ -27,6 +27,12 @@ function loadSource(relativePath, imports = {}) {
       })) };
     }
     if (name in imports) return imports[name];
+    // The choose screen reads its originating comment thread only for a
+    // comment-origin entry; ordinary entries keep the lookup disabled.
+    if (name === '@/hooks/usePickDetail') return { usePickDetail: (pickId) => {
+      if (pickId) throw new Error('unexpected comment-thread lookup');
+      return { data: undefined, isPending: true, isError: false, isFetching: false };
+    } };
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };

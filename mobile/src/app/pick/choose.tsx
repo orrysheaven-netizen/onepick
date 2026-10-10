@@ -12,6 +12,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
 import { useRegisterItemPick } from '@/hooks/useRegisterPick';
 import { useItemDetail } from '@/hooks/useItemDetail';
+import { usePickDetail } from '@/hooks/usePickDetail';
 import { channelLabel } from '@/lib/home/homeChannels';
 import { parseChannelParam } from '@/lib/items/pickChannel';
 import type { Item } from '@/types/domain/item';
@@ -49,7 +50,8 @@ const TERMINAL_COMMENT_PICK_ERRORS = new Set([
   'PICK_CHANNEL_MISMATCH', 'USER_SUSPENDED',
 ]);
 
-type Params = { itemId?: string; categoryId?: string; channel?: string; returnPickId?: string };
+// Route params can arrive as arrays or empty strings from a hand-edited URL.
+type Params = { itemId?: string; categoryId?: string; channel?: string; returnPickId?: string | string[] };
 type PickReceipt = { id: string; itemId: string; userId: string; oneLineReview: string };
 type SavedChoice = { pick: Pick | PickReceipt; item: Item; published?: boolean };
 
@@ -67,6 +69,16 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const routeChannel = parseChannelParam(params.channel);
   const requestedChannel = routeChannel && !OnePickFeatures.foodChannelPicker ? OnePickMvp.publicPickChannel : routeChannel;
   const itemQuery = useItemDetail(params.itemId, user?.id, undefined, false, true, requestedChannel);
+  // A returnPickId key marks a comment-origin entry even when its value is
+  // unusable. Only a missing key is the ordinary /pick/choose entry, so a
+  // malformed, empty or repeated value can never fall back to change_pick.
+  const hasReturnKey = params.returnPickId !== undefined;
+  const returnPickId = typeof params.returnPickId === 'string' && UUID_PATTERN.test(params.returnPickId) ? params.returnPickId : null;
+  const invalidReturnLink = hasReturnKey && !returnPickId;
+  // The originating thread is read back through the existing Pick lookup (the
+  // same read the thread screen uses). URL item/category/channel values are
+  // never trusted to describe the thread.
+  const threadQuery = usePickDetail(returnPickId ?? undefined, user?.id, Boolean(returnPickId));
   const choosePick = useChoosePick();
   const registerCommentPick = useRegisterItemPick();
   const saving = choosePick.isPending || registerCommentPick.isPending;
@@ -121,11 +133,21 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const isValidReview = trimmedReview.length >= 1 && trimmedReview.length <= 100;
   const hasReviewError = showReviewError && !isValidReview;
   const routeMatchesItem = !item || !params.categoryId || item.categoryId === params.categoryId;
-  // Only a valid return ID identifies the comment-originated flow.
-  const returnPickId = typeof params.returnPickId === 'string' && UUID_PATTERN.test(params.returnPickId) ? params.returnPickId : null;
+  // The comment thread must be about the very item, category and public food
+  // channel this screen would register. A mismatch or an unreadable thread is
+  // refused before any write; only a match lets the guarded save proceed.
+  const threadPick = threadQuery.data?.pick;
+  // 'item' leaves an unloaded/failed item to the existing item states; it is
+  // never 'match', so nothing can be saved meanwhile.
+  const threadBinding: 'none' | 'checking' | 'item' | 'match' | 'mismatch' | 'unverified' = !returnPickId ? 'none'
+    : threadQuery.isError ? 'unverified'
+      : !threadPick ? (threadQuery.isPending || threadQuery.isFetching ? 'checking' : 'unverified')
+        : !loadedItem ? 'item'
+          : threadPick.itemId === loadedItem.id && threadPick.categoryId === loadedItem.categoryId
+            && threadPick.channel === OnePickMvp.publicPickChannel && pickChannel === threadPick.channel ? 'match' : 'mismatch';
   // The existing atomic registration RPC currently supports food items only.
   // Do not change the regular /pick/choose behavior or unlaunched channels.
-  const atomicCommentRegistration = Boolean(returnPickId && itemQuery.data?.isRestaurant
+  const atomicCommentRegistration = Boolean(returnPickId && threadBinding === 'match' && itemQuery.data?.isRestaurant
     && pickChannel === OnePickMvp.publicPickChannel && !OnePickFeatures.purchaseLinks);
   // A lost response is a receipt check, not a new Pick or review edit.
   const checkingCommentReceipt = Boolean(returnPickId && commentAttempt.current && !savedChoice && !commentPickConflict);
@@ -144,6 +166,12 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!isValidUrl) return;
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
+    // Fail closed: a damaged comment link or an unconfirmed thread never writes.
+    if (invalidReturnLink) return;
+    if (returnPickId && threadBinding !== 'match') {
+      setCommentPickError('이 댓글과 같은 메뉴인지 확인하지 못했어요. 원픽은 저장하지 않았어요.');
+      return;
+    }
     if (returnPickId && !atomicCommentRegistration) {
       setCommentPickError('현재 이 댓글에서는 원픽 등록을 시작할 수 없어요. 댓글 화면으로 돌아가주세요.');
       return;
@@ -235,6 +263,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   };
   const openRecovery = (needsUsername: boolean) => {
     if (!item || !routeMatchesItem || isSessionLoading || sessionError || submitPhase.current === 'saving' || saving) return;
+    // A damaged comment link must not turn into an ordinary choose_pick intent.
+    if (invalidReturnLink || (returnPickId && threadBinding !== 'match')) return;
     // Comment-originated registration must not lose its guarded return intent.
     // Re-enter the same thread after authentication, then restart the guarded
     // selection instead of falling back to the ordinary change_pick route.
@@ -245,7 +275,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   };
   const openLogin = () => openRecovery(false);
   const isSuccess = savedChoice !== null;
-  const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending);
+  const isLoading = isSessionLoading || (!isSuccess && Boolean(params.itemId) && itemQuery.isPending)
+    || (!isSuccess && threadBinding === 'checking');
   const hasItem = !isLoading && !itemQuery.isError && Boolean(item) && routeMatchesItem;
   // No itemId: the card's own "사진 등록" shortcut leaves this screen and would drop
   // the typed review. Photos are added in step 1 below instead.
@@ -277,10 +308,36 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   };
   const skipPhoto = () => { photoOfferClosed.current = true; setPhotoOfferSkipped(true); };
 
+  // Ends a comment-origin entry that cannot be tied to its thread. This screen
+  // has no form and no save; only leaving (or re-reading the thread) remains.
+  const returnBlock = isSuccess || isSessionLoading ? null
+    : invalidReturnLink ? 'invalid' as const
+      : threadBinding === 'mismatch' || threadBinding === 'unverified' ? threadBinding : null;
+
   if (sessionError) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.stateArea}>
         <StateCard tone="danger" title="로그인 상태를 확인하지 못했어요." action={{ label: '다시 확인하기', variant: 'secondary', onPress: retrySession }} />
+      </View>
+    </SafeAreaView>;
+  }
+
+  if (returnBlock) {
+    return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.stateArea}>
+        <StateCard tone="danger"
+          title={returnBlock === 'invalid' ? '댓글에서 연 링크가 올바르지 않아요.'
+            : returnBlock === 'mismatch' ? '이 댓글과 다른 메뉴예요.' : '댓글 정보를 확인하지 못했어요.'}
+          text={returnBlock === 'unverified'
+            ? '원픽은 저장하지 않았어요. 연결 상태를 확인한 뒤 다시 확인해주세요.'
+            : '원픽은 저장하지 않았어요. 댓글 화면에서 다시 시작해주세요.'}
+          action={returnBlock === 'unverified'
+            ? { label: threadQuery.isFetching ? '다시 확인하는 중…' : '댓글 정보 다시 확인하기', variant: 'secondary',
+                disabled: threadQuery.isFetching, onPress: () => { if (!threadQuery.isFetching) void threadQuery.refetch(); } }
+            : undefined} />
+        {returnPickId
+          ? <Button variant="ghost" label="댓글 화면으로 돌아가기" onPress={backToComments} style={styles.centered} />
+          : <Button variant="ghost" label="돌아가기" onPress={goBack} style={styles.centered} />}
       </View>
     </SafeAreaView>;
   }
