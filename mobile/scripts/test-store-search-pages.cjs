@@ -14,6 +14,7 @@ function load(file, imports, globals = {}) {
   }).outputText, { exports, URL, ...globals, require: (name) => {
     if (name === 'react/jsx-runtime') return require(name);
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/lib/pick/registrationFooterLayout') return load('lib/pick/registrationFooterLayout.ts');
     assert.ok(name in imports, `Unexpected import ${name}`); return imports[name];
   } });
   return exports;
@@ -80,7 +81,7 @@ function screenHarness(service, serviceModule, routeParams = {}) {
   const mutation = (run = async () => null) => ({ isPending: false, isError: false, error: null, reset() {}, mutateAsync: run });
   const { default: Screen } = load('app/pick/new.tsx', {
     react: fakeReact, 'react-native': native,
-    'react-native-safe-area-context': { SafeAreaView: part('section') },
+    'react-native-safe-area-context': { SafeAreaView: part('section'), useSafeAreaInsets: () => ({ bottom: 0 }) },
     'expo-crypto': { randomUUID: () => 'pagination-request' },
     'expo-router': { useLocalSearchParams: () => routeParams,
       useRouter: () => ({ push() {}, replace() {}, back() {}, canGoBack: () => true }) },

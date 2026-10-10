@@ -2,11 +2,11 @@ import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, StateCard } from '@/components/ui';
 import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickLayout, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useItemDetail } from '@/hooks/useItemDetail';
@@ -17,6 +17,7 @@ import { PLACE_COVERAGE_NOTICE, type PickChannel } from '@/lib/items/pickChannel
 import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { pickDraftStore, type PickDraftStep, type RestoredPickDraft } from '@/lib/pick/pickDraft';
+import { registrationFooterPadding } from '@/lib/pick/registrationFooterLayout';
 import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { extractNaverMapUrl, isNaverMapUrl, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
@@ -138,6 +139,10 @@ function errorMessage(error: unknown) {
 
 export default function NewPickScreen() {
   const router = useRouter();
+  const { bottom: deviceBottomInset } = useSafeAreaInsets();
+  // SafeAreaView already reserves the device inset. Add only the remainder needed
+  // for the Figma 34px bottom clearance, avoiding double padding on iPhone.
+  const footerBottomPadding = registrationFooterPadding(OnePickLayout.safeAreaBottom, deviceBottomInset);
   const params = useLocalSearchParams<EntryParams>();
   const entryProviderId = entryId(params.providerId);
   const entryCategoryId = entryId(params.categoryId);
@@ -756,7 +761,7 @@ export default function NewPickScreen() {
                 : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러주세요.{'\n'}링크를 붙여넣으면 다음으로 넘어갈 수 있어요.</Text>}
             </View>}
           </View>
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
             {linkEntry
               ? !linkResult
                 ? <>
@@ -849,7 +854,7 @@ export default function NewPickScreen() {
             {selectItem.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(selectItem.error)}</Text> : null}
             {currentPickSlot.isError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(currentPickSlot.error)}</Text> : null}
           </View>
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
             <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
               disabled={!effectiveMenu || Boolean(preflight?.brand && !pickScope)}
               loading={selectItem.isPending} onPress={() => void confirmMenu(resumeStep ?? undefined)} />
@@ -878,7 +883,7 @@ export default function NewPickScreen() {
               </Pressable>}
             </View> : <StateCard compact title="사진을 등록했어요." />}
           </View>
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
             <FlowButton label="다음" disabled={needsPhoto && !photo} onPress={() => setStep(5)} />
           </View>
         </> : null}
@@ -901,7 +906,7 @@ export default function NewPickScreen() {
             {showReviewError && !reviewValid ? <Text accessibilityRole="alert" style={styles.error}>한줄평을 1~100자로 입력해주세요.</Text> : null}
             {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
           </View>
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
             {confirmReplacement && !pickChangedElsewhere ? <>
               <Text accessibilityRole="alert" style={styles.noticeText}>이 메뉴의 기존 원픽을 바꿀까요?{'\n'}새 원픽 · {pickDisplayName}</Text>
               <FlowButton label="원픽 바꾸기" loading={saving} disabled={step === 6}
@@ -945,7 +950,6 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     paddingTop: OnePickSpace.lg,
     paddingHorizontal: OnePickSpace.gutter,
-    paddingBottom: OnePickSpace.xxl,
   },
   stepMeta: { ...OnePickType.caption, color: OnePick.textSecondary },
   title: { ...OnePickType.pageTitle, color: OnePick.textPrimary },
