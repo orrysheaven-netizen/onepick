@@ -96,7 +96,7 @@ async function main() {
   assert.equal(usePickDetail().enabled, false);
 
   // Render the real screen with query results to verify who can see management controls.
-  const nativeComponent = (tag) => ({ children }) => React.createElement(tag, null, children);
+  const nativeComponent = (tag) => ({ children, accessibilityLabel }) => React.createElement(tag, accessibilityLabel ? { 'aria-label': accessibilityLabel } : null, children);
   const native = {
     ActivityIndicator: () => React.createElement('span', null, 'loading'),
     Pressable: nativeComponent('button'),
