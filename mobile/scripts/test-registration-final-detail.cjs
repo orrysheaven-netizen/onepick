@@ -27,7 +27,8 @@ function load(relative, inputs = {}) {
 // route replacement keeps the immutable saved Pick identity in the next screen.
 const registration = read('src/app/pick/new.tsx');
 assert.match(registration, /registration\.mutateAsync\(/);
-assert.match(registration, /requestId: requestId/);
+assert.match(registration, /const requestId = requestIdRef\.current \?\? Crypto\.randomUUID\(\)/);
+assert.match(registration, /requestId,\s*expectedPreviousPickId: expected/);
 assert.match(registration, /armPickSavedToast\(result\.pickId\)/);
 assert.match(registration, /router\.replace\(\{ pathname: '\/item\/\[itemId\]', params: \{ itemId: result\.itemId, pickId: result\.pickId \} \}\)/);
 assert.match(registration, /if \(!user \|\| !store \|\| !menu \|\| busy\.current \|\| saving\) return/);
