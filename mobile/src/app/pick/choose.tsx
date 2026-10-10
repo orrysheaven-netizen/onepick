@@ -194,9 +194,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   };
   const openRecovery = (needsUsername: boolean) => {
     if (!item || !routeMatchesItem || isSessionLoading || sessionError || submitPhase.current === 'saving' || saving) return;
-    // Pass only the existing validated navigation intent. No drafts or tokens in URLs.
-    router.push({ pathname: needsUsername ? '/auth/username' : '/auth/login',
-      params: { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
+    // Comment-originated registration must not lose its guarded return intent.
+    // Re-enter the same thread after authentication, then restart the guarded
+    // selection instead of falling back to the ordinary change_pick route.
+    const intent = returnPickId
+      ? { action: 'comment_pick', pickId: returnPickId }
+      : { action: 'choose_pick', itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) };
+    router.push({ pathname: needsUsername ? '/auth/username' : '/auth/login', params: intent });
   };
   const openLogin = () => openRecovery(false);
   const isSuccess = savedChoice !== null;

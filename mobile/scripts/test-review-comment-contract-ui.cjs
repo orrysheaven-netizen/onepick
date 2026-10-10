@@ -134,6 +134,8 @@ async function main() {
     'Unsupported comment-origin flows fail closed before reaching change_pick');
   assert.match(commentChoose, /published: result\.published/,
     'Registration receipt distinguishes a pending photo review from a commentable Pick');
+  assert.match(commentChoose, /const intent = returnPickId[\s\S]*?action: 'comment_pick', pickId: returnPickId[\s\S]*?action: 'choose_pick'/,
+    'Authentication recovery preserves comment intent rather than an unguarded choose_pick');
   assert.match(commentChoose, /const backToComments = \(\) => \{[\s\S]*?router\.dismissTo\(\{ pathname: '\/pick\/\[pickId\]', params: \{ pickId: returnPickId \} \}\)/,
     'Successful comment-origin registration always returns to the exact discussion');
   assert.doesNotMatch(commentChoose, /if \(router\.canGoBack\(\)\) router\.back\(\);\s*else router\.replace\(\{ pathname: '\/pick\/\[pickId\]'/,
