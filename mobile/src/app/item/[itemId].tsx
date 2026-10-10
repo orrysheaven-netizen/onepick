@@ -504,7 +504,11 @@ const styles = StyleSheet.create({
   },
   centered: { alignSelf: 'center' },
   toastOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
