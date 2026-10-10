@@ -294,7 +294,16 @@ begin
     select f.pick_id from private.profile_featured_picks f
     join public.picks p on p.id=f.pick_id
     where p.category_id=new.id
-       or (old.parent_id is distinct from new.parent_id)
+      or (
+        old.parent_id is distinct from new.parent_id
+        and exists (
+          select 1
+          from public.categories leaf
+          left join public.categories parent on parent.id=leaf.parent_id
+          where leaf.id=p.category_id
+            and (leaf.parent_id=new.id or parent.parent_id=new.id)
+        )
+      )
   loop
     perform private.featured_pick_unset_if_invalid(v_id);
   end loop;
