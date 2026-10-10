@@ -14,9 +14,9 @@ const compiled = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 });
 assert.equal((compiled.diagnostics ?? []).filter(d => d.category === ts.DiagnosticCategory.Error).length, 0);
-const exports = {};
-vm.runInNewContext(compiled.outputText, { exports }, { filename: file, timeout: 1000 });
-const { registrationFooterPadding } = exports;
+const compiledExports = {};
+vm.runInNewContext(compiled.outputText, { exports: compiledExports }, { filename: file, timeout: 1000 });
+const { registrationFooterPadding } = compiledExports;
 
 const referenceBottom = 34;
 for (const [deviceBottom, expectedPadding] of [
