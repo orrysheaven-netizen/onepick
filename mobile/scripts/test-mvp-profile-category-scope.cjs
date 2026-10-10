@@ -104,6 +104,32 @@ async function main() {
   });
   assert.equal((await capped.getProfileByUsername('mvp_profile_owner')).currentPicksComplete, false, 'past the safety cap the count is marked incomplete');
 
+  // #826 review: the cap is 20 × 100. Exactly 2,000 rows is complete; only a row past the
+  // cap marks the count incomplete (1999 / 2000 / 2001).
+  for (const [total, expected, calls] of [[1999, true, 20], [2000, true, 21], [2001, false, 21]]) {
+    const rowsAt = Array.from({ length: total }, (_, index) => ({
+      pick: { id: `b${index}`, status: 'active', updatedAt: `t${String(total - index).padStart(5, '0')}` },
+      category: { id: 'c', slug: 's', name: 'n' },
+      item: photo(`b${index}`),
+    }));
+    const boundaryCalls = [];
+    const boundary = new ProfileService(profileRepository, {
+      getPicks: async (input) => {
+        boundaryCalls.push(input);
+        const start = input.cursor ? rowsAt.findIndex((entry) => entry.pick.id === input.cursor.id) + 1 : 0;
+        return rowsAt.slice(start, start + input.limit);
+      },
+    });
+    const result = await boundary.getProfileByUsername('mvp_profile_owner');
+    assert.equal(result.currentPicks.length, Math.min(total, 2000), `${total} rows: at most the cap is loaded`);
+    assert.equal(result.currentPicksComplete, expected, `${total} rows: complete=${expected}`);
+    assert.equal(boundaryCalls.length, calls, `${total} rows: ${calls} reads`);
+    if (calls === 21) {
+      assert.equal(boundaryCalls[20].limit, 1, 'past the cap only one row is read to decide');
+      assert.equal(boundaryCalls[20].cursor.id, rowsAt[1999].pick.id, 'the probe continues after the last loaded row');
+    }
+  }
+
   const ownerScreen = read('src/app/(tabs)/(profile)/profile.tsx');
   const publicScreen = read('src/app/(tabs)/(profile)/u/[username].tsx');
   const labScreen = read('src/app/lab/[username].tsx');

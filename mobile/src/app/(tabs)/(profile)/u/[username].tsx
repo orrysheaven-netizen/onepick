@@ -242,7 +242,7 @@ export default function PublicProfileScreen() {
         needsLink = true;
       }
       if (!needsLink) return;
-      await shareProfile({ username: profile.username, pickCount: currentPicks.length });
+      await shareProfile({ username: profile.username, pickCount: currentPicks.length, pickCountComplete: query.data.currentPicksComplete });
     } catch {
       setShareError(true);
     } finally {

@@ -218,6 +218,21 @@ function legacyPickChannel(item: PickReadItem): PickChannel {
   return (['offline', 'online', 'recipe'] as const).find((channel) => itemChannels.includes(channel)) ?? 'online';
 }
 
+/**
+ * Whether a current Pick is one a visitor sees on the public profile: active, with a
+ * reviewed photo (the same rule as `ProfileService.getProfileByUsername`). My own
+ * profile also lists Picks awaiting review and photo-less legacy Picks so I can manage
+ * them, but what I share counts only these (#826 GPT review). A candidate photo laid
+ * over my own Pick while it waits for review does not count.
+ */
+export function isPublicProfilePick(item: PickReadItem) {
+  const photo = item.item;
+  return item.pick.status === 'active'
+    && !photo?.photoPendingReview
+    && [photo?.imagePath, photo?.imageUrl, photo?.thumbnailUrl, photo?.imageSourceUrl]
+      .some((value) => typeof value === 'string' && value.trim().length > 0);
+}
+
 export function filterMvpProfilePicks(
   picks: PickReadItem[],
   categories: Category[],

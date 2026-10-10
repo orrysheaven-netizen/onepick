@@ -172,13 +172,13 @@ async function main() {
   );
   assert.match(
     profileSource,
-    /shareProfile\({ username: profile\.username, pickCount: profilePicks\.length }\)/,
-    'the owner profile must share the early-MVP food count used by the public profile',
+    /shareProfile\({ username: profile\.username, pickCount: profilePicks\.filter\(isPublicProfilePick\)\.length, pickCountComplete: currentPicksComplete }\)/,
+    'the owner profile must share the early-MVP food count visitors see on the public profile',
   );
   assert.match(profileSource, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/, 'the owner profile exposes its direct share CTA');
   assert.match(
     publicProfileSource,
-    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
+    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length, pickCountComplete: query\.data\.currentPicksComplete }\)/,
     'the public profile fallback must share the loaded username and current Pick count',
   );
   assert.match(publicProfileSource, /accessibilityLabel="프로필 공유"/, 'the public profile must expose a share CTA (header icon, #757)');
@@ -206,7 +206,11 @@ async function main() {
 
     await shareProfile({ username: 'First_User', pickCount: 5 });
     assert.equal(sharePayload.url, 'https://onepick.example/u/first_user');
-    assert.match(sharePayload.message, /음식 원픽 5개/);
+    assert.match(sharePayload.message, /음식 원픽 5개\n/);
+    await shareProfile({ username: 'First_User', pickCount: 2000, pickCountComplete: false });
+    assert.match(sharePayload.message, /음식 원픽 2000개 이상/, 'a capped count is shared as a lower bound, like the header N+');
+    await shareProfile({ username: 'First_User', pickCount: 2000, pickCountComplete: true });
+    assert.match(sharePayload.message, /음식 원픽 2000개\n/);
     assert.match(sharePayload.message, /https:\/\/onepick\.example\/u\/first_user/);
   } finally {
     if (oldShareBase === undefined) delete process.env.EXPO_PUBLIC_SHARE_BASE_URL;

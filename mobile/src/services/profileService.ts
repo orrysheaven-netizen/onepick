@@ -21,6 +21,8 @@ function itemHasVisiblePhoto(item: Item | null | undefined) {
     .some((value) => typeof value === 'string' && value.trim().length > 0);
 }
 
+// Keep in step with `isPublicProfilePick` (lib/profile/profilePickGroups), which the
+// owner screen uses to count what visitors see.
 function visibleCurrentPicks<T extends { item: Item | null }>(rows: T[]) {
   return rows.filter((row) => itemHasVisiblePhoto(row.item));
 }
@@ -67,7 +69,8 @@ export class ProfileService {
   /**
    * Every current Pick, not just the first page: the profile's 원픽 N is the full count
    * of the shown scope (#757 A). Pages of 100 by (updated_at, id); `complete` is false
-   * only past the safety cap, so the count can say so instead of passing as exact.
+   * only when a row exists past the safety cap, so the count can say so instead of
+   * passing as exact. Exactly cap × page rows is still complete.
    */
   private async getAllCurrentPicks(userId: string, statuses: ('active' | 'needs_review')[]) {
     const rows: PickReadItem[] = [];
@@ -85,7 +88,9 @@ export class ProfileService {
       if (batch.length < CURRENT_PICK_PAGE_SIZE || !last) return { rows, complete: true };
       cursor = { timestamp: last.updatedAt, id: last.id };
     }
-    return { rows, complete: false };
+    // The last page was full: look one row past the cap before calling the list incomplete.
+    const beyond = await this.readRepository.getPicks({ userId, statuses, orderBy: 'updated_at', cursor, limit: 1 });
+    return { rows, complete: beyond.length === 0 };
   }
 
   /**

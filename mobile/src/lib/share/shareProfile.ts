@@ -9,11 +9,15 @@ function isAbort(error: unknown) {
     && (error as { name?: string }).name === 'AbortError');
 }
 
-export async function shareProfile(input: { username: string; pickCount: number }): Promise<ShareProfileResult> {
+/**
+ * `pickCountComplete: false` means the count stopped at the profile's safety cap (shown
+ * as `N+` there), so the message says "N개 이상" instead of passing as exact.
+ */
+export async function shareProfile(input: { username: string; pickCount: number; pickCountComplete?: boolean }): Promise<ShareProfileResult> {
   const url = createProfileShareUrl(input.username);
   const message = [
     `@${input.username}의 OnePick`,
-    `음식 원픽 ${input.pickCount}개`,
+    `음식 원픽 ${input.pickCount}개${input.pickCountComplete === false ? ' 이상' : ''}`,
     '',
     url,
   ].join('\n');

@@ -169,4 +169,17 @@ assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
 assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
 
+// #826 GPT review: the owner's share counts only what visitors see — active, with a
+// reviewed photo. Awaiting review, photo-less, or a pending candidate photo does not count.
+{
+  const shown = (status, item) => ({ pick: { id: 'p', status }, item });
+  const photo = { imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: 'https://onepick.test/a.jpg' };
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo)), true, 'active with a photo is public');
+  assert.equal(grouping.isPublicProfilePick(shown('needs_review', photo)), false, 'awaiting review is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: '  ' })), false, 'blank photo fields are not a photo');
+  assert.equal(grouping.isPublicProfilePick(shown('active', null)), false, 'no item is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: null, imageUrl: 'https://onepick.test/c.jpg', photoPendingReview: true })), false,
+    'my own candidate photo overlay does not make a Pick public');
+}
+
 console.log('Profile Pick groups checks passed: grouping helpers remain for library use while Figma 03 owner and Figma 40 public profiles use direct compact rows.');

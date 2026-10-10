@@ -19,7 +19,7 @@ import { useExploreCategories } from '@/hooks/useExploreData';
 import { usePublicFollowCounts } from '@/hooks/useFollow';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useMyPickHistory, useMyItemRequests } from '@/hooks/useMyProfileLists';
-import { filterMvpProfilePicks } from '@/lib/profile/profilePickGroups';
+import { filterMvpProfilePicks, isPublicProfilePick } from '@/lib/profile/profilePickGroups';
 import { profileDisplayName, profileHandle } from '@/lib/profile/profileName';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -112,7 +112,8 @@ export default function ProfileScreen() {
     setIsSharingProfile(true);
     setProfileShareError(false);
     try {
-      await shareProfile({ username: profile.username, pickCount: profilePicks.length });
+      // Share what visitors see: my list also keeps Picks awaiting review and photo-less ones.
+      await shareProfile({ username: profile.username, pickCount: profilePicks.filter(isPublicProfilePick).length, pickCountComplete: currentPicksComplete });
     } catch {
       setProfileShareError(true);
     } finally {

@@ -67,8 +67,8 @@ assert.ok(headerIndex >= 0 && identityIndex > headerIndex && actionsIndex > iden
 assert.match(owner, /accessibilityLabel="설정 열기" onPress=\{\(\) => router\.push\('\/settings'\)\}/);
 assert.match(owner, /<Button variant="secondary" size="sm" label="프로필 편집"/);
 assert.match(owner, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/);
-assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: profilePicks\.length \}\)/,
-  'Owner share uses the same early-MVP food count as the list and the public profile');
+assert.match(owner, /shareProfile\(\{ username: profile\.username, pickCount: profilePicks\.filter\(isPublicProfilePick\)\.length, pickCountComplete: currentPicksComplete \}\)/,
+  'Owner share counts the early-MVP food Picks visitors see (active, reviewed photo) and keeps the cap marker');
 assert.match(owner, /\{profileTab === 'picks' \? <View style=\{styles\.tabBody\}>/, 'Tab row stays even with zero Picks');
 assert.match(owner, /hasOpenedEditor \? <View style=\{\[styles\.editor, !isEditingProfile && styles\.hidden\]\}>\s*<ProfileBioEditor/,
   'The editor stays mounted once opened so closing 프로필 편집 keeps an unsaved draft');
