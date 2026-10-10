@@ -112,7 +112,8 @@ declare
   v_user uuid := auth.uid();
   v_limit integer := least(greatest(coalesce(p_limit,30),1),50);
   v_items jsonb;
-  v_last record;
+  v_last_started_at timestamptz;
+  v_last_id uuid;
   v_has_more boolean;
 begin
   if v_user is null then raise exception 'AUTH_REQUIRED' using errcode='P0001'; end if;
@@ -138,12 +139,13 @@ begin
   select
     coalesce((select jsonb_agg(card order by started_at desc,id desc) from page),'[]'::jsonb),
     (select count(*) > v_limit from candidates),
-    (select row(started_at,id) from page order by started_at,id limit 1)
-  into v_items,v_has_more,v_last;
+    (select started_at from page order by started_at,id limit 1),
+    (select id from page order by started_at,id limit 1)
+  into v_items,v_has_more,v_last_started_at,v_last_id;
 
   return jsonb_build_object('items',v_items,'next_cursor',
     case when v_has_more then
-      jsonb_build_object('started_at',v_last.started_at,'id',v_last.id)
+      jsonb_build_object('started_at',v_last_started_at,'id',v_last_id)
     else null end
   );
 end;
@@ -184,12 +186,15 @@ begin
     end if;
     -- Lock scope before Pick to avoid reading eligibility during publication changes.
     perform 1 from public.categories
-      where id = v_pick_lookup.category_id for update;
+      where id = v_pick_lookup.category_id for share;
     perform 1 from public.items
-      where id = v_pick_lookup.item_id for update;
+      where id = v_pick_lookup.item_id for share;
     select * into v_pick from public.picks
       where id = p_pick_id and user_id = v_user for update;
-    if not found or not private.featured_pick_content_eligible(v_pick) then
+    if not found
+       or v_pick.item_id is distinct from v_pick_lookup.item_id
+       or v_pick.category_id is distinct from v_pick_lookup.category_id
+       or not private.featured_pick_content_eligible(v_pick) then
       raise exception 'FEATURED_PICK_INELIGIBLE' using errcode='P0001';
     end if;
   end if;
