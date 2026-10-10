@@ -45,7 +45,7 @@ assert.equal(load('lib/items/pickSavedToast.ts').consumePickSavedToast('pick-123
 // The detail displays completed content first, without showing toast on mount.
 // The user must press 完了/완료 to display the transient centered toast.
 const detail = read('src/app/item/[itemId].tsx');
-assert.match(detail, /const \[hasCompletionReceipt\] = useState\(\(\) => consumePickSavedToast\(focusPickId\)\)/);
+assert.match(detail, /const \[hasCompletionReceipt\] = useState\(\(\) => Boolean\(!isSessionLoading && user && consumePickSavedToast\(focusPickId\)\)\)/);
 assert.match(detail, /const \[pickSavedToast, setPickSavedToast\] = useState\(false\)/);
 assert.match(detail, /const onCompleteRegistration = \(\) => \{[\s\S]*?setCompletionAcknowledged\(true\);\s*setPickSavedToast\(true\);\s*\}/);
 assert.match(detail, /<Button label="완료" disabled=\{completionAcknowledged\} onPress=\{onCompleteRegistration\} \/>/);
