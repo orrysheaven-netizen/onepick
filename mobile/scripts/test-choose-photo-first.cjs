@@ -15,6 +15,16 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    // The choose screen imports these only for comment-origin registration;
+    // preserve every existing test hook while rejecting unexpected new writes.
+    if (name === 'expo-crypto') return { randomUUID: () => '11111111-1111-4111-8111-111111111111' };
+    if (name === '@/hooks/useRegisterPick') {
+      const hooks = imports[name] ?? {};
+      return { ...hooks, useRegisterItemPick: hooks.useRegisterItemPick ?? (() => ({
+        isPending: false, error: null,
+        mutateAsync: async () => { throw new Error('unexpected comment-origin registration'); },
+      })) };
+    }
     if (name in imports) return imports[name];
     // Pure channel helpers of the choose screen load as-is.
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
