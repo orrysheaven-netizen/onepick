@@ -44,10 +44,11 @@ function getCommentErrorMessage(error: unknown) {
  * login/signup) opens that popup once on arrival. The server-provided `canWrite`
  * covers review authors as well as members with the same current Pick.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, onPickFirst, autoOpenPickFirst = false, onPickFirstAutoOpened, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, isReviewDeleted = false, onPickFirst, autoOpenPickFirst = false, onPickFirstAutoOpened, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
+  isReviewDeleted?: boolean;
   onPickFirst?: () => void;
   autoOpenPickFirst?: boolean;
   onPickFirstAutoOpened?: () => void;
@@ -58,14 +59,15 @@ export function PickReplies({ pickId, compact = false, canWrite = true, onPickFi
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} onPickFirstAutoOpened={onPickFirstAutoOpened} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} isReviewDeleted={isReviewDeleted} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} onPickFirstAutoOpened={onPickFirstAutoOpened} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, autoOpenPickFirst, onPickFirstAutoOpened, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, isReviewDeleted, onPickFirst, autoOpenPickFirst, onPickFirstAutoOpened, focusCommentId, initialCursor, onFocusLoaded }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
   canWrite: boolean;
+  isReviewDeleted: boolean;
   onPickFirst?: () => void;
   autoOpenPickFirst: boolean;
   onPickFirstAutoOpened?: () => void;
@@ -95,7 +97,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, autoOpen
     if (focusedCommentLoaded) onFocusLoaded?.();
   }, [focusedCommentLoaded, onFocusLoaded]);
 
-  const canPickFirst = Boolean(onPickFirst && user && !compact);
+  const canPickFirst = Boolean(!isReviewDeleted && onPickFirst && user && !compact);
   useEffect(() => {
     if (!autoOpenPickFirst || !canPickFirst || pickFirstAutoOpened.current) return;
     pickFirstAutoOpened.current = true;
@@ -336,8 +338,8 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, autoOpen
                     </Pressable>
                   </View>
                 ) : loginPrompt
-              ) : compact ? null : !user && !isSessionLoading && !sessionError ? loginPrompt
-              : user && onPickFirst ? (
+              ) : compact ? null : !user && !isReviewDeleted && !isSessionLoading && !sessionError ? loginPrompt
+              : user && !isReviewDeleted && onPickFirst ? (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setPickFirstOpen(true)}
@@ -348,7 +350,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, onPickFirst, autoOpen
               ) : (
                 <Text style={styles.historyCommentNotice}>지금은 댓글을 남길 수 없는 한줄평이에요.</Text>
               )}
-              {onPickFirst ? <Modal visible={pickFirstOpen} transparent animationType="fade" onRequestClose={() => setPickFirstOpen(false)}>
+              {onPickFirst && !isReviewDeleted ? <Modal visible={pickFirstOpen} transparent animationType="fade" onRequestClose={() => setPickFirstOpen(false)}>
                 <View style={styles.popupBackdrop}>
                   <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 안내 닫기" onPress={() => setPickFirstOpen(false)} style={StyleSheet.absoluteFill} />
                   <View accessibilityViewIsModal style={styles.popup}>

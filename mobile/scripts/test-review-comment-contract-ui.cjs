@@ -90,6 +90,8 @@ async function main() {
   const replies = source('components/pick-replies.tsx');
   assert.doesNotMatch(replies, /usePickDetail/, 'Conversation permission must not re-read Pick lifecycle state');
   assert.match(replies, /const canComment = canWrite && !isSessionLoading && !sessionError/);
+  assert.match(replies, /!user && !isReviewDeleted && !isSessionLoading && !sessionError \? loginPrompt/,
+    'Deleted review never offers an impossible guest-login CTA');
   assert.doesNotMatch(replies, /ownReview/, 'Review owners keep their approved top-level comment and reply composer');
   assert.match(replies, /!isReply && canComment && !deleted \?/, 'Eligible review owners may reply under their own comments');
   assert.match(replies, /parentCommentId: replyingTo\?\.id \?\? null/);
@@ -115,6 +117,8 @@ async function main() {
   assert.doesNotMatch(pickDetail, /✓ 이 집 원픽|✓ 원픽/);
   assert.match(pickDetail, /itemQuery\.data\.isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
     'Comment prompt is restricted to supported food/offline scope');
+  assert.match(pickDetail, /isReviewDeleted=\{Boolean\(focused\.pick\.isDeleted\)\}/,
+    'Review deletion is explicitly passed to the thread component');
   assert.match(pickDetail, /myPickStatus\.type === 'not_selected'/,
     'Comment CTA must not route selected_other into an unconfirmed replacement');
   const commentChoose = source('app/pick/choose.tsx');

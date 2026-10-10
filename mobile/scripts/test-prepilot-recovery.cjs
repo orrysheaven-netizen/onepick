@@ -304,6 +304,18 @@ async function main() {
     c.auth.user = null; c.view.render({ pickId: 'pick' });
     assert.equal(deleteButtons().length, 0, 'Signed-out readers cannot delete');
   });
+  await check('Deleted review never invites guests to log in for comments', async () => {
+    const c = replies();
+    c.auth.user = null;
+    c.comments.data = [];
+    const deleted = c.view.render({ pickId: 'pick', canWrite: false, isReviewDeleted: true });
+    assert.doesNotMatch(deleted, /로그인하고 댓글 남기기/);
+    assert.match(deleted, /지금은 댓글을 남길 수 없는 한줄평이에요/);
+    assert.ok(!c.view.nodes().some((node) => node.props?.accessibilityLabel === '댓글 입력'));
+    const normal = c.view.render({ pickId: 'pick', canWrite: false, isReviewDeleted: false });
+    assert.match(normal, /로그인하고 댓글 남기기/,
+      'Normal public reviews still allow sign-in to seek commenting eligibility');
+  });
   await check('Comment-origin offline save uses expected-null and returns to exact thread', async () => {
     const c = commentChoice(); c.draft();
     c.view.button('내 원픽으로 고르기').onPress(); await flush();
