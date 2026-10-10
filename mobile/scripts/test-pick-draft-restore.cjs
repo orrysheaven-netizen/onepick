@@ -245,7 +245,7 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStore, menuOptionsQuery, aiQuery;
+let auth, calls, detail, selectResult, selectFails, currentSlotFails, choosePhotoResult, draftStore, menuOptionsQuery, aiQuery;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
@@ -260,7 +260,7 @@ const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBa
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
   '@/hooks/useRegisterPick': {
     useChoosePhoto: () => mutation('choosePhoto', () => choosePhotoResult),
-    useReadCurrentPickSlot: () => mutation('currentSlot', () => null),
+    useReadCurrentPickSlot: () => mutation('currentSlot', () => { if (currentSlotFails) throw new AppError('INTERNAL_ERROR'); return null; }),
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
   },
   '@/hooks/useLinkCategorySuggestions': { useLinkCategorySuggestions: () => ({
@@ -294,6 +294,7 @@ function reset(backend = sessionBackend()) {
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
   selectFails = false;
+  currentSlotFails = false;
   choosePhotoResult = { ...photo };
   menuOptionsQuery = menusLoaded();
   aiQuery = { data: undefined, isPending: true, isFetching: false, isError: false };
@@ -405,6 +406,14 @@ async function screenTests() {
   assert.match(page, /사진을 다시 선택해주세요/);
   assert.equal(isDisabled('다음'), true, 'required photo cannot be skipped');
   assert.equal(count('register'), 0);
+  // #862 / #861 M4: a successful server re-check must consume resumeStep.
+  // With a missing photo, the visible photo step (4) must replace the old
+  // review target (5) in persistent storage, or the next restore would skip it.
+  assert.equal(draftStore.load('owner').step, 4,
+    'successful resume clears the old review target when a photo is missing');
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '3', 'a second restore remains on the required photo step');
+  assert.equal(draftStore.load('owner').step, 4, 'the photo step persists after another restore');
   choosePhotoResult = { ...photo };
   press('사진 고르기'); await flush(); page = await render();
   assert.doesNotMatch(page, /사진을 다시 선택해주세요/);
@@ -642,6 +651,29 @@ async function screenTests() {
   press('다음'); await flush(); page = await render();
   assert.equal(stepOf(page), '4', 'retry returns to saved review');
   assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+
+  // 12a. Failure to read the current Pick slot after item selection must keep
+  //      the original restore target until a successful retry. No auto-submit.
+  reset();
+  await writeUntilReview();
+  const slotsBeforeFailure = count('currentSlot');
+  // A generic slot-read failure (INTERNAL_ERROR), not a concurrent Pick change.
+  currentSlotFails = true;
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'slot read failure leaves the menu to retry');
+  assert.ok(count('currentSlot') > slotsBeforeFailure, 'the failing slot read was attempted');
+  assert.equal(draftStore.load('owner').step, 5, 'failure does not consume the review resume target');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD', 'failure keeps the photo');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요', 'failure keeps the review');
+  assert.equal(count('register'), 0, 'failure never submits a Pick');
+  const slotsAfterFailure = count('currentSlot');
+  currentSlotFails = false;
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'successful slot retry restores the review step');
+  assert.ok(count('currentSlot') > slotsAfterFailure, 'slot retry re-reads current state');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+  assert.equal(count('register'), 0, 'retry does not auto-submit');
 
   // 12b. A brand-scope wait keeps the step; changing scope still requires
   //      a fresh photo as before, without losing the review.
