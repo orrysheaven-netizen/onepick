@@ -109,6 +109,51 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await api.checkMenuSelection(page, '도가니탕', timeout);
       assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
     });
+    await t.test('empty AI recommendation permits an unknown menu without submitting', async () => {
+      const name = 'QA미분류검증메뉴20261010';
+      let calls = 0;
+      await context.route(api.SUGGESTION_ROUTE, async (route) => {
+        calls += 1;
+        const req = route.request().postDataJSON();
+        assert.equal(req.store.menuName, name);
+        await route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({ suggestions: [], needsNewCategory: true }),
+        });
+      });
+      try {
+        await set(menu('추천 중', true));
+        const input = page.getByRole('textbox', { name: '메뉴 이름', exact: true });
+        await input.evaluate((element) => {
+          element.addEventListener('input', async () => {
+            const response = await fetch('/functions/v1/suggest-item-categories', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ store: { menuName: element.value } }),
+            });
+            const result = await response.json();
+            if (result.needsNewCategory && result.suggestions.length === 0) {
+              document.querySelector('button').disabled = false;
+              document.getElementById('classification').textContent = '메뉴를 확인했어요. 다음으로 넘어가주세요.';
+            }
+          }, { once: true });
+        });
+        await input.fill(name);
+        await page.getByText(successCopy, { exact: true }).waitFor({ state: 'visible', timeout });
+        await api.checkUnclassifiedMenuNext(page, name, timeout);
+        assert.equal(calls, 1, 'empty AI response must actually be intercepted');
+        assert.equal(await input.inputValue(), name);
+        assert.equal(await page.evaluate(() => Boolean(window.submitted)), false, 'trial click cannot submit');
+      } finally {
+        await context.unroute(api.SUGGESTION_ROUTE);
+      }
+      await set(menu(successCopy, true));
+      await page.getByRole('textbox', { name: '메뉴 이름' }).fill(name);
+      await assert.rejects(api.checkUnclassifiedMenuNext(page, name, timeout), 'disabled Next cannot pass');
+      await set(menu(successCopy));
+      await page.getByRole('textbox', { name: '메뉴 이름' }).fill('다른 메뉴');
+      await assert.rejects(api.checkUnclassifiedMenuNext(page, name, timeout), /유지되지/);
+      assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
+    });
     await t.test('missing, loading, unresolved and legacy category choices cannot pass', async () => {
       for (const copy of ['', '분류 중', '메뉴를 분류하지 못했어요.', '<button>도가니탕</button>', '<button>AI 추천 도가니탕</button>']) {
         await set(menu(copy));

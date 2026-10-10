@@ -194,6 +194,17 @@ export async function checkMenuSelection(page, menuName, timeout = 15_000) {
   await page.getByRole('button', { name: '다음', exact: true }).click({ trial: true, timeout });
 }
 
+// The caller must first observe the *specific* empty/failed AI classification
+// response for an unknown menu; an enabled Next button alone cannot prove that
+// the fallback path was exercised. This helper never presses the real button.
+export async function checkUnclassifiedMenuNext(page, menuName, timeout = 15_000) {
+  await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout });
+  const input = page.getByRole('textbox', { name: '메뉴 이름', exact: true });
+  if (await input.inputValue() !== menuName) throw new Error('미분류 메뉴명이 입력란에 유지되지 않음');
+  await page.getByRole('button', { name: '다음', exact: true }).click({ trial: true, timeout });
+  if (await input.inputValue() !== menuName) throw new Error('미분류 메뉴명이 다음 버튼 검사 중 변경됨');
+}
+
 function homeSearchDialog(page) {
   return page.getByRole('heading', { name: '어떤 메뉴를 찾으세요?', exact: true }).locator('..');
 }
