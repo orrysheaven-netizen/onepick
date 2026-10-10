@@ -374,6 +374,7 @@ async function main() {
     c.setLatestStatus({ type: 'selected_other', currentPickId: 'other', currentItemId: 'different' });
     c.view.button('내 원픽으로 고르기').onPress(); await flush();
     assert.equal(c.registrationWrites.length, 0);
+    c.view.render();
     assert.equal(c.view.button('내 원픽으로 고르기').disabled, true);
     c.view.button('댓글 화면으로 돌아가기').onPress();
     assert.equal(c.destinations.at(-1).route.params.pickId, c.returnPickId);

@@ -42,7 +42,7 @@ const itemId = 'a1111111-1111-4111-8111-111111111111';
 const categoryId = 'b2222222-2222-4222-8222-222222222222';
 const { AppError } = load('errors/appError.ts');
 
-let states, stateIndex, buttons, inputs, photoStep, photoCards, destinations;
+let states, stateIndex, refs, refIndex, buttons, inputs, photoStep, photoCards, destinations;
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
   Image: (props) => React.createElement('img', { alt: props.accessibilityLabel }),
@@ -58,7 +58,11 @@ const fakeReact = { ...React,
     return [owner[index], (value) => { owner[index] = typeof value === 'function' ? value(owner[index]) : value; }];
   },
   useMemo: (compute) => compute(),
-  useRef: (initial) => ({ current: initial ?? { focus() {} } }),
+  useRef: (initial) => {
+    const index = refIndex++;
+    if (!(index in refs)) refs[index] = { current: index === 1 ? { focus() {} } : initial };
+    return refs[index];
+  },
 };
 const PickPhoto = (props) => { photoCards.push(props); return null; };
 const PickPhotoStep = (props) => { photoStep = props; return React.createElement('aside', null, 'PHOTO-STEP'); };
@@ -86,10 +90,10 @@ function arrange(item, status = { type: 'not_selected' }) {
   query = { isPending: false, isError: false, isFetching: false, refetch: async () => { refetches++; },
     data: { item: { id: itemId, categoryId, name: '을밀대', status: 'active', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null, ...item },
       canChoose: true, myPickStatus: status } };
-  states = []; destinations = [];
+  states = []; refs = []; destinations = [];
 }
 function render() {
-  stateIndex = 0; buttons = []; inputs = []; photoStep = undefined; photoCards = [];
+  stateIndex = 0; refIndex = 0; buttons = []; inputs = []; photoStep = undefined; photoCards = [];
   return renderToStaticMarkup(Choose());
 }
 const review = () => inputs.find((props) => props.accessibilityLabel === '원픽 한줄평');

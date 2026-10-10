@@ -147,7 +147,7 @@ async function main() {
 
   // A product change starts with a blank review. The action must explain what is
   // missing instead of silently disabling itself or copying the previous reason.
-  let chooseStates = [], chooseStateIndex = 0, reviewFocuses = 0;
+  let chooseStates = [], chooseStateIndex = 0, chooseRefs = [], chooseRefIndex = 0, reviewFocuses = 0;
   const chosenInputs = [];
   const choiceMutation = { isPending: false, mutateAsync: async (input) => { chosenInputs.push(input); return input; } };
   const { default: ChangeChoice } = loadSource('app/pick/choose.tsx', {
@@ -158,12 +158,16 @@ async function main() {
         if (!(index in chooseStates)) chooseStates[index] = initial;
         return [chooseStates[index], (value) => { chooseStates[index] = value; }];
       },
-      useRef: () => ({ current: { focus: () => reviewFocuses++ } }),
+      useRef: (initial) => {
+        const index = chooseRefIndex++;
+        if (!(index in chooseRefs)) chooseRefs[index] = { current: index === 1 ? { focus: () => reviewFocuses++ } : initial };
+        return chooseRefs[index];
+      },
     },
     '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
-  const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
+  const renderChoice = () => { chooseStateIndex = 0; chooseRefIndex = 0; return render(ChangeChoice); };
   const changeButton = () => presses.find((p) => p.accessibilityLabel === '원픽 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');

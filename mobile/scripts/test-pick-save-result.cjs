@@ -39,7 +39,7 @@ const itemId = 'a1111111-1111-4111-8111-111111111111';
 const categoryId = 'b2222222-2222-4222-8222-222222222222';
 const newPickId = 'c3333333-3333-4333-8333-333333333333';
 const { AppError } = load('errors/appError.ts');
-let auth, params, query, mutation, result, states, stateIndex, mountedKey;
+let auth, params, query, mutation, result, states, stateIndex, refs, refIndex, mountedKey;
 let buttons, input, inputs, destinations, attempts, mode, pending, retries = 0;
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
@@ -59,7 +59,11 @@ const { default: Choose } = load('app/pick/choose.tsx', {
       return [owner[index], (value) => { owner[index] = typeof value === 'function' ? value(owner[index]) : value; }];
     },
     useMemo: (compute) => compute(),
-    useRef: () => ({ current: { focus() {} } }),
+    useRef: (initial) => {
+      const index = refIndex++;
+      if (!(index in refs)) refs[index] = { current: index === 1 ? { focus() {} } : initial };
+      return refs[index];
+    },
   },
   'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({
     replace: (route) => destinations.push({ action: 'replace', route }),
@@ -82,7 +86,7 @@ function arrange(status = { type: 'not_selected' }) {
   } };
   result = { id: status.type === 'selected_this' ? status.pickId : newPickId,
     userId: 'owner', itemId, categoryId, status: 'active', oneLineReview: '서버에서 확인한 나의 한줄평' };
-  states = []; stateIndex = 0; mountedKey = null;
+  states = []; refs = []; stateIndex = 0; mountedKey = null;
   destinations = []; attempts = []; mode = 'success'; pending = null;
   mutation = { isPending: false, isError: false, error: null, mutateAsync: async (payload) => {
     attempts.push(payload); mutation.isPending = true; mutation.isError = false;
@@ -96,8 +100,8 @@ function arrange(status = { type: 'not_selected' }) {
 }
 function render() {
   const element = Choose();
-  if (element.key !== mountedKey) { mountedKey = element.key; states = []; }
-  stateIndex = 0; buttons = []; inputs = []; input = undefined;
+  if (element.key !== mountedKey) { mountedKey = element.key; states = []; refs = []; }
+  stateIndex = 0; refIndex = 0; buttons = []; inputs = []; input = undefined;
   return renderToStaticMarkup(element);
 }
 function button(label) {

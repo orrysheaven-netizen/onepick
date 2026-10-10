@@ -43,7 +43,7 @@ const itemId = 'a1111111-1111-4111-8111-111111111111';
 const categoryId = 'b2222222-2222-4222-8222-222222222222';
 const { AppError } = load('errors/appError.ts');
 
-let auth, params, query, mutation, states, stateIndex, mountedKey;
+let auth, params, query, mutation, states, stateIndex, refs, refIndex, mountedKey;
 let buttons, inputs, attempts;
 const native = {
   View: part('div'), Text: part('span'), ScrollView: part('main'), ActivityIndicator: () => null,
@@ -60,7 +60,11 @@ const { default: Choose } = load('app/pick/choose.tsx', {
       return [owner[index], (value) => { owner[index] = typeof value === 'function' ? value(owner[index]) : value; }];
     },
     useMemo: (compute) => compute(),
-    useRef: () => ({ current: { focus() {} } }),
+    useRef: (initial) => {
+      const index = refIndex++;
+      if (!(index in refs)) refs[index] = { current: index === 1 ? { focus() {} } : initial };
+      return refs[index];
+    },
   },
   'expo-router': { useLocalSearchParams: () => params, useRouter: () => ({ replace() {}, push() {}, back() {}, canGoBack: () => true }) },
   'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
@@ -79,7 +83,7 @@ function arrange(status = { type: 'not_selected' }) {
     item: { id: itemId, categoryId, name: '진라면', status: 'active', thumbnailUrl: null, imageUrl: 'https://image.test/item.jpg' },
     canChoose: true, myPickStatus: status,
   } };
-  states = []; stateIndex = 0; mountedKey = null; attempts = [];
+  states = []; refs = []; stateIndex = 0; mountedKey = null; attempts = [];
   mutation = { isPending: false, isError: false, error: null, mutateAsync: async (payload) => {
     attempts.push(payload);
     return { id: 'pick-1', userId: 'owner', itemId, categoryId, status: 'active',
@@ -88,8 +92,8 @@ function arrange(status = { type: 'not_selected' }) {
 }
 function render() {
   const element = Choose();
-  if (element.key !== mountedKey) { mountedKey = element.key; states = []; }
-  stateIndex = 0; buttons = []; inputs = [];
+  if (element.key !== mountedKey) { mountedKey = element.key; states = []; refs = []; }
+  stateIndex = 0; refIndex = 0; buttons = []; inputs = [];
   return renderToStaticMarkup(element);
 }
 const field = (label) => inputs.find((props) => props.accessibilityLabel === label);
