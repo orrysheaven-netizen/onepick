@@ -88,6 +88,10 @@ SUPABASE_ACCESS_TOKEN=<PAT> node db-health.mjs               # 결과: tools/qa/
 
 이 모드는 `/pick/link` 및 나머지 live QA를 오프라인으로 만들지 않는다. 실서비스 호출이 금지된 검토에서는 live 스크립트를 실행하지 말고 위 fixture 검사만 사용한다. 기본 정기 실행에는 이 변수를 추가하지 않으며 기존 추천 호출 정책을 바꾸지 않는다. Follow는 표면별 feature gate를 사용한다. QA는 **공개 프로필 Follow CTA와 공개 팔로워/팔로잉 수·목록 노출을 정상 기준**으로 보고, **홈 팔로잉 범위·following feed·Settings follow 알림 설정·followee 원픽 변경 알림/푸시는 비노출을 정상 기준**으로 본다. 백엔드/서비스 코드가 남아 있는 것은 결함으로 보지 않는다.
 
+### 초안 복원 QA (`Draft Restore QA`, #858)
+
+`.github/workflows/qa-draft-restore.yml`은 **수동 실행(`workflow_dispatch`, main 전용, `daily-qa` Environment)** 으로만 돈다. `tools/qa/draft-restore-qa.mjs`가 QA 전용 일반 계정으로 `/pick/new`를 새 매장 요청 경로로 4/4 한줄평 단계까지 진행해 사진·한줄평 초안을 만든 뒤, 같은 웹 세션에서 (1) 메뉴 분류(`store_menu_options`)를 보류한 상태로 재진입 2회, (2) 원픽 조회(`/rest/v1/picks`) 실패 상태로 재진입 1회를 수행하고, 원래 단계·사진·메뉴명·매장명 유지와 자동 등록 없음, 로그아웃 후 비노출을 확인한다. 브라우저의 Supabase 요청 중 `auth/v1`과 읽기 전용 RPC 허용 목록을 제외한 **모든 비-GET 요청(테이블 쓰기·미지 RPC·Storage·Edge Function)은 브라우저 안에서 차단**되므로 Production 행·Storage 객체·유료 AI 호출이 생기지 않는다. 쓰기 시도가 1건이라도 차단되면 실행은 실패로 끝나며, 시작·종료 시점의 원픽 행 수가 같아야 한다. 정책과 초안 판정 로직은 `tools/qa/draft-restore-contract.test.mjs`로 오프라인 검증되고, 관련 파일을 바꾸는 PR에서는 그 테스트만 실행된다. 스크린샷은 찍지 않으며 리포트는 `draft-restore-report.md/json` 아티팩트로만 남는다. 네이티브 앱 프로세스 완전 종료 후 복원은 현행 메모리 저장 정책상 이 QA의 범위가 아니다.
+
 ## 로그인 상태 QA 계정 규칙
 
 결정일: 2026-09-23. 사용자 화면을 로그인 상태로 QA할 때(Actions, Claude, ChatGPT/Codex, 사람 모두) 다음을 지킨다.

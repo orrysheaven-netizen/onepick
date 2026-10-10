@@ -1,0 +1,75 @@
+name: Draft Restore QA
+
+# #858 — authenticated web draft-restore check on the tester site with zero Production
+# writes (every non-read Supabase request is aborted in the browser). Manual only:
+# run it after a /pick/new restore change lands on main. Pull requests touching the
+# QA files only run the offline contract test (no browser, no secrets).
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/qa/draft-restore-contract.mjs'
+      - 'tools/qa/draft-restore-contract.test.mjs'
+      - 'tools/qa/draft-restore-qa.mjs'
+      - '.github/workflows/qa-draft-restore.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-qa
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Offline contract test (network policy, draft assertions)
+        run: node --test tools/qa/draft-restore-contract.test.mjs
+
+  restore:
+    # Same guard set as qa-registration-verify.yml: main only, first attempt only,
+    # credentials from the daily-qa Environment, never on pull requests.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: daily-qa
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+      - name: Offline contract test
+        run: node --test draft-restore-contract.test.mjs
+      - name: Install pinned QA dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Draft restore QA (read-only, no paid AI, no Storage)
+        env:
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+          ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
+          ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+        run: node draft-restore-qa.mjs
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: draft-restore-qa
+          path: qa-output
+          retention-days: 14
