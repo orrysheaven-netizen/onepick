@@ -88,6 +88,10 @@ SUPABASE_ACCESS_TOKEN=<PAT> node db-health.mjs               # 결과: tools/qa/
 
 이 모드는 `/pick/link` 및 나머지 live QA를 오프라인으로 만들지 않는다. 실서비스 호출이 금지된 검토에서는 live 스크립트를 실행하지 말고 위 fixture 검사만 사용한다. 기본 정기 실행에는 이 변수를 추가하지 않으며 기존 추천 호출 정책을 바꾸지 않는다. Follow는 표면별 feature gate를 사용한다. QA는 **공개 프로필 Follow CTA와 공개 팔로워/팔로잉 수·목록 노출을 정상 기준**으로 보고, **홈 팔로잉 범위·following feed·Settings follow 알림 설정·followee 원픽 변경 알림/푸시는 비노출을 정상 기준**으로 본다. 백엔드/서비스 코드가 남아 있는 것은 결함으로 보지 않는다.
 
+### 초안 복원 QA (`QA_DRAFT_RESTORE=1`, #858)
+
+`Draft Restore QA` 워크플로(`workflow_dispatch` 전용, `main` 한정, `daily-qa` Environment)만 `QA_DRAFT_RESTORE=1`로 `logged-in-qa.mjs`를 실행한다. 이 모드는 로그인 확인 뒤 기본 32개 검사 대신 `/pick/new` 초안 복원 시나리오만 검사한다: 매장 선택 → 분류되지 않는 메뉴명 입력(메뉴 AI 요청은 브라우저에서 차단) → 로컬 canvas 사진·한줄평 초안 → 같은 탭 재진입 2회 → 수동 "다음"으로 4/4 복귀 → 3회차는 AI 응답을 fixture로 대체해 탭 없이 4/4 자동 복귀 → 세션 제거/재로그인 초안 유지 → 사진 유실 시 3/4 재선택 안내 → 다른 계정 초안 폐기. `tools/qa/draft-restore-contract.mjs`의 **기본 거부 네트워크 가드**가 GET/HEAD와 읽기 전용 RPC 허용 목록만 통과시키고, 등록 RPC·테이블 쓰기·Storage·Auth·알 수 없는 POST는 모두 차단한 뒤 실행을 실패로 기록한다. `suggest-item-categories`는 차단(실패 모의) 또는 `store_menu_options` 실응답에서 고른 카테고리로만 fixture 응답하며, `category_uses_place_catalog`은 `false`로 고정 응답한다. 사진은 서비스에 올리지 않고 세션 저장소에만 남으며, 원픽 수를 실행 전후 읽기 전용으로 비교한다. 기본 Daily QA(`schedule`)에는 이 변수를 추가하지 않는다. `node --test tools/qa/draft-restore-contract.test.mjs`는 가드 정책과 Playwright route 연결을 오프라인으로 검사한다. 실행 1회마다 사용자 승인이 필요하고, 이 QA의 통과는 네이티브 프로세스 완전 종료 후 복원(현행 메모리 저장 정책상 비대상)의 근거가 아니다.
+
 ## 로그인 상태 QA 계정 규칙
 
 결정일: 2026-09-23. 사용자 화면을 로그인 상태로 QA할 때(Actions, Claude, ChatGPT/Codex, 사람 모두) 다음을 지킨다.

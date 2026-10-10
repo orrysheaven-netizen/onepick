@@ -29,6 +29,11 @@ import {
   detectOwnProfileLayout, openPublicProfilePreview, assertPreviewReturnsToOwnProfile,
   assertProfileTabs, assertBioDraftPersists, assertProfileLayoutFits, publicShareButton,
 } from './logged-in-contract.mjs';
+import {
+  createRestoreGuard, handleRoute, pickFixtureCategory, assertDraftRestoreExecution, assertSessionBudget,
+  inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft,
+  RESTORE_MENU, RESTORE_REVIEW, DRAFT_KEY, DRAFT_PHOTO_KEY,
+} from './draft-restore-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
@@ -40,6 +45,10 @@ const STORE_QUERY = process.env.QA_STORE_QUERY || '카페인중독';
 const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
 // Opt-in registration safety only; not a guarantee that the entire live QA is offline.
 const BLOCK_MENU_AI = process.env.QA_BLOCK_MENU_AI === '1';
+// Opt-in (#858): replaces the standard checks after login with the `/pick/new` draft
+// restore scenario under a default-deny network guard (draft-restore-contract.mjs).
+// Only the dedicated workflow_dispatch workflow on main may run it. Default off.
+const DRAFT_RESTORE = process.env.QA_DRAFT_RESTORE === '1';
 // A non-Naver link keeps the check deterministic: the Edge Function does not fetch
 // it, so the suggestion comes only from the typed name matching the taxonomy.
 const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
@@ -214,6 +223,229 @@ async function revoke(supabase, session) {
   }).catch(() => {});
 }
 
+// #858: photo + review draft → menu classification failing → the same web session
+// re-enters twice → the review step comes back (manually, then automatically once the
+// classification is answered by a fixture). Also: sign-out/re-login keeps the draft,
+// a lost photo asks again, another account's draft is discarded. No registration,
+// upload, AI call or other write ever leaves the browser (guard fails closed) and the
+// account's Pick count is compared read-only before and after.
+async function runDraftRestoreFlow({ browser, supabase, session, runtime, storageKey }) {
+  const flow = '초안 복원';
+  const userId = session.user.id;
+  const guard = createRestoreGuard({ api: supabase.origin, site: BASE_URL });
+  const stepMeta = (page, n) => page.getByText(new RegExp(`^${n} / 4 · `)).first();
+  const nextButton = (page) => page.getByRole('button', { name: '다음', exact: true });
+  const reviewBox = (page) => page.getByRole('textbox', { name: '원픽 한줄평', exact: true });
+  const readDraft = (page) => page.evaluate(([k, p]) => [sessionStorage.getItem(k), sessionStorage.getItem(p)], [DRAFT_KEY, DRAFT_PHOTO_KEY])
+    .then(([raw, photo]) => ({ raw, draft: inspectDraft(raw, photo) }));
+  // Autosave is an effect; give it a moment and keep the last inspection for the error text.
+  const waitDraft = async (page, predicate) => {
+    const deadline = Date.now() + STEP_TIMEOUT_MS;
+    let last = null;
+    while (Date.now() < deadline) {
+      last = await readDraft(page);
+      if (predicate(last.draft)) return last;
+      await page.waitForTimeout(250);
+    }
+    return last;
+  };
+  const waitCount = async (page, read, min) => {
+    const deadline = Date.now() + STEP_TIMEOUT_MS;
+    while (read() < min && Date.now() < deadline) await page.waitForTimeout(250);
+    return read();
+  };
+  const draftState = (d) => d ? `step=${d.step} photo=${d.photo} review=${d.review === RESTORE_REVIEW ? '유지' : '유실'}` : '초안 없음';
+  const countPicks = async () => {
+    const response = await fetch(`${supabase.origin}/rest/v1/picks?user_id=eq.${userId}&select=id`, {
+      headers: { apikey: supabase.apikey, authorization: `Bearer ${session.access_token}` },
+    });
+    const rows = await response.json().catch(() => null);
+    if (!response.ok || !Array.isArray(rows)) throw new Error(`원픽 수 조회 HTTP ${response.status}`);
+    return rows.length;
+  };
+
+  let picksBefore = null;
+  const authorized = await check(flow, '실행 조건 (workflow_dispatch · main · 세션 여유)', async () => {
+    assertDraftRestoreExecution(process.env);
+    assertSessionBudget(session);
+    picksBefore = await countPicks();
+    return `승인된 실행 경로 · 세션 15분 이상 · 원픽 ${picksBefore}개(읽기 전용)`;
+  });
+  if (!authorized) return;
+
+  const context = await browser.newContext({ ...device, locale: 'ko-KR', serviceWorkers: 'block' });
+  let firstBlocked = null;
+  await context.route('**/*', (route) => handleRoute(guard, route, { onBlocked: ({ code, kind }) => { firstBlocked ??= { code, kind, flowStep: steps.length }; } }));
+  const page = await context.newPage();
+  page.on('pageerror', (e) => runtime.pageErrors.push({ flow, message: redact(String(e.message).slice(0, 200)) }));
+  page.on('console', (m) => { if (m.type() === 'error') runtime.consoleErrors.push({ flow, message: redact(m.text().slice(0, 200)) }); });
+  page.on('response', (r) => { if (r.status() >= 400) runtime.badResponses.push({ flow, status: r.status(), url: safeUrl(r.url()) }); });
+  let menuRows = null;
+  page.on('response', (r) => {
+    let pathname = '';
+    try { pathname = new URL(r.url()).pathname; } catch { return; }
+    if (r.request().method() === 'POST' && pathname === '/rest/v1/rpc/store_menu_options' && r.ok()) {
+      r.json().then((rows) => { menuRows = rows; }).catch(() => {});
+    }
+  });
+
+  let meta2 = '';
+  let meta5 = '';
+  try {
+    await page.goto(`${BASE_URL}/legal/terms`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
+
+    const ready = await check(flow, '등록 화면 → 매장 선택 (1/4 → 2/4)', async () => {
+      await page.goto(`${BASE_URL}/pick/new`, { waitUntil: 'networkidle' });
+      if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('로그인 요구 화면으로 이동');
+      await page.getByRole('button', { name: 'URL 없음', exact: true }).click({ timeout: STEP_TIMEOUT_MS });
+      await page.getByRole('textbox', { name: '매장명 검색', exact: true }).fill(STORE_QUERY);
+      const result = page.getByRole('button', { name: /선택$/ });
+      await result.first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await result.first().click();
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      meta2 = (await stepMeta(page, 2).innerText()).trim();
+      return `"${STORE_QUERY}" 첫 결과 선택 · 2/4 진입`;
+    });
+    if (!ready) return;
+
+    const drafted = await check(flow, '메뉴 입력 → AI 분류 실패(차단) → 수동 다음 → 사진 → 한줄평 (4/4)', async () => {
+      await page.getByRole('textbox', { name: '메뉴 이름', exact: true }).fill(RESTORE_MENU);
+      // The typed name is not in the taxonomy, so the AI pass is attempted and dropped.
+      const aiFailed = await waitCount(page, () => guard.counts.aiFailed, 1);
+      if (aiFailed < 1) throw new Error('MENU_AI_NOT_ATTEMPTED');
+      await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await nextButton(page).click();
+      await stepMeta(page, 3).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      // Deterministic canvas test card; it stays in sessionStorage and is never uploaded.
+      const png = await page.evaluate(() => {
+        const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 640, 480);
+        g.fillStyle = '#111'; g.font = 'bold 40px sans-serif'; g.fillText('ONEPICK QA', 70, 150);
+        g.font = '28px sans-serif'; g.fillText('DRAFT RESTORE #858', 70, 220); g.fillText('NOT A REAL MENU', 70, 280);
+        return c.toDataURL('image/png').split(',')[1];
+      });
+      const chooser = page.waitForEvent('filechooser');
+      await page.getByRole('button', { name: '사진 고르기', exact: true }).click();
+      await (await chooser).setFiles({ name: 'onepick-qa-draft.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+      await page.getByRole('img', { name: '선택한 대표 이미지 미리보기', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await nextButton(page).click();
+      await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      meta5 = (await stepMeta(page, 4).innerText()).trim();
+      await reviewBox(page).fill(RESTORE_REVIEW);
+      const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.review === RESTORE_REVIEW && d.photo === 'stored');
+      assertReviewDraft(draft, { userId });
+      await shot(page, 'draft_restore_review');
+      return `AI 요청 ${guard.counts.aiFailed}건 차단 · 미분류 메뉴로 진행 · 초안 ${draftState(draft)}`;
+    });
+    if (!drafted) return;
+    const storeName = (await readDraft(page)).draft?.storeName ?? null;
+
+    for (const round of [1, 2]) {
+      await check(flow, `동일 세션 재진입 ${round}회 (분류 실패 유지) → 2/4 대기 · 복귀 목표 유지`, async () => {
+        const before = guard.counts.aiFailed;
+        await page.reload({ waitUntil: 'networkidle' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        const after = await waitCount(page, () => guard.counts.aiFailed, before + 1);
+        if (after <= before) throw new Error('MENU_AI_NOT_ATTEMPTED');
+        // Settle time for the restore's own autosave; the target step must not regress to 2.
+        await page.waitForTimeout(1_000);
+        if (await stepMeta(page, 4).isVisible().catch(() => false)) throw new Error('미분류 메뉴인데 자동으로 4/4까지 진행됨');
+        const { draft } = await waitDraft(page, (d) => d?.step === 5);
+        assertReviewDraft(draft, { storeName, userId });
+        const meta = (await stepMeta(page, 2).innerText()).trim();
+        if (meta !== meta2) throw new Error(`매장 표시 변경: "${meta}"`);
+        if (await nextButton(page).isDisabled()) throw new Error('"다음" 버튼 비활성');
+        return `2/4 "${meta}" · 초안 ${draftState(draft)} · 매장·메뉴명 유지 · 자동 진행 없음`;
+      });
+    }
+
+    await check(flow, '수동 "다음" → 원래 한줄평 단계(4/4) 복귀 · 입력 유지', async () => {
+      await nextButton(page).click();
+      await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const meta = (await stepMeta(page, 4).innerText()).trim();
+      if (meta !== meta5) throw new Error(`4/4 표시 변경: "${meta}"`);
+      const review = await reviewBox(page).inputValue();
+      if (review !== RESTORE_REVIEW) throw new Error('한줄평 입력 유실');
+      // The submit button exists but is never pressed.
+      await page.getByRole('button', { name: '원픽 등록하기', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.photo === 'stored');
+      assertReviewDraft(draft, { storeName, userId });
+      await shot(page, 'draft_restore_manual_resume');
+      return `4/4 "${meta}" · 한줄평·사진·메뉴명·매장명 유지 (등록하지 않음)`;
+    });
+
+    await check(flow, '재진입 3회 (분류 성공 fixture) → 4/4 자동 복귀', async () => {
+      const category = pickFixtureCategory(menuRows);
+      if (!category) throw new Error('MENU_OPTIONS_NOT_CAPTURED');
+      guard.setMode('success', category);
+      try {
+        await page.reload({ waitUntil: 'networkidle' });
+        await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        const meta = (await stepMeta(page, 4).innerText()).trim();
+        if (meta !== meta5) throw new Error(`4/4 표시 변경: "${meta}"`);
+        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('한줄평 입력 유실');
+        const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.menuName === RESTORE_MENU);
+        assertReviewDraft(draft, { storeName, userId });
+        return `탭 없이 4/4 "${meta}" 복귀 · AI fixture ${guard.counts.aiFixture}건 · place-catalog fixture ${guard.counts.placeCatalogFixture}건 · 초안 ${draftState(draft)}`;
+      } finally { guard.setMode('fail'); }
+    });
+
+    await check(flow, '세션 제거(로그아웃 상태) → 초안 비노출 → 같은 계정 재로그인 → 초안 유지', async () => {
+      await page.evaluate((key) => window.localStorage.removeItem(key), storageKey);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByText('로그인하고').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      if (await stepMeta(page, 4).isVisible().catch(() => false) || await stepMeta(page, 2).isVisible().catch(() => false)) throw new Error('비로그인 상태에서 초안 화면 노출');
+      const kept = (await readDraft(page)).draft;
+      assertReviewDraft(kept, { storeName, userId });
+      await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
+      await page.reload({ waitUntil: 'networkidle' });
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const { draft } = await waitDraft(page, (d) => d?.step === 5);
+      assertReviewDraft(draft, { storeName, userId });
+      return `비로그인 안내 표시 · 초안 보존 · 재로그인 후 2/4 복귀 · 초안 ${draftState(draft)}`;
+    });
+
+    await check(flow, '사진 유실 표시 → "다음" 후 3/4 재선택 안내 · 한줄평 유지', async () => {
+      const { raw } = await readDraft(page);
+      await page.evaluate(([k, p, value]) => { sessionStorage.setItem(k, value); sessionStorage.removeItem(p); }, [DRAFT_KEY, DRAFT_PHOTO_KEY, markPhotoLost(raw)]);
+      await page.reload({ waitUntil: 'networkidle' });
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await nextButton(page).click();
+      await stepMeta(page, 3).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByText('사진을 다시 선택해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const { draft } = await readDraft(page);
+      if (!draft || draft.review !== RESTORE_REVIEW || draft.menuQuery !== RESTORE_MENU) throw new Error('DRAFT_REVIEW_LOST');
+      return `3/4 재선택 안내 표시 · 한줄평·메뉴명 유지 · 초안 ${draftState(draft)}`;
+    });
+
+    await check(flow, '다른 계정 소유 초안 → 재진입 시 폐기 (빈 등록 화면)', async () => {
+      const { raw } = await readDraft(page);
+      await page.evaluate(([k, value]) => sessionStorage.setItem(k, value), [DRAFT_KEY, reassignDraftOwner(raw, crypto.randomUUID())]);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      for (const n of [2, 3, 4]) if (await stepMeta(page, n).isVisible().catch(() => false)) throw new Error(`다른 계정 초안이 ${n}/4로 복원됨`);
+      const { draft } = await readDraft(page);
+      if (draft && (draft.userId !== userId || draft.review || draft.menuQuery)) throw new Error('다른 계정 초안이 남아 있음');
+      return `링크 입력 첫 화면 · 이전 입력 없음 · ${draft ? '현재 계정의 빈 초안만 저장' : '초안 없음'}`;
+    });
+  } catch (error) {
+    record(flow, '스크립트', 'fail', String(error?.message ?? error).split('\n')[0].slice(0, 200));
+  } finally {
+    await context.close().catch(() => {});
+    await check(flow, '쓰기 차단 가드 · 원픽 수 불변 (읽기 전용 비교)', async () => {
+      const c = guard.counts;
+      const picksAfter = await countPicks();
+      if (picksBefore !== null && picksAfter !== picksBefore) throw new Error(`PICK_COUNT_CHANGED ${picksBefore}→${picksAfter}`);
+      if (guard.failed) {
+        const first = firstBlocked ? `${firstBlocked.code} (${firstBlocked.kind}, 검사 #${firstBlocked.flowStep + 1})` : 'UNEXPECTED_WRITE';
+        throw new Error(`차단된 쓰기 ${c.blockedWrites}건 · 최초 ${first} · 원픽 ${picksBefore}→${picksAfter}`);
+      }
+      return `차단된 쓰기 0건 · AI 차단 ${c.aiFailed}건 · AI fixture ${c.aiFixture}건 · place-catalog fixture ${c.placeCatalogFixture}건 · 텔레메트리 드롭 ${c.telemetryDropped}건 · 외부 드롭 ${c.externalDropped}건 · 원픽 ${picksBefore}→${picksAfter}`;
+    });
+  }
+}
+
 async function main() {
   const startedAt = new Date().toISOString();
   if (!EMAIL || !PASSWORD) {
@@ -279,6 +511,14 @@ async function main() {
     });
     loginLabel = appReady ? '성공' : '세션 발급됨, 앱 인식 실패';
     if (!appReady) return;
+
+    if (DRAFT_RESTORE) {
+      // The standard flow is not run in this mode: the AI-free restore scenario is the
+      // whole purpose, and the daily 32-check run keeps its own request policy.
+      await context.close();
+      await runDraftRestoreFlow({ browser, supabase, session, runtime, storageKey });
+      return;
+    }
 
     flow = '홈';
     await check(flow, '홈 화면 로드', async () => {
