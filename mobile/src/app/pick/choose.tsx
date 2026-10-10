@@ -48,7 +48,7 @@ export default function ChoosePickScreen() {
   const params = useLocalSearchParams<Params>();
   // A saved result and its draft belong to one account/product only. Pending
   // requests from an unmounted form cannot populate the next account's result.
-  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.channel ?? ''}`} auth={auth} params={params} />;
+  return <ChoosePickForm key={`${auth.user?.id ?? 'anonymous'}:${params.itemId ?? ''}:${params.categoryId ?? ''}:${params.channel ?? ''}:${params.returnPickId ?? ''}`} auth={auth} params={params} />;
 }
 
 function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSession>; params: Params }) {
@@ -128,6 +128,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
     if (!isValidUrl) return;
     if (!user || !item || !canSubmit || itemQuery.isError || !routeMatchesItem) return;
+    if (returnPickId && !atomicCommentRegistration) {
+      setCommentPickError('현재 이 댓글에서는 원픽 등록을 시작할 수 없어요. 댓글 화면으로 돌아가주세요.');
+      return;
+    }
     submitPhase.current = 'saving';
     try {
       // Only the existing food/offline registration RPC enforces expected-null
@@ -321,7 +325,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {saveError instanceof AppError && saveError.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || Boolean(returnPickId && pickStatus?.type !== 'not_selected')} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || Boolean(returnPickId && (!atomicCommentRegistration || (pickStatus?.type !== 'not_selected' && !commentRequestId.current)))} onPress={() => void handleSubmit()} style={styles.submit} />
           {needsPhotoStep ? <Text style={styles.footnote}>사진을 먼저 등록하면 저장할 수 있어요.</Text> : null}
           <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}

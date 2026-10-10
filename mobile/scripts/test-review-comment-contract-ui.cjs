@@ -113,6 +113,8 @@ async function main() {
   assert.match(pickDetail, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/);
   assert.match(pickDetail, /<CurrentPickFlag mine=\{focused\.pick\.userId === user\?\.id\} \/>/);
   assert.doesNotMatch(pickDetail, /✓ 이 집 원픽|✓ 원픽/);
+  assert.match(pickDetail, /itemQuery\.data\.isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
+    'Comment prompt is restricted to supported food/offline scope');
   assert.match(pickDetail, /myPickStatus\.type === 'not_selected'/,
     'Comment CTA must not route selected_other into an unconfirmed replacement');
   const commentChoose = source('app/pick/choose.tsx');
@@ -128,6 +130,8 @@ async function main() {
     'Comment-entry registration uses the existing expected-null RPC');
   assert.match(commentChoose, /commentRequestId\.current \?\? Crypto\.randomUUID\(\)/,
     'The request ID remains stable for a lost-response retry');
+  assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
+    'Unsupported comment-origin flows fail closed before reaching change_pick');
   assert.match(commentChoose, /published: result\.published/,
     'Registration receipt distinguishes a pending photo review from a commentable Pick');
 
