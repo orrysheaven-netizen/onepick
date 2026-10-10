@@ -225,9 +225,11 @@ select is((select revision from private.profile_featured_picks
 
 -- Suspension preserves the reference, but the source becoming private while
 -- suspended must permanently clear it; reinstatement does not resurrect it.
+-- Set the fixture id while privileged; ordinary app role cannot read this temp table.
+select set_config('test.featured.extra_pick', (select pick_id::text from featured_extra_ids where seq=1), true);
 select set_config('request.jwt.claim.sub','fa090000-0000-4000-8000-000000000001',true);
 set local role authenticated;
-select is((public.set_my_featured_pick((select pick_id from featured_extra_ids where seq=1),7)->>'revision')::bigint,
+select is((public.set_my_featured_pick(current_setting('test.featured.extra_pick')::uuid,7)->>'revision')::bigint,
   8::bigint,'owner can highlight a 201st+ candidate');
 reset role;
 insert into private.user_moderation(user_id,reason)
