@@ -19,6 +19,7 @@ import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
 import { itemTitle } from '@/lib/items/itemTitle';
 import { consumePickSavedToast } from '@/lib/items/pickSavedToast';
+import { shareItem } from '@/lib/share/shareItem';
 import { isNaverMapUrl } from '@/services/storeFirstService';
 import { observabilityService } from '@/services';
 import type { Item } from '@/types/domain/item';
@@ -103,14 +104,23 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
-  // Set only by /pick/new right before it replaces itself with this screen.
-  const [pickSavedToast, setPickSavedToast] = useState(() => consumePickSavedToast(focusPickId));
-  const itemLoaded = Boolean(query.data);
+  // /pick/new grants a one-shot completion CTA, never an automatic toast.
+  // A reload or unrelated deep link cannot replay the registration result.
+  const [hasCompletionReceipt] = useState(() => Boolean(!isSessionLoading && user && consumePickSavedToast(focusPickId)));
+  const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
+  const [pickSavedToast, setPickSavedToast] = useState(false);
+  const [isSharingItem, setIsSharingItem] = useState(false);
+  const [shareNotice, setShareNotice] = useState<'copied' | 'error' | null>(null);
   useEffect(() => {
-    if (!pickSavedToast || !itemLoaded) return;
-    const timer = setTimeout(() => setPickSavedToast(false), 2600);
+    if (!pickSavedToast) return;
+    const timer = setTimeout(() => setPickSavedToast(false), 2000);
     return () => clearTimeout(timer);
-  }, [pickSavedToast, itemLoaded]);
+  }, [pickSavedToast]);
+  useEffect(() => {
+    if (!shareNotice) return;
+    const timer = setTimeout(() => setShareNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [shareNotice]);
 
   useEffect(() => {
     const data = query.data;
@@ -154,11 +164,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   useEffect(() => {
     scrolledTo.current = undefined;
     // A photo invitation opens the uploader, not a review far below it.
-    if (params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
+    // Right after registration the final detail is shown from the top first (#874 ①).
+    if (!hasCompletionReceipt && params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
       focusReview(focusPickId);
       scrolledTo.current = focusPickId;
     }
-  }, [focusPickId, focusReview, user?.id, params.photo]);
+  }, [hasCompletionReceipt, focusPickId, focusReview, user?.id, params.photo]);
   useEffect(() => {
     if (!highlightedId) return;
     const timer = setTimeout(() => setHighlightedId(undefined), 4000);
@@ -318,6 +329,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     : allPicks;
   const focusAvailable = !focusPickId || picks.some(({ pick }) => pick.id === focusPickId);
   const displayChannels = mvpFoodScope ? [OnePickMvp.publicPickChannel] : item.channels;
+  // The public count follows the same channel rule as the review list above.
+  const publicCountScope = mvpFoodScope
+    ? { channel: OnePickMvp.publicPickChannel, includeUnchanneled: itemSupportsPublicChannel }
+    : undefined;
   if (!itemSupportsPublicChannel) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
       <StateCard title="현재 공개 중인 원픽이 아니에요." text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
@@ -330,6 +345,32 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
       <Button variant="ghost" label="홈으로" onPress={() => router.replace('/')} style={styles.centered} />
     </View></SafeAreaView>;
   }
+  // A private needs_review Pick is not a publicly shareable item. The viewer
+  // may see their own registration here, but no public URL is offered for it.
+  const canSharePublicItem = item.status === 'active' && hasPhoto && !item.photoPendingReview
+    && picks.some(({ pick }) => pick.status === 'active' && !pick.isDeleted);
+  const showRestaurantFields = isRestaurant || item.externalSource === 'onepick_place';
+  const hasOwnPendingPick = Boolean(user && picks.some(({ pick }) =>
+    pick.userId === user.id && pick.status === 'needs_review' && !pick.isDeleted));
+  const completionEligible = hasCompletionReceipt && Boolean(user && focusPickId
+    && picks.some(({ pick }) => pick.id === focusPickId && pick.userId === user.id && !pick.isDeleted));
+  const onCompleteRegistration = () => {
+    if (!completionEligible || completionAcknowledged) return;
+    setCompletionAcknowledged(true);
+    setPickSavedToast(true);
+  };
+  const onShareItem = async () => {
+    if (!canSharePublicItem || isSharingItem) return;
+    setIsSharingItem(true);
+    setShareNotice(null);
+    try {
+      if (await shareItem(item.id) === 'copied') setShareNotice('copied');
+    } catch {
+      setShareNotice('error');
+    } finally {
+      setIsSharingItem(false);
+    }
+  };
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
@@ -339,10 +380,31 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.detailHeader}>
+        {/* Registration replaced itself with this screen, so its only sensible exit is
+            Home (#874 ③). Every other entry keeps the real previous screen (UX-SWIPE-001). */}
+        {hasCompletionReceipt
+          ? <Pressable accessibilityRole="button" accessibilityLabel="홈으로" onPress={() => router.replace('/')}
+            style={({ pressed }) => [styles.headerActionButton, pressed && styles.pressed]}>
+            <Icon name="home" />
+          </Pressable>
+          : <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기"
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+            style={({ pressed }) => [styles.headerActionButton, pressed && styles.pressed]}>
+            <Icon name="back" />
+          </Pressable>}
+        <View style={styles.headerEnd}>
+          {canSharePublicItem ? <Pressable accessibilityRole="button" accessibilityLabel="이 메뉴 화면 공유"
+            disabled={isSharingItem} onPress={() => void onShareItem()}
+            style={({ pressed }) => [styles.headerActionButton, pressed && styles.pressed]}>
+            <Icon name="share" />
+          </Pressable> : null}
+        </View>
+      </View>
+      {shareNotice ? <Text accessibilityLiveRegion="polite" style={styles.shareNotice}>
+        {shareNotice === 'copied' ? '메뉴 링크를 복사했어요.' : '공유하지 못했어요. 다시 시도해주세요.'}
+      </Text> : null}
       <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Icon name="back" />
-        </Pressable>
 
         {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요." text="마지막으로 불러온 내용을 표시하고 있어요."
           action={{ label: query.isFetching ? '다시 불러오는 중…' : '다시 불러오기', disabled: query.isFetching, onPress: () => void retryItem() }} /> : null}
@@ -414,25 +476,33 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           {isRestaurant
             ? homeChannelLabel(displayChannels) ? <Text style={styles.category}>{homeChannelLabel(displayChannels)}</Text> : null
             : category?.name ? <Text style={styles.category}>{categoryWithChannels(category.name, item.channels)}</Text> : null}
-          {brand ? <View style={styles.brandRow}>
-            {brand.logoUrl ? <View style={styles.brandLogo}>
-              <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+          {showRestaurantFields ? <View style={styles.restaurantDetails}>
+            <Text style={styles.detailFieldLabel}>매장</Text>
+            <View style={styles.brandRow}>
+              {brand?.logoUrl ? <View style={styles.brandLogo}>
+                <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+              </View> : null}
+              <Text style={styles.storeName}>{item.name}</Text>
+            </View>
+            <Text style={styles.detailFieldLabel}>메뉴</Text>
+            <Text style={styles.itemName}>{category?.name || item.requestedCategoryLabel || '메뉴 분류 대기'}</Text>
+          </View> : <>
+            {brand ? <View style={styles.brandRow}>
+              {brand.logoUrl ? <View style={styles.brandLogo}>
+                <Image source={{ uri: brand.logoUrl }} style={styles.brandLogoImage} resizeMode="contain" accessibilityLabel={`${brand.name} 로고`} />
+              </View> : null}
+              <Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text>
             </View> : null}
-            <Text numberOfLines={1} style={styles.brandName}>{brand.name}</Text>
-          </View> : null}
-          <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
+            <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
+          </>}
           <YouTubeVideoLink item={item} />
-          {!mvpFoodScope ? <ItemPickCount itemId={item.id} /> : null}
+          <ItemPickCount itemId={item.id} channelScope={publicCountScope} />
+          {hasOwnPendingPick ? <Text style={styles.pendingPickNotice}>내 원픽은 등록됐어요. 공개 전 관리자 확인 중이에요.</Text> : null}
           {!mvpFoodScope ? <ItemChannelLinks itemId={item.id} /> : null}
 
           {/* One shape for the Pick state: filled brand color when it is my Pick, no color
               otherwise. My own Pick is edited on its review card below, so it is not pressable. */}
-          {myPickStatus.type === 'selected_this' ? (
-            <View accessible accessibilityLabel="내 원픽이에요" style={[styles.pickMark, styles.pickMarkMine]}>
-              <View style={[styles.pickDot, styles.pickDotMine]}><Icon name="check" size="sm" color={OnePick.bgAccent} /></View>
-              <Text style={[styles.pickMarkText, styles.pickMarkTextMine]}>원픽</Text>
-            </View>
-          ) : canChoose ? (
+          {myPickStatus.type === 'selected_this' ? null : canChoose ? (
             <Pressable accessibilityRole="button" onPress={openPickAction}
               accessibilityLabel={myPickStatus.type === 'selected_other' ? '원픽 바꾸기' : '원픽으로 고르기'}
               style={({ pressed }) => [styles.pickMark, pressed && styles.pressed]}>
@@ -449,7 +519,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
               reviewPositions.current[pick.id] = event.nativeEvent.layout.y;
-              if (params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
+              if (!hasCompletionReceipt && params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
                 focusReview(pick.id);
                 scrolledTo.current = pick.id;
               }
@@ -463,8 +533,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
-      {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
-        <Text style={styles.toastText}>원픽을 정했어요.</Text>
+      {/* One click only: the CTA leaves with the acknowledgement, so it can never
+          be pressed twice and no dead control stays below the detail. */}
+      {completionEligible && !completionAcknowledged ? <View style={styles.completionFooter}>
+        <Button label="완료" fullWidth accessibilityLabel="원픽 등록 완료" onPress={onCompleteRegistration} />
+      </View> : null}
+      {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toastOverlay}>
+        <View style={styles.toast}><Text style={styles.toastText}>원픽을 등록했어요.</Text></View>
       </View> : null}
     </SafeAreaView>
   );
@@ -480,24 +555,20 @@ const styles = StyleSheet.create({
     paddingBottom: OnePickSpace.xxxl + OnePickSpace.lg,
   },
   centered: { alignSelf: 'center' },
+  detailHeader: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: OnePickSpace.sm },
+  headerEnd: { minWidth: 44, alignItems: 'flex-end' },
+  headerActionButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  shareNotice: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'right', paddingHorizontal: OnePickSpace.gutter },
+  completionFooter: { paddingHorizontal: OnePickSpace.gutter, paddingTop: OnePickSpace.sm, paddingBottom: OnePickSpace.md },
+  toastOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
   toast: {
-    position: 'absolute',
-    alignSelf: 'center',
-    bottom: OnePickSpace.xxxl,
+    maxWidth: '85%',
     backgroundColor: OnePick.actionPrimary,
     borderRadius: OnePickRadius.full,
     paddingHorizontal: OnePickSpace.lg,
     paddingVertical: OnePickSpace.md,
   },
   toastText: { ...OnePickType.bodyMedium, color: OnePick.onAction },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: OnePickSpace.xs,
-    marginLeft: -OnePickSpace.sm,
-  },
   revisionPanel: {
     borderWidth: 1,
     borderColor: OnePick.borderDefault,
@@ -577,6 +648,10 @@ const styles = StyleSheet.create({
   photoRecovery: { marginTop: OnePickSpace.sm },
   photoError: { ...OnePickType.caption, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
   category: { ...OnePickType.captionMedium, color: OnePick.textSecondary, marginTop: OnePickSpace.xl },
+  restaurantDetails: { width: '100%', alignItems: 'center', gap: OnePickSpace.xs, marginTop: OnePickSpace.md },
+  detailFieldLabel: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
+  storeName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary, flexShrink: 1, textAlign: 'center' },
+  pendingPickNotice: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm, textAlign: 'center' },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',

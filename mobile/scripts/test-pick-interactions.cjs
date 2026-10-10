@@ -96,7 +96,7 @@ async function main() {
     '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ isPending: false, mutateAsync: async () => 0 }) },
     '@/services/storeFirstService': { isNaverMapUrl: () => true },
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
-    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': loadSource('lib/items/itemTitle.ts'), '@/lib/items/pickSavedToast': loadSource('lib/items/pickSavedToast.ts'), '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
+    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': loadSource('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': loadSource('lib/items/itemTitle.ts'), '@/lib/items/pickSavedToast': loadSource('lib/items/pickSavedToast.ts'), '@/lib/share/shareItem': { shareItem: async () => 'copied' }, '@/lib/categories/registrationRoute': loadSource('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   };
   const render = (Screen) => { presses.length = 0; inputs.length = 0; return renderToStaticMarkup(React.createElement(Screen)); };

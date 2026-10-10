@@ -62,7 +62,7 @@ assert.match(detail, />사진 @\{credit\.username\}</);
 assert.doesNotMatch(detail, /사진 등록 · @|아래에서 함께 볼 수 있어요|내 원픽 한줄평 보기\/수정|title="원픽 한줄평"|각 한줄평에서 댓글로 대화해요/);
 assert.match(detail, /itemTitle\(item\.name, category\?\.name, isRestaurant\)/);
 
-// Review cards stay compact: review/comment count open the dedicated conversation route; share stays on every card.
+// Review cards stay compact; item sharing is in the detail header instead of every review.
 const native = {
   Pressable: nativeComponent('button'), Text: nativeComponent('span'), View: nativeComponent('div'),
   StyleSheet: { create: (styles) => styles, hairlineWidth: 1 },
@@ -74,8 +74,8 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
   '@/components/current-pick-flag': { CurrentPickFlag: () => React.createElement('i', { 'aria-label': '현재 원픽' }, 'flag') },
   '@/components/pick-management': {
     PickManagement: ({ mode }) => React.createElement('i', null, `panel:${mode}`),
-    PickManagementActions: () => React.createElement('i', null, '수정 · 해제'),
-  },  '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
+    PickManagementActions: () => React.createElement('i', null, '⋯'),
+  },  '@/components/pick-share-actions': { PickShareActions: ({ pickId, showShare }) => React.createElement('i', null, showShare === false ? `report-only:${pickId}` : `share:${pickId}`) },
   '@/components/ui': { Avatar: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => session },
 });
@@ -85,7 +85,8 @@ const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemRev
 const other = card({ id: 'o1', userId: 'someone', status: 'active', oneLineReview: '맛있다', commentCount: 3 }, { username: 'someone' });
 assert.doesNotMatch(other, /thread:o1/, "Item detail no longer expands comment threads inline");
 assert.match(other, /댓글 3/);
-assert.match(other, /share:o1/);
+assert.match(other, /report-only:o1/);
+assert.doesNotMatch(other, /share:o1/);
 assert.match(other, /@someone/);
 assert.match(other, /aria-label="현재 원픽"/, 'A current review gets the Figma flag indicator');
 assert.doesNotMatch(other, /✓ 이 집 원픽|✓ 원픽/, 'The current-Pick state is icon-only, not a text badge');
@@ -100,8 +101,8 @@ const mine = card({ id: 'm1', userId: 'me', status: 'active', oneLineReview: '�
 assert.match(mine, /내 한줄평/);
 assert.match(mine, /aria-label="현재 원픽"/);
 assert.doesNotMatch(mine, /@me|내 이전 한줄평|원픽 아님/, 'My own card uses the same neutral label and only a positive current badge');
-assert.match(mine, /수정 · 해제/);
-assert.match(mine, /share:m1/);
+assert.match(mine, /⋯/);
+assert.match(mine, /report-only:m1/);
 assert.doesNotMatch(mine, /댓글 숨기기|thread:m1/, 'My own review also keeps comments out of the item list');
 assert.match(mine, /댓글 0/);
 

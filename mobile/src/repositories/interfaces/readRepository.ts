@@ -219,6 +219,9 @@ export interface DishChannelOverview {
   channels: Record<PickChannel, DishChannelItem[]>;
 }
 
+/** Channel rule for a public Pick count: one channel, optionally plus legacy Picks without a channel. */
+export type PickCountChannelScope = { channel: PickChannel; includeUnchanneled: boolean };
+
 export interface ReadRepository {
   /** Optional so test doubles need not stub it; a missing brand is never an error. */
   getItemBrand?(itemId: string): Promise<ItemBrand | null>;
@@ -250,7 +253,12 @@ export interface ReadRepository {
   getRecentPickedItems(categoryIds?: string[] | null, cursor?: ReadCursor | null, storesOnly?: boolean): Promise<RecentPickedItemPage>;
   /** Explore search (Figma 43): current Pick count and short store region per item. */
   getSearchItemMeta(itemIds: string[]): Promise<Record<string, { pickCount: number; region: string | null }>>;
-  countActivePicks(itemId: string): Promise<number>;
+  /**
+   * Public current (status active) Picks of an item. `channelScope` narrows the
+   * count to the same channel rule the item detail list uses, so the number and
+   * the list below it never disagree. Private needs_review Picks are never counted.
+   */
+  countActivePicks(itemId: string, channelScope?: PickCountChannelScope): Promise<number>;
   getPickById(pickId: string): Promise<PickReadItem | null>;
   getPicks(input: PickReadInput): Promise<PickReadItem[]>;
   /** Item-scoped reviews include current and ended Picks without exposing lifecycle history. */
