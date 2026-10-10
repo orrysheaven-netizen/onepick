@@ -91,7 +91,8 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const pickStatus = itemQuery.data?.myPickStatus;
   // Food menus keep one Pick per channel (오프라인 맛집 / 온라인 맛집 / 레시피).
   const pickChannel = itemQuery.data?.pickChannel ?? null;
-  const review = draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
+  // A retry with the same idempotency key must show the actual submitted review.
+  const review = commentAttempt.current?.review ?? draftReview ?? (pickStatus?.type === 'selected_this' ? pickStatus.oneLineReview : '');
   const canChoose = itemQuery.data?.canChoose ?? false;
   // Pending requests are not Pick targets. After review the member explicitly
   // chooses the approved item; approval never creates a new Pick from this screen.
@@ -287,10 +288,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
-          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving}
-            onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
+          <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving && !commentAttempt.current}
+            onChangeText={(value) => { if (submitPhase.current !== 'saving' && !commentAttempt.current) setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.textSecondary} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />
           <Text style={styles.helperText}>이유는 원픽과 함께 공개돼요. 1~100자면 충분해요.</Text>
+          {returnPickId && commentAttempt.current && !saving && saveError ? (
+            <Text style={styles.helperText}>다시 시도하면 처음 작성한 한줄평을 그대로 사용해요. 내용을 바꾸려면 댓글 화면으로 돌아가 다시 시작해주세요.</Text>
+          ) : null}
           {hasReviewError ? <Text accessibilityRole="alert" style={styles.reviewError}>{trimmedReview.length === 0 ? '한줄평을 입력해주세요. 한 글자만 써도 저장할 수 있어요.' : '한줄평은 100자까지 입력할 수 있어요.'}</Text> : null}
           {OnePickFeatures.purchaseLinks ? <>
           <View style={styles.inputHeader}><Text style={styles.inputLabel}>산 곳 링크 <Text style={styles.optional}>선택</Text></Text></View>

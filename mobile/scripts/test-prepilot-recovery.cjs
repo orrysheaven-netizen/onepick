@@ -330,8 +330,14 @@ async function main() {
     assert.equal(c.registrationWrites.length, 1);
     assert.match(c.view.render(), /다른 기기에서 원픽이 바뀌었어요/);
     c.setRegisterMode('success');
+    c.view.render();
+    assert.equal(c.view.input().editable, false,
+      'The in-flight idempotent retry keeps the original review read-only');
+    assert.match(c.view.render(), /다시 시도하면 처음 작성한 한줄평을 그대로 사용해요/);
     c.view.input().onChangeText('재시도 중 바뀐 초안');
     c.view.render();
+    assert.equal(c.view.input().value, '내가 고른 이유',
+      'An edited draft must not disagree with the retry payload');
     c.view.button('내 원픽으로 고르기').onPress(); await flush();
     assert.equal(c.registrationWrites.length, 2);
     assert.equal(c.registrationWrites[0].requestId, c.registrationWrites[1].requestId);

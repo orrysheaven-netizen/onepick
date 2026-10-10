@@ -132,6 +132,10 @@ async function main() {
     'The request ID and original review remain stable for a lost-response retry');
   assert.match(commentChoose, /oneLineReview: attempt\.review,[\s\S]*?requestId: attempt\.id/,
     'An idempotent retry cannot display a different unsaved review');
+  assert.match(commentChoose, /const review = commentAttempt\.current\?\.review \?\? draftReview/,
+    'The on-screen draft reflects the original idempotent request');
+  assert.match(commentChoose, /editable=\{!saving && !commentAttempt\.current\}/,
+    'The review input is read-only after the first comment-origin save attempt');
   assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
     'Unsupported comment-origin flows fail closed before reaching change_pick');
   assert.match(commentChoose, /published: result\.published/,
