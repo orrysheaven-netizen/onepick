@@ -136,6 +136,10 @@ async function main() {
     'The on-screen draft reflects the original idempotent request');
   assert.match(commentChoose, /editable=\{!saving && !commentAttempt\.current\}/,
     'The review input is read-only after the first comment-origin save attempt');
+  assert.match(commentChoose, /error\.code === 'PICK_CHANGED_ELSEWHERE'[\s\S]*?setCommentPickConflict\(true\)/,
+    'A server conflict permanently blocks retry in this comment flow');
+  assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| commentPickConflict/,
+    'The save button must be disabled after an atomic server conflict');
   assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
     'Unsupported comment-origin flows fail closed before reaching change_pick');
   assert.match(commentChoose, /published: result\.published/,

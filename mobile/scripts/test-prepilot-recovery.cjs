@@ -164,6 +164,10 @@ function commentChoice() {
         registration.error = new AppError('PICK_CHANGED_ELSEWHERE');
         throw registration.error;
       }
+      if (registerMode === 'lost_response') {
+        registration.error = new Error('response lost');
+        throw registration.error;
+      }
       registration.error = null;
       return { itemId, pickId: 'new-comment-pick', published: true, replacedPickId: null, retried: false };
     },
@@ -324,11 +328,22 @@ async function main() {
     assert.equal(c.ordinaryWrites.length, 0);
     assert.match(c.view.render(), /기존 원픽은 변경하지 않았어요/);
   });
-  await check('Comment-origin conflict keeps request ID and never replaces a Pick', async () => {
+  await check('Comment-origin server conflict stops retries without changing another Pick', async () => {
     const c = commentChoice(); c.draft(); c.setRegisterMode('conflict');
     c.view.button('내 원픽으로 고르기').onPress(); await flush();
     assert.equal(c.registrationWrites.length, 1);
     assert.match(c.view.render(), /다른 기기에서 원픽이 바뀌었어요/);
+    assert.equal(c.view.button('내 원픽으로 고르기').disabled, true);
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1, 'A stale-view conflict cannot silently retry');
+    c.view.button('댓글 화면으로 돌아가기').onPress();
+    assert.equal(c.destinations.at(-1).kind, 'dismissTo');
+    assert.equal(c.destinations.at(-1).route.params.pickId, c.returnPickId);
+  });
+  await check('Lost response retries with the original request ID and review', async () => {
+    const c = commentChoice(); c.draft(); c.setRegisterMode('lost_response');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
     c.setRegisterMode('success');
     c.view.render();
     assert.equal(c.view.input().editable, false,
@@ -348,6 +363,15 @@ async function main() {
     assert.equal(c.query.refreshes, 1, 'Retry preserves request ID and avoids rebasing on a newer Pick');
     assert.equal(c.ordinaryWrites.length, 0);
     assert.match(c.view.render(), /댓글 남기러 가기/);
+  });
+  await check('Comment-origin preflight conflict blocks registration before a request ID', async () => {
+    const c = commentChoice(); c.draft();
+    c.setLatestStatus({ type: 'selected_other', currentPickId: 'other', currentItemId: 'different' });
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 0);
+    assert.equal(c.view.button('내 원픽으로 고르기').disabled, true);
+    c.view.button('댓글 화면으로 돌아가기').onPress();
+    assert.equal(c.destinations.at(-1).route.params.pickId, c.returnPickId);
   });
   await check('Comment-origin auth recovery keeps the protected discussion intent', async () => {
     const c = commentChoice(); c.registration.error = new AppError('PROFILE_NOT_FOUND');

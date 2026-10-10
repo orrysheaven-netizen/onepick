@@ -71,6 +71,9 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   const [savedChoice, setSavedChoice] = useState<SavedChoice | null>(null);
   const [showReviewError, setShowReviewError] = useState(false);
   const [commentPickError, setCommentPickError] = useState<string | null>(null);
+  // A stale-view conflict is final for this comment-origin attempt. Only an
+  // uncertain network result may be retried with the original request ID.
+  const [commentPickConflict, setCommentPickConflict] = useState(false);
   const [photoOfferSkipped, setPhotoOfferSkipped] = useState(false);
   // The item as returned by a photo saved in step 1; keeps the new photo on
   // screen even before the detail query refreshes.
@@ -124,7 +127,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
 
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'
-      || saving || savedChoice || isSessionLoading || sessionError) return;
+      || saving || savedChoice || isSessionLoading || sessionError || commentPickConflict) return;
     // No pick without a photo: the button stays disabled until step 1 saves one.
     if (needsPhotoStep) return;
     if (!isValidReview) { setShowReviewError(true); reviewInput.current?.focus(); return; }
@@ -146,6 +149,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           return;
         }
         if (latest.data.myPickStatus.type !== 'not_selected') {
+          setCommentPickConflict(true);
           setCommentPickError('원픽 상태가 바뀌었어요. 기존 원픽은 변경하지 않았어요. 댓글 화면으로 돌아가주세요.');
           return;
         }
@@ -183,7 +187,13 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
         setSavedChoice({ pick: result, item });
       }
       submitPhase.current = 'saved';
-    } catch { /* Mutation state renders the error; no success route is exposed. */ }
+    } catch (error) {
+      if (returnPickId && error instanceof AppError && error.code === 'PICK_CHANGED_ELSEWHERE') {
+        setCommentPickConflict(true);
+        setCommentPickError('다른 기기에서 원픽이 바뀌었어요. 기존 원픽은 변경하지 않았어요. 댓글 화면으로 돌아가주세요.');
+      }
+      // Other mutation failures retain the draft and original request for retry.
+    }
     finally { if (submitPhase.current === 'saving') submitPhase.current = 'idle'; }
   };
   const goBack = () => {
@@ -328,14 +338,15 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
               {commentPickError ?? '댓글 작성 때문에 기존 원픽을 변경하지 않아요. 댓글 화면으로 돌아가주세요.'}
             </Text>
           ) : null}
-          {saveError ? <View style={styles.errorBox}>
+          {saveError && !commentPickConflict ? <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{getErrorMessage(saveError)}</Text>
             {saveError instanceof AppError && saveError.code === 'PROFILE_NOT_FOUND' ?
               <Button variant="secondary" size="sm" label="사용자명 만들고 계속" onPress={() => openRecovery(true)} style={styles.errorAction} /> : null}
             {saveError instanceof AppError && saveError.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || Boolean(returnPickId && (!atomicCommentRegistration || (pickStatus?.type !== 'not_selected' && !commentAttempt.current)))} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || commentPickConflict || Boolean(returnPickId && (!atomicCommentRegistration || (pickStatus?.type !== 'not_selected' && !commentAttempt.current)))} onPress={() => void handleSubmit()} style={styles.submit} />
+          {commentPickConflict && returnPickId ? <Button variant="ghost" label="댓글 화면으로 돌아가기" onPress={backToComments} style={styles.centered} /> : null}
           {needsPhotoStep ? <Text style={styles.footnote}>사진을 먼저 등록하면 저장할 수 있어요.</Text> : null}
           <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}
