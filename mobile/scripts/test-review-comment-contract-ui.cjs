@@ -118,7 +118,7 @@ async function main() {
   assert.match(pickDetail, /myPickStatus\.type === 'not_selected'/,
     'Comment CTA must not route selected_other into an unconfirmed replacement');
   const commentChoose = source('app/pick/choose.tsx');
-  assert.match(commentChoose, /if \(returnPickId && !commentRequestId\.current\)[\s\S]*?await itemQuery\.refetch\(\)/,
+  assert.match(commentChoose, /if \(returnPickId && !commentAttempt\.current\)[\s\S]*?await itemQuery\.refetch\(\)/,
     'Comment-entry save rechecks the current Pick before mutation');
   assert.match(commentChoose, /latest\.data\.myPickStatus\.type !== 'not_selected'/,
     'Comment-entry save declines a replacement');
