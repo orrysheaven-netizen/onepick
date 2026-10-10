@@ -295,7 +295,7 @@ begin
     join public.picks p on p.id=f.pick_id
     where p.category_id=new.id
       or (
-        old.parent_id is distinct from new.parent_id
+        (old.parent_id is distinct from new.parent_id or old.slug is distinct from new.slug)
         and exists (
           select 1
           from public.categories leaf
@@ -313,7 +313,7 @@ $$;
 revoke all on function private.featured_pick_after_category_change()
   from public,anon,authenticated;
 create trigger categories_unset_invalid_featured
-after update of status,is_visible,parent_id
+after update of status,is_visible,parent_id,slug
 on public.categories for each row execute function private.featured_pick_after_category_change();
 
 comment on function public.set_my_featured_pick(uuid,bigint) is
