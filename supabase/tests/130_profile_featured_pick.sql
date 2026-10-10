@@ -137,6 +137,9 @@ insert into public.picks(id,user_id,category_id,item_id,channel,one_line_review,
 select f.pick_id,'fa090000-0000-4000-8000-000000000001',f.category_id,f.item_id,'online',
   'Review '||f.seq,'active',now()-f.seq * interval '1 minute'
 from featured_extra_ids f;
+-- Include exact equal-timestamp keyset boundaries across multiple pages.
+update public.picks set started_at=now()-interval '5 seconds'
+where id in (select pick_id from featured_extra_ids where seq in (1,2,3));
 
 select lives_ok($test$
 do $do$
@@ -165,6 +168,30 @@ begin
 end
 $do$;
 $test$,'cursor pagination reaches the 205th eligible Pick with no duplicates');
+
+-- A public Pick transferred to another owner must stop representing the old owner.
+update public.categories set is_visible=true
+  where id='fa090000-0000-4000-8000-000000000102';
+select set_config('request.jwt.claim.sub','fa090000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+select is((public.set_my_featured_pick('fa090000-0000-4000-8000-000000000302',5)->>'revision')::bigint,
+  6::bigint,'owner reselects B after category is restored');
+reset role;
+update public.picks set user_id='fa090000-0000-4000-8000-000000000002'
+where id='fa090000-0000-4000-8000-000000000302';
+select is((select pick_id from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),null::uuid,
+  'ownership transfer clears old owner highlight');
+select is((select revision from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),7::bigint,
+  'ownership transfer advances revision');
+
+-- Public API has a strictly allowlisted response; the revision is owner-only.
+select set_config('request.jwt.claim.sub','',true);
+set local role anon;
+select ok(not (public.get_profile_featured_pick('fa090000-0000-4000-8000-000000000001') ? 'revision'),
+  'guest cannot inspect owner revision');
+reset role;
 
 select * from finish();
 rollback;
