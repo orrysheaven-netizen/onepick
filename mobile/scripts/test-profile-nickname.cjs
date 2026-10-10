@@ -28,8 +28,6 @@ async function main() {
   assert.throws(() => names.normalizeProfileNickname('가'.repeat(16)), /15자/);
   assert.throws(() => names.normalizeProfileNickname('👨‍👩‍👧‍👦'.repeat(3)), /15자/);
   assert.throws(() => names.normalizeProfileNickname(null), /닉네임/);
-  assert.equal(names.profileDisplayName(' '), '원픽 사용자');
-  assert.equal(names.profileDisplayName(null), '원픽 사용자');
   assert.equal(names.nicknameQuestionPreview('오리'), '오리님의 곱창 원픽은?');
   assert.equal(names.nicknameQuestionPreview(null), '원픽 사용자의 곱창 원픽은?');
 
@@ -81,6 +79,11 @@ async function main() {
   const files = ['app/settings.tsx', 'app/settings/nickname.tsx', 'types/domain/profile.ts',
     'repositories/mappers/profileMapper.ts', 'lib/supabase/database.types.ts'];
   const sources = files.map((file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'));
+  const featureSource = fs.readFileSync(path.join(__dirname, '../src/constants/onepick.ts'), 'utf8');
+  assert.match(featureSource, /nicknameEditing: false/);
+  assert.ok(sources[0].indexOf('nicknameEditing ?') < sources[0].indexOf('계정 삭제</Text>'));
+  assert.match(sources[0], /OnePickFeatures\.nicknameEditing \?/);
+  assert.match(sources[1], /!OnePickFeatures\.nicknameEditing/);
   assert.match(sources[0], /router\.push\('\/settings\/nickname'\)/);
   assert.match(sources[1], /key=\{user\.id\}/);
   assert.match(sources[1], /nicknameQuestionPreview\(draft\)/);

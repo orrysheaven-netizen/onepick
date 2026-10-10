@@ -4,7 +4,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, StateCard } from '@/components/ui';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeatures, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useUpdateProfileNickname } from '@/hooks/useUpdateProfileNickname';
@@ -27,7 +27,7 @@ function NicknameForm({ userId, nickname }: { userId: string; nickname: string |
   const length = profileNicknameLength(draft);
   const tooLong = length > MAX_PROFILE_NICKNAME_LENGTH;
   const unchanged = draft.trim() === (nickname ?? '');
-  const disabled = mutation.isPending || saving.current || tooLong || unchanged;
+  const disabled = mutation.isPending || tooLong || unchanged;
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/settings');
 
@@ -108,7 +108,9 @@ export default function NicknameEditScreen() {
   const profile = useMyProfile(user?.id);
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      {isLoading ? <StateCard loading title="로그인 상태를 확인하고 있어요." /> :
+      {!OnePickFeatures.nicknameEditing
+        ? <StateCard title="닉네임 수정은 준비 중이에요." text="닉네임 표시 기능과 함께 사용할 수 있어요." />
+        : isLoading ? <StateCard loading title="로그인 상태를 확인하고 있어요." /> :
         !user || error ? <StateCard title="로그인이 필요해요." text="로그인 후 닉네임을 수정할 수 있어요." /> :
         profile.isPending ? <StateCard loading title="닉네임을 불러오고 있어요." /> :
         profile.isError || !profile.data ?

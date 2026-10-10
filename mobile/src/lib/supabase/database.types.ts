@@ -1140,30 +1140,30 @@ export type Database = {
           bio: string | null
           created_at: string
           id: string
+          nickname: string | null
           onboarding_completed: boolean
           profile_image_url: string | null
           updated_at: string
-          nickname: string | null
           username: string
         }
         Insert: {
           bio?: string | null
           created_at?: string
           id: string
+          nickname?: string | null
           onboarding_completed?: boolean
           profile_image_url?: string | null
           updated_at?: string
-          nickname?: string | null
           username: string
         }
         Update: {
           bio?: string | null
           created_at?: string
           id?: string
+          nickname?: string | null
           onboarding_completed?: boolean
           profile_image_url?: string | null
           updated_at?: string
-          nickname?: string | null
           username?: string
         }
         Relationships: []

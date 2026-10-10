@@ -1,5 +1,4 @@
 export const MAX_PROFILE_NICKNAME_LENGTH = 15;
-export const UNSET_PROFILE_DISPLAY_NAME = '원픽 사용자';
 
 export class ProfileNicknameValidationError extends Error {}
 
@@ -17,11 +16,7 @@ export function normalizeProfileNickname(input: string): string | null {
   return nickname || null;
 }
 
-/** Presentation only: never use a nickname for user IDs, search cursors or profile URLs. */
-export function profileDisplayName(nickname: string | null | undefined): string {
-  return nickname?.trim() || UNSET_PROFILE_DISPLAY_NAME;
-}
-
+/** Figma 68-2A preview example only; actual home questions use a daily random menu (#777). */
 export function nicknameQuestionPreview(nickname: string | null | undefined): string {
   const name = nickname?.trim();
   return name ? `${name}님의 곱창 원픽은?` : '원픽 사용자의 곱창 원픽은?';
