@@ -50,7 +50,7 @@ async function check(name, fn) {
     record(name, status, `${detail}${detail ? ' · ' : ''}${Date.now() - started}ms`);
     return status !== 'fail';
   } catch (error) {
-    record(name, 'fail', `${safeFailureCode(error)} · ${String(error?.message ?? '').split('\n')[0].slice(0, 160)}`);
+    record(name, 'fail', safeFailureCode(error)); // closed code only — never the raw message
     return false;
   }
 }
@@ -61,7 +61,7 @@ function writeReport(summary) {
   const lines = ['## #858 초안 복원 QA (로그인 · 쓰기 0)', '',
     `- 대상: ${SITE} · 배포 ${summary.deployment} · 뷰포트 390×844 · ${summary.startedAt}`,
     `- 결과: 통과 ${summary.counts.pass} · 실패 ${summary.counts.fail} · 경고 ${summary.counts.warn}`,
-    `- 네트워크 격리: 차단된 쓰기 시도 ${summary.network.blockedWrites} · 차단된 함수 호출 ${summary.network.blockedFunctions} · 차단된 Storage ${summary.network.blockedStorage} · 차단된 텔레메트리 ${summary.network.blockedTelemetry}`,
+    `- 네트워크 격리: 차단된 쓰기 시도 ${summary.network.blockedWrites} · 차단된 함수 호출 ${summary.network.blockedFunctions} · 차단된 Storage ${summary.network.blockedStorage} · 차단된 외부 비-GET ${summary.network.blockedExternal} · 차단된 텔레메트리 ${summary.network.blockedTelemetry}`,
     `- 원픽 행 수: 시작 ${summary.picks.before ?? '?'} → 종료 ${summary.picks.after ?? '?'}`,
     '', '| 확인 | 결과 | 근거 |', '| --- | --- | --- |'];
   for (const s of steps) lines.push(`| ${s.check} | ${icon[s.status] ?? ''} ${s.status} | ${String(s.detail).replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`);
@@ -77,7 +77,7 @@ async function main() {
   const startedAt = new Date().toISOString();
   assertExecution(process.env);
   const browser = await chromium.launch();
-  const network = { blockedWrites: 0, blockedFunctions: 0, blockedStorage: 0, blockedTelemetry: 0 };
+  const network = { blockedWrites: 0, blockedFunctions: 0, blockedStorage: 0, blockedExternal: 0, blockedTelemetry: 0 };
   const picks = { before: null, after: null };
   const pageErrors = [];
   let deployment = 'unknown';
@@ -136,6 +136,7 @@ async function main() {
         if (kind === 'block-write') network.blockedWrites += 1;
         else if (kind === 'block-function') network.blockedFunctions += 1;
         else if (kind === 'block-storage') network.blockedStorage += 1;
+        else if (kind === 'block-external') network.blockedExternal += 1;
         else network.blockedTelemetry += 1;
         return route.abort('blockedbyclient');
       }
@@ -266,7 +267,7 @@ async function main() {
       picks.after = await countPicks();
       if (network.blockedWrites > 0) throw new Error('UNEXPECTED_WRITE_ATTEMPT');
       if (picks.after !== picks.before) throw new Error('PICK_COUNT_CHANGED');
-      return `쓰기 시도 차단 ${network.blockedWrites}건(0이어야 함) · 함수 차단 ${network.blockedFunctions} · 텔레메트리 차단 ${network.blockedTelemetry} · 원픽 ${picks.before}→${picks.after}`;
+      return `쓰기 시도 차단 ${network.blockedWrites}건(0이어야 함) · 함수 차단 ${network.blockedFunctions} · Storage 차단 ${network.blockedStorage} · 외부 비-GET 차단 ${network.blockedExternal} · 텔레메트리 차단 ${network.blockedTelemetry} · 원픽 ${picks.before}→${picks.after}`;
     }).catch(() => {});
     if (session) await fetch(`${API}/auth/v1/logout?scope=local`, { method: 'POST', headers: { apikey, authorization: `Bearer ${session.access_token}` } }).catch(() => {});
     await browser.close().catch(() => {});

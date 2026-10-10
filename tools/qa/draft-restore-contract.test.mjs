@@ -20,6 +20,25 @@ assert.equal(classifyRequest(`${API}/rest/v1/picks?id=eq.x`, 'DELETE'), 'block-w
 assert.equal(classifyRequest(`${API}/storage/v1/object/item-photos/u/a.jpg`, 'POST'), 'block-storage');
 assert.equal(classifyRequest(`${API}/functions/v1/suggest-item-categories`, 'POST'), 'block-function');
 assert.equal(classifyRequest('not a url', 'GET'), 'block-write');
+// Default-deny counter-examples (Codex review on #872): path checks come before the method,
+// auth is narrowed to the refresh grant, and non-Supabase origins are not a free pass.
+assert.equal(classifyRequest(`${API}/functions/v1/suggest-item-categories`, 'GET'), 'block-function', 'GET still invokes an Edge Function');
+assert.equal(classifyRequest(`${API}/functions/v1/suggest-item-categories?x=1`, 'OPTIONS'), 'block-function');
+assert.equal(classifyRequest(`${API}/storage/v1/object/public/item-photos/a.jpg`, 'GET'), 'block-storage');
+assert.equal(classifyRequest(`${API}/storage/v1/object/item-photos/u/a.jpg`, 'PUT'), 'block-storage');
+assert.equal(classifyRequest(`${API}/auth/v1/user`, 'GET'), 'allow');
+assert.equal(classifyRequest(`${API}/auth/v1/signup`, 'POST'), 'block-write');
+assert.equal(classifyRequest(`${API}/auth/v1/token?grant_type=password`, 'POST'), 'block-write', 'only the refresh grant is needed in the browser');
+assert.equal(classifyRequest(`${API}/auth/v1/user`, 'PUT'), 'block-write');
+assert.equal(classifyRequest(`${API}/auth/v1/logout?scope=local`, 'POST'), 'block-write', 'logout is done by the runner outside the browser');
+assert.equal(classifyRequest(`${API}/auth/v1/recover`, 'POST'), 'block-write');
+assert.equal(classifyRequest(`${SITE}/api/anything`, 'POST'), 'block-write', 'same-site non-read is unexpected');
+assert.equal(classifyRequest(`${SITE}/pick/new`, 'DELETE'), 'block-write');
+assert.equal(classifyRequest('https://third-party.example/collect', 'POST'), 'block-external');
+assert.equal(classifyRequest('https://third-party.example/collect', 'PUT'), 'block-external');
+assert.equal(classifyRequest('https://image.tmdb.org/t/p/w500/x.jpg', 'GET'), 'allow', 'third-party reads (images) pass');
+assert.equal(classifyRequest(`${API}/rest/v1/rpc/store_menu_options`, 'PUT'), 'block-write', 'read RPC allowlist is POST only');
+assert.equal(classifyRequest(`${API}/rest/v1/rpc/`, 'POST'), 'block-write');
 
 assert.equal(isMenuOptionsRequest(`${API}/rest/v1/rpc/store_menu_options`), true);
 assert.equal(isMenuOptionsRequest(`${API}/rest/v1/rpc/store_menu_options_v2`), false);

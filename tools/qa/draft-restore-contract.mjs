@@ -24,25 +24,44 @@ const READ_RPCS = new Set([
 const TELEMETRY_RPCS = new Set(['capture_product_event', 'capture_client_error']);
 
 /**
- * Decide what the Playwright route does with a request.
- * @returns {'allow'|'block-telemetry'|'block-write'|'block-function'|'block-storage'}
+ * Decide what the Playwright route does with a request. Default-deny: the only
+ * requests that leave the browser are reads (GET/HEAD/OPTIONS) outside Supabase
+ * Functions/Storage, the read-only RPC allowlist, and the one auth call a
+ * persisted session needs (refresh_token grant). Everything else is aborted.
+ *
+ * - 'block-write'     Supabase table/RPC/auth change or any non-read to the site origin → run fails
+ * - 'block-function'  Supabase Edge Function, any method (paid AI) → run fails
+ * - 'block-storage'   Supabase Storage, any method → run fails
+ * - 'block-external'  non-read request to a third-party origin (beacons, embeds) → blocked, reported, not a Production write
+ * - 'block-telemetry' capture_* RPCs → blocked, reported
+ * @returns {'allow'|'block-telemetry'|'block-write'|'block-function'|'block-storage'|'block-external'}
  */
 export function classifyRequest(url, method) {
   let u;
   try { u = new URL(url); } catch { return 'block-write'; }
   const verb = String(method || 'GET').toUpperCase();
-  if (u.origin !== API) return 'allow'; // site assets, fonts; Supabase is the only data origin we police
-  if (verb === 'GET' || verb === 'HEAD' || verb === 'OPTIONS') return 'allow';
-  if (u.pathname.startsWith('/auth/v1/')) return 'allow'; // token refresh / logout only
-  if (u.pathname.startsWith('/functions/v1/')) return 'block-function'; // suggest-item-categories etc. (paid AI)
-  if (u.pathname.startsWith('/storage/v1/')) return 'block-storage';
-  if (u.pathname.startsWith('/rest/v1/rpc/')) {
-    const rpc = u.pathname.slice('/rest/v1/rpc/'.length);
-    if (TELEMETRY_RPCS.has(rpc)) return 'block-telemetry';
-    if (verb === 'POST' && READ_RPCS.has(rpc)) return 'allow';
-    return 'block-write';
+  const isRead = verb === 'GET' || verb === 'HEAD' || verb === 'OPTIONS';
+  if (u.origin === API) {
+    // Paths checked before the method: a GET to an Edge Function still runs it.
+    if (u.pathname.startsWith('/functions/v1/')) return 'block-function';
+    if (u.pathname.startsWith('/storage/v1/')) return 'block-storage';
+    if (u.pathname.startsWith('/auth/v1/')) {
+      if (isRead) return 'allow'; // /auth/v1/user
+      if (verb === 'POST' && u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'refresh_token') return 'allow';
+      return 'block-write'; // signup, password grant, user update, logout: the browser never needs these here
+    }
+    if (isRead) return 'allow';
+    if (u.pathname.startsWith('/rest/v1/rpc/')) {
+      const rpc = u.pathname.slice('/rest/v1/rpc/'.length);
+      if (TELEMETRY_RPCS.has(rpc)) return 'block-telemetry';
+      if (verb === 'POST' && READ_RPCS.has(rpc)) return 'allow';
+      return 'block-write';
+    }
+    return 'block-write'; // table insert/update/delete
   }
-  return 'block-write'; // table insert/update/delete
+  if (isRead) return 'allow'; // site assets, fonts, third-party images
+  if (u.origin === SITE) return 'block-write'; // no same-site non-read is expected
+  return 'block-external';
 }
 
 export function isMenuOptionsRequest(url) {
