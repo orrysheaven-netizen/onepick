@@ -30,7 +30,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
   const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId } });
 
   return (
-    <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
+    <View style={[styles.card, isMine && isCurrent && styles.mine, canManage && styles.ownerLayer, highlighted && styles.highlight]}>
       <View style={styles.header}>
         {isMine ? (
           <Text style={[styles.author, styles.mineLabel]}>내 한줄평</Text>
@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   mine: { backgroundColor: 'transparent' },
+  ownerLayer: { position: 'relative', zIndex: 4 },
   highlight: { backgroundColor: OnePick.accentSoft, borderRadius: 14, paddingHorizontal: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 2 },
   author: { flex: 1, minWidth: 0 },
