@@ -280,7 +280,7 @@ $$;
 revoke all on function private.featured_pick_after_item_change()
   from public,anon,authenticated;
 create trigger items_unset_invalid_featured
-after update of status,image_path,thumbnail_path,image_source_url,category_id
+after update of status,image_path,thumbnail_path,image_source_url
 on public.items for each row execute function private.featured_pick_after_item_change();
 
 create function private.featured_pick_after_category_change()
