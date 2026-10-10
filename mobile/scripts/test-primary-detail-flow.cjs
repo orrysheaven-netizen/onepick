@@ -48,6 +48,13 @@ assert.match(publicProfile, /pathname: '\/pick\/\[pickId\]'/, 'Public profile ro
 assert.match(publicProfile, /onOpenPick=\{\(pickId\) => router\.push\(\{ pathname: '\/pick\/\[pickId\]'/,
   'Public profile Pick rows must keep the dedicated Pick-detail route');
 
+// Item detail must never expose the literal missing-category placeholder to people.
+const itemDetail = read('src/app/item/[itemId].tsx');
+assert.doesNotMatch(itemDetail, /category\?\.name\s*\?\?\s*['"]카테고리['"]/,
+  'Item detail must not substitute 카테고리 when the category record is unavailable');
+assert.match(itemDetail, /category\?\.name\s*\?\s*<Text style=\{styles\.category\}>\{categoryWithChannels\(category\.name, item\.channels\)\}<\/Text>\s*:\s*null/,
+  'Item detail displays non-food category labels only when a real category name exists');
+
 // Figma 17A is a terminal store profile that drills down to menu-item detail.
 assert.match(provider, /query\.data\.kind === 'offline_branch' \? '이곳의 원픽'/,
   'Store profile must expose the Figma 17A menu section');
