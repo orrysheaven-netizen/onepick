@@ -1,0 +1,27 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "node": "22.13.1",
+      "env": {
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://onepick-5cl.pages.dev",
+        "ONEPICK_EXPO_OWNER": "onepick",
+        "ONEPICK_EAS_PROJECT_ID": "e060f539-2cb7-4af1-ad55-f2ada9dd7a41",
+        "ONEPICK_ANDROID_PACKAGE": "com.onepick.app"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview-simulator": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
+    }
+  }
+}

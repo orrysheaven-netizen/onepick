@@ -90,24 +90,49 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await page.getByRole('textbox', { name: '매장명 검색', exact: true }).waitFor({ state: 'visible', timeout });
       assert.equal(await page.getByText('상호명을 검색해주세요.', { exact: true }).count(), 1);
     });
-    const menu = (label, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><button onclick="window.selected=true">${label}</button><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
-    await t.test('menu supports plain/group names, default AI path, and trial-only Next', async () => {
-      for (const label of ['도가니탕', '국물 › 도가니탕', 'AI 추천 도가니탕']) {
-        await set(menu(label));
-        await api.checkMenuSelection(page, '도가니탕', timeout);
-        assert.equal(await page.evaluate(() => window.selected), true);
+    const successCopy = '메뉴를 확인했어요. 다음으로 넘어가주세요.';
+    const menu = (copy, disabled = false) => `<div>2 / 4 · 매장</div><input aria-label="메뉴 이름"><div id="classification">${copy}</div><button ${disabled ? 'disabled' : ''} onclick="window.submitted=true">다음</button>`;
+    await t.test('automatic menu classification needs no category click and never submits', async () => {
+      for (const name of ['도가니탕', '메뉴(특)+']) {
+        await set(menu(successCopy));
+        await api.checkMenuSelection(page, name, timeout);
+        assert.equal(await page.getByRole('textbox', { name: '메뉴 이름' }).inputValue(), name);
         assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
       }
-      await set(menu('국물 › 메뉴(특)+'));
-      await api.checkMenuSelection(page, '메뉴(특)+', timeout, false);
-      await set(menu('AI 추천 도가니탕'));
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout, false));
-      await set(menu('다른 메뉴'));
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout));
-      await set(menu('도가니탕', true));
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout, false), (error) => error.code !== 'QA_MENU_CHOICE_UNAVAILABLE');
-      await set('<div>2 / 4 · 매장</div><input aria-label="메뉴 검색"><button>도가니탕</button><button>도가니탕(으)로 다음</button>');
-      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout));
+      await set(menu('분류 중', true));
+      await page.locator('input').evaluate((input, copy) => {
+        input.addEventListener('input', () => setTimeout(() => {
+          document.getElementById('classification').textContent = copy;
+          document.querySelector('button').disabled = false;
+        }, 60), { once: true });
+      }, successCopy);
+      await api.checkMenuSelection(page, '도가니탕', timeout);
+      assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
+    });
+    await t.test('missing, loading, unresolved and legacy category choices cannot pass', async () => {
+      for (const copy of ['', '분류 중', '메뉴를 분류하지 못했어요.', '<button>도가니탕</button>', '<button>AI 추천 도가니탕</button>']) {
+        await set(menu(copy));
+        await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout),
+          (error) => error.code === 'QA_MENU_CLASSIFICATION_UNAVAILABLE');
+        assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
+      }
+    });
+    await t.test('disabled or covered Next remains a failure even when classification succeeds', async () => {
+      await set(menu(successCopy, true));
+      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout),
+        (error) => error.code !== 'QA_MENU_CLASSIFICATION_UNAVAILABLE');
+      await set(menu(successCopy));
+      await page.locator('button').evaluate((button) => {
+        const cover = document.createElement('div');
+        cover.style.cssText = 'position:absolute;inset:0;z-index:10';
+        button.style.cssText = 'position:relative';
+        button.parentNode.insertBefore(cover, button);
+        const rect = button.getBoundingClientRect();
+        cover.style.cssText = `position:fixed;left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px;z-index:10`;
+      });
+      await assert.rejects(api.checkMenuSelection(page, '도가니탕', timeout),
+        (error) => error.code !== 'QA_MENU_CLASSIFICATION_UNAVAILABLE');
+      assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
     });
     await t.test('notifications require signed-in controls and a loaded list or empty state', async () => {
       for (const row of ['새 알림, @user, 댓글', '읽은 알림, 수정 필요']) {
@@ -155,6 +180,127 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await assert.rejects(api.assertFollowSettingHidden(page, timeout), /팔로우 알림/);
       await set('<div>설정</div>');
       await assert.rejects(api.assertFollowSettingHidden(page, timeout));
+    });
+    // #757 (#826) own-profile layout: tabs, 프로필 편집 toggle that only hides the editor,
+    // "공개 프로필 미리 보기" with returnTo=/profile, 내가 쓴 댓글 under 설정, header share "프로필 공유".
+    const profile757 = ({ withLegacy = '', tabs = true, records = '<div>아직 기록이 없어요.</div>', bio = '' } = {}) => `
+      <div>qa_user</div>
+      <button aria-label="설정 열기" onclick="history.pushState({}, '', '/settings'); document.getElementById('settings').hidden=false">설정</button>
+      <button aria-label="음식 원픽 보기">음식</button>
+      <div style="display:flex;gap:8px;width:358px">
+        <button id="edit" style="flex:1;height:36px" aria-label="프로필 편집" onclick="const e=document.getElementById('editor'); if(!window.opened){window.opened=true;e.hidden=false;} else {e.hidden=!e.hidden;}">프로필 편집</button>
+        <button style="flex:1;height:36px" aria-label="내 프로필 공유하기">프로필 공유</button>
+      </div>
+      <div id="editor" hidden>
+        <button id="start" aria-label="자기소개 ${bio ? '수정' : '추가'}" onclick="document.getElementById('bio').hidden=false; this.hidden=true; document.getElementById('bio-input').value='${bio}'">${bio ? '수정' : '추가'}</button>
+        <div id="bio" hidden>
+          <textarea id="bio-input" aria-label="자기소개 입력"></textarea>
+          <button aria-label="자기소개 저장" onclick="window.saved=true">저장하기</button>
+          <button aria-label="자기소개 편집 취소" onclick="document.getElementById('bio').hidden=true; document.getElementById('start').hidden=false; document.getElementById('bio-input').value=''">닫기</button>
+        </div>
+      </div>
+      <button style="display:block;height:32px;width:200px" aria-label="다른 사람에게 보이는 내 프로필 미리 보기" onclick="history.pushState({}, '', '/u/qa_user?returnTo=%2Fprofile'); document.getElementById('public').hidden=false">공개 프로필 미리 보기</button>
+      ${tabs ? `<div role="tablist" style="display:flex;width:358px">
+        <button role="tab" style="flex:1;height:48px" aria-label="원픽 탭" aria-selected="true" onclick="window.pick()">원픽</button>
+        <button role="tab" style="flex:1;height:48px" aria-label="기록 탭" aria-selected="false" onclick="window.rec()">기록</button>
+      </div>` : ''}
+      <div id="picks"><button aria-label="김치찌개 원픽 상세 보기">행</button></div>
+      <div id="records" hidden>${records}</div>
+      ${withLegacy}
+      <div id="settings" hidden><div>차단한 사용자</div><a role="link" href="#" onclick="event.preventDefault(); history.pushState({}, '', '/comments')">내가 쓴 댓글</a></div>
+      <div id="public" hidden>
+        <button aria-label="뒤로 가기" onclick="history.pushState({}, '', '/profile'); this.parentElement.hidden=true">‹</button>
+        <button aria-label="프로필 공유">공유</button>
+        <button aria-label="음식 원픽 보기">음식</button>
+        <button aria-label="@qa_user 팔로우">팔로우</button>
+      </div>
+      <script>
+        const tabsEl = document.querySelectorAll('[role=tab]');
+        window.pick = () => { tabsEl[0].setAttribute('aria-selected','true'); tabsEl[1].setAttribute('aria-selected','false'); document.getElementById('picks').hidden=false; document.getElementById('records').hidden=true; };
+        window.rec = () => { tabsEl[0].setAttribute('aria-selected','false'); tabsEl[1].setAttribute('aria-selected','true'); document.getElementById('picks').hidden=true; document.getElementById('records').hidden=false; };
+      </script>`;
+    await t.test('#757 profile layout is detected from its own controls and never mixed with legacy', async () => {
+      await set(profile757());
+      assert.equal(await api.detectOwnProfileLayout(page, timeout), '757');
+      await api.assertOwnProfile(page, 'qa_user', timeout, '757');
+      await assert.rejects(api.assertOwnProfile(page, 'qa_user', timeout, 'legacy'), 'legacy contract must not pass on the #757 layout');
+      await set('<div>qa_user</div><button>설정 열기</button><button>내 댓글 보기</button><button aria-label="음식 원픽 보기">음식</button>');
+      assert.equal(await api.detectOwnProfileLayout(page, timeout), 'legacy');
+      await assert.rejects(api.assertOwnProfile(page, 'qa_user', timeout, '757'), '#757 contract must not pass on the legacy layout');
+      await set(profile757({ withLegacy: '<button>내 댓글 보기</button>' }));
+      await assert.rejects(api.detectOwnProfileLayout(page, timeout), /함께 보임/);
+      await set(profile757({ withLegacy: '<div>공개 프로필 보기</div>' }));
+      await assert.rejects(api.assertOwnProfile(page, 'qa_user', timeout, '757'), /구 진입/);
+      await set(profile757({ tabs: false }));
+      await assert.rejects(api.assertOwnProfile(page, 'qa_user', timeout, '757'));
+      await set('<button>설정 열기</button><div>로딩 중</div>');
+      await assert.rejects(api.detectOwnProfileLayout(page, timeout));
+      await assert.rejects(api.assertOwnProfile(page, 'qa_user', timeout, 'nope'), /알 수 없는/);
+    });
+    await t.test('#757 원픽 | 기록 tabs switch, show records or the empty card, and return to 원픽', async () => {
+      await set(profile757());
+      assert.deepEqual(await api.assertProfileTabs(page, timeout), { empty: true, rows: 0, requests: 0 });
+      assert.equal(await page.getByRole('tab', { name: '원픽 탭' }).getAttribute('aria-selected'), 'true');
+      await set(profile757({ records: '<div>지난 원픽</div><button aria-label="라멘 원픽 상세 보기">행</button><div>검토 중</div><div>반려</div>' }));
+      assert.deepEqual(await api.assertProfileTabs(page, timeout), { empty: false, rows: 1, requests: 2 });
+      await set(profile757({ records: '<div>아직 기록이 없어요.</div><div>지난 원픽</div><button aria-label="라멘 원픽 상세 보기">행</button>' }));
+      await assert.rejects(api.assertProfileTabs(page, timeout), /함께 보임/);
+      await set(profile757({ records: '<div>불러오는 중</div>' }));
+      await assert.rejects(api.assertProfileTabs(page, timeout));
+      // A tab that does not take the selected state is a failure, not a pass.
+      await set(profile757().replace('onclick="window.rec()"', ''));
+      await assert.rejects(api.assertProfileTabs(page, timeout), /선택 상태가 아님/);
+    });
+    await t.test('#757 bio draft survives 프로필 편집 close → reopen and is never saved', async () => {
+      await set(profile757());
+      const result = await api.assertBioDraftPersists(page, 'QA 초안', timeout);
+      assert.deepEqual(result, { original: '', kept: 'QA 초안' });
+      assert.equal(await page.evaluate(() => Boolean(window.saved)), false, 'save is only trial-clicked');
+      assert.equal(await page.getByRole('textbox', { name: '자기소개 입력' }).isVisible(), false, 'editor is closed again afterwards');
+      await set(profile757({ bio: '기존 소개' }));
+      assert.deepEqual(await api.assertBioDraftPersists(page, 'QA 초안', timeout), { original: '기존 소개', kept: 'QA 초안' });
+      // An editor that unmounts on close (losing the draft) is the regression this guards.
+      await set(profile757().replace("e.hidden=!e.hidden;", "e.hidden=!e.hidden; if(e.hidden){document.getElementById('bio-input').value='';}"));
+      await assert.rejects(api.assertBioDraftPersists(page, 'QA 초안', timeout), /초안이 사라짐/);
+    });
+    await t.test('#757 preview opens /u/ with returnTo and 뒤로 가기 lands on the own profile', async () => {
+      await set(profile757());
+      await api.openPublicProfilePreview(page, timeout, '757');
+      assert.match(new URL(page.url()).pathname + new URL(page.url()).search, /^\/u\/qa_user\?returnTo=%2Fprofile$/);
+      await api.assertPublicProfile(page, timeout, '757');
+      await api.assertFollowCtaVisible(page, timeout, '757');
+      await api.assertPreviewReturnsToOwnProfile(page, timeout);
+      assert.equal(new URL(page.url()).pathname, '/profile');
+      // Legacy share card on the #757 public profile, or the legacy text link on the #757 own profile, fail.
+      await set(profile757().replace('aria-label="프로필 공유">공유', 'aria-label="프로필 공유하기">공유'));
+      await api.openPublicProfilePreview(page, timeout, '757');
+      await assert.rejects(api.assertPublicProfile(page, timeout, '757'));
+      await assert.rejects(api.assertFollowCtaVisible(page, timeout, '757'));
+      await set(profile757());
+      await assert.rejects(api.openPublicProfilePreview(page, timeout, 'legacy'));
+      // Back that goes somewhere else than /profile fails.
+      await set(profile757().replace("history.pushState({}, '', '/profile')", "history.pushState({}, '', '/')"));
+      await api.openPublicProfilePreview(page, timeout, '757');
+      await assert.rejects(api.assertPreviewReturnsToOwnProfile(page, timeout));
+    });
+    await t.test('#757 own comments are reached through 설정, legacy through the profile button', async () => {
+      await set(profile757());
+      await api.openOwnComments(page, timeout, '757');
+      assert.equal(new URL(page.url()).pathname, '/comments');
+      await set(profile757().replace('내가 쓴 댓글</a>', '내 댓글</a>'));
+      await assert.rejects(api.openOwnComments(page, timeout, '757'));
+      await set(profile757());
+      await assert.rejects(api.openOwnComments(page, timeout, 'legacy'), 'legacy path must not find a button the #757 layout no longer has');
+    });
+    await t.test('#757 layout fits 390×844 and flags overlap or overflow', async () => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await set(profile757());
+      const boxes = await api.assertProfileLayoutFits(page, { width: 390, height: 844 }, timeout);
+      assert.equal(boxes.length, 6);
+      await set(profile757().replace('style="flex:1;height:36px" aria-label="내 프로필 공유하기"', 'style="position:absolute;left:0;top:0;width:500px;height:36px" aria-label="내 프로필 공유하기"'));
+      await assert.rejects(api.assertProfileLayoutFits(page, { width: 390, height: 844 }, timeout), /가로 경계 이탈/);
+      await set(profile757().replace('<div style="display:flex;gap:8px;width:358px">', '<div style="position:relative;width:358px;height:36px">').replace('id="edit" style="flex:1;height:36px"', 'id="edit" style="position:absolute;left:0;width:200px;height:36px"').replace('style="flex:1;height:36px" aria-label="내 프로필 공유하기"', 'style="position:absolute;left:100px;width:200px;height:36px" aria-label="내 프로필 공유하기"'));
+      await assert.rejects(api.assertProfileLayoutFits(page, { width: 390, height: 844 }, timeout), /겹침/);
     });
     await t.test('pick ids come from the current feed/detail RPCs, current reviews only', () => {
       const base = 'https://example.supabase.co/rest/v1';
@@ -208,3 +354,4 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
     assert.equal(unexpectedRequests, 0);
   } finally { await browser.close(); }
 });
+

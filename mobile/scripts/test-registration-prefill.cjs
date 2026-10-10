@@ -16,7 +16,9 @@ assert.match(service, /from\('place_catalog'\)[\s\S]*?\.eq\('place_provider', pl
 assert.match(hook, /useProviderStorePrefill/);
 assert.match(screen, /!restoredDraftRef\.current/, 'a restored account draft wins over entry prefill');
 assert.match(screen, /providerPrefill\.data \?\? null/);
-assert.match(screen, /메뉴에서 시작해 메뉴명을 미리 채웠어요/);
+assert.match(screen, /매장 메뉴명으로 고쳐 써도 돼요/);
+assert.match(screen, /매장 메뉴명을 그대로 적어주세요/);
+assert.doesNotMatch(screen, /카테고리는 앱이 자동으로 분류해요/);
 assert.match(screen, /prefilledCategoryOption/);
 assert.match(screen, /관리자 검수 후 \$\{pickDisplayName\}/, 'photo copy reflects the current first-photo review policy');
 assert.match(screen, /borderStyle: 'dashed'/);

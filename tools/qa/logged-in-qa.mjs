@@ -1,7 +1,7 @@
 // Logged-in user-flow QA of the OnePick tester site with the dedicated QA
 // general-user account. Checks that the core UI a signed-in phone user needs is
 // present, visible and clickable, and walks: login → home → search → pick
-// registration → link category suggestion → profile → settings → public profile →
+// registration → link category suggestion → profile (legacy or #757 layout, detected once) → settings → public profile →
 // notifications → share/deep link, plus read-only own picks list and pick comment area. The MVP shows
 // the public-profile follow CTA, while the following-feed scope and follow notification setting stay hidden.
 //
@@ -26,6 +26,8 @@ import {
   openHomeSearch, submitHomeSearch, openOwnComments, openNotificationsTab,
   assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
   pickIdSource, pickIdsFromResponse, assertPickConversation,
+  detectOwnProfileLayout, openPublicProfilePreview, assertPreviewReturnsToOwnProfile,
+  assertProfileTabs, assertBioDraftPersists, assertProfileLayoutFits, publicShareButton,
 } from './logged-in-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
@@ -57,6 +59,7 @@ const device = { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } 
 const steps = [];
 const secrets = [EMAIL, PASSWORD].filter(Boolean);
 let qaUsername = null;
+let profileLayout = 'legacy';
 
 // Last line of defence: nothing that reaches the report may contain the
 // credentials, a bearer token or the QA username.
@@ -268,8 +271,11 @@ async function main() {
       const response = await profileResponse;
       if (!response) throw new Error('QA 계정의 프로필 응답을 확인하지 못함');
       qaUsername = ownProfileUsername(await response.json(), session.user.id);
-      await assertOwnProfile(page, qaUsername);
-      return '내 프로필 헤더 표시';
+      // #757 (#826) restructures the own profile. Detect which layout the deploy renders once
+      // and hold every later profile check to that layout's exact contract.
+      profileLayout = await detectOwnProfileLayout(page, STEP_TIMEOUT_MS);
+      await assertOwnProfile(page, qaUsername, STEP_TIMEOUT_MS, profileLayout);
+      return `내 프로필 헤더 표시 (${profileLayout === '757' ? '#757 레이아웃' : '기존 레이아웃'})`;
     });
     loginLabel = appReady ? '성공' : '세션 발급됨, 앱 인식 실패';
     if (!appReady) return;
@@ -426,21 +432,21 @@ async function main() {
         page.off('response', onRpcResponse);
       }
     });
-    await check(flow, '메뉴 선택 가능, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
-      // Step 2 selects a category for the menu; the "다음" button's press
+    await check(flow, '메뉴 자동 분류 완료, "다음" 버튼 활성화 (2/4 메뉴)', async () => {
+      // Step 2 automatically classifies the menu; the "다음" button's press
       // (confirmMenu → selectItem.mutateAsync) is a write, so it is only
       // trial-clicked, never pressed.
       const blockedBefore = blockedMenuSuggestions;
       try {
-        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS, !BLOCK_MENU_AI);
+        await checkMenuSelection(page, MENU_QUERY, STEP_TIMEOUT_MS);
       } catch (error) {
-        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CHOICE_UNAVAILABLE') {
-          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/추천·다음 버튼 통과 판정 아님' };
+        if (BLOCK_MENU_AI && blockedMenuSuggestions > blockedBefore && error.code === 'QA_MENU_CLASSIFICATION_UNAVAILABLE') {
+          return { status: 'warn', detail: '안전 제한으로 미검증: 메뉴 AI 요청 차단. 제품 실패/자동 분류·다음 버튼 통과 판정 아님' };
         }
         throw error;
       }
       await noErrorCopy(page);
-      return '메뉴 선택 → "다음" 버튼 활성화 (제출하지 않음)';
+      return '메뉴 자동 분류 완료 → "다음" 버튼 활성화 (제출하지 않음)';
     });
     await shot(page, 'pick_new');
 
@@ -537,14 +543,40 @@ async function main() {
       await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
       await bottomTab(page, '프로필').first().click();
       await page.waitForURL(/\/profile/, { timeout: STEP_TIMEOUT_MS });
-      await assertOwnProfile(page, qaUsername);
+      await assertOwnProfile(page, qaUsername, STEP_TIMEOUT_MS, profileLayout);
     });
     await check(flow, '핵심 요소 표시', async () => {
       // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
       await actionable(page.getByRole('button', { name: '음식 원픽 보기', exact: true }));
       await actionable(page.getByRole('button', { name: '설정 열기', exact: true }));
+      if (profileLayout === '757') {
+        await actionable(page.getByRole('button', { name: '프로필 편집', exact: true }));
+        await actionable(page.getByRole('button', { name: '내 프로필 공유하기', exact: true }));
+      }
       await noErrorCopy(page);
+      return profileLayout === '757' ? '설정 · 음식 칩 · 프로필 편집 · 프로필 공유 표시' : '설정 · 음식 칩 표시';
     });
+    if (profileLayout === '757') {
+      await check(flow, '390×844 배치: 경계·겹침', async () => {
+        const boxes = await assertProfileLayoutFits(page, device.viewport, STEP_TIMEOUT_MS);
+        return `${boxes.length}개 요소 뷰포트 안 · 겹침 없음`;
+      });
+      await check(flow, '원픽 | 기록 탭 전환', async () => {
+        const result = await assertProfileTabs(page, STEP_TIMEOUT_MS);
+        await noErrorCopy(page);
+        if (result.empty) return { status: 'pass', detail: '기록 빈 상태 문구 표시 · 원픽 탭 복귀' };
+        return `기록: 지난 원픽 ${result.rows}개 · 등록 요청 ${result.requests}개 · 원픽 탭 복귀`;
+      });
+      await check(flow, '소개 초안 유지(닫기 → 다시 열기, 저장 안 함)', async () => {
+        const { original } = await assertBioDraftPersists(page, 'QA 초안 확인용 문구 (저장하지 않음)', STEP_TIMEOUT_MS);
+        await noErrorCopy(page);
+        return original ? '기존 소개 있음 · 초안 유지 · 취소로 복원' : '소개 없음 · 초안 유지 · 취소로 복원';
+      });
+    } else {
+      for (const name of ['390×844 배치: 경계·겹침', '원픽 | 기록 탭 전환', '소개 초안 유지(닫기 → 다시 열기, 저장 안 함)']) {
+        record(flow, name, 'skip', '#757 레이아웃 전용 검사 · 기존 레이아웃 배포');
+      }
+    }
     await check(flow, '내 원픽 목록 표시', async () => {
       // Read-only: the own picks list is only looked at; the row is trial-clicked, never opened.
       const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ });
@@ -560,8 +592,9 @@ async function main() {
       await noErrorCopy(page);
       return `내 원픽 ${count}개 표시`;
     });
-    await check(flow, '프로필의 "내 댓글 보기"', async () => {
-      await openOwnComments(page);
+    await check(flow, profileLayout === '757' ? '설정의 "내가 쓴 댓글"' : '프로필의 "내 댓글 보기"', async () => {
+      if (!/\/profile(?:[?#]|$)/.test(new URL(page.url()).pathname)) await page.goto(`${BASE_URL}/profile`, { waitUntil: 'networkidle' });
+      await openOwnComments(page, STEP_TIMEOUT_MS, profileLayout);
       const rows = page.getByRole('button', { name: /에 남긴 댓글 보기$/ });
       const empty = page.getByText('아직 남긴 댓글이 없어요');
       await rows.first().or(empty).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
@@ -575,16 +608,24 @@ async function main() {
       await noErrorCopy(page);
       return `내 댓글 ${count}개 · 상품 상세 이동 + 삭제 버튼 표시`;
     });
-    await check(flow, '"공개 프로필 보기" 이동', async () => {
-      if (!/\/profile/.test(page.url())) {
+    await check(flow, profileLayout === '757' ? '"공개 프로필 미리 보기" 이동' : '"공개 프로필 보기" 이동', async () => {
+      if (!/\/profile(?:[?#]|$)/.test(new URL(page.url()).pathname)) {
         await page.goto(`${BASE_URL}/profile`, { waitUntil: 'networkidle' });
       }
-      await page.getByText('공개 프로필 보기').first().click();
-      await page.waitForURL(/\/u\//, { timeout: STEP_TIMEOUT_MS });
+      await openPublicProfilePreview(page, STEP_TIMEOUT_MS, profileLayout);
       await page.waitForLoadState('networkidle');
-      await assertPublicProfile(page, STEP_TIMEOUT_MS);
+      await assertPublicProfile(page, STEP_TIMEOUT_MS, profileLayout);
       await noErrorCopy(page);
     });
+    if (profileLayout === '757') {
+      await check(flow, '미리 보기 → 뒤로 → 내 프로필 복귀', async () => {
+        await assertPreviewReturnsToOwnProfile(page, STEP_TIMEOUT_MS);
+        await assertOwnProfile(page, qaUsername, STEP_TIMEOUT_MS, profileLayout);
+        return '/profile 복귀 · 내 프로필 표시';
+      });
+    } else {
+      record(flow, '미리 보기 → 뒤로 → 내 프로필 복귀', 'skip', '#757 레이아웃 전용 검사 · 기존 레이아웃 배포');
+    }
     // Own profile screens show the account's handle: no screenshots here.
 
     flow = '설정';
@@ -594,6 +635,12 @@ async function main() {
       await noErrorCopy(page);
       return '차단 목록 표시 · 팔로우 알림 항목 없음';
     });
+    if (profileLayout === '757') {
+      await check(flow, '설정의 "내가 쓴 댓글" 진입 표시', async () => {
+        await actionable(page.getByRole('link', { name: '내가 쓴 댓글', exact: true }));
+        return '내가 쓴 댓글 링크 표시 (프로필에서 이동됨)';
+      });
+    }
 
     flow = '공개 프로필';
     let otherProfilePath = null;
@@ -611,7 +658,7 @@ async function main() {
     if (otherProfilePath) {
       await check(flow, '팔로우 버튼 노출(MVP)', async () => {
         await page.waitForLoadState('networkidle');
-        await assertFollowCtaVisible(page, STEP_TIMEOUT_MS);
+        await assertFollowCtaVisible(page, STEP_TIMEOUT_MS, profileLayout);
         return '프로필 공유 버튼 표시 · 팔로우 CTA 표시';
       });
       await shot(page, 'other_profile');
@@ -705,7 +752,7 @@ async function main() {
         const fresh = await context.newPage();
         try {
           await fresh.goto(`${BASE_URL}${otherProfilePath}`, { waitUntil: 'networkidle' });
-          await actionable(fresh.getByRole('button', { name: '프로필 공유하기' }));
+          await actionable(publicShareButton(fresh, profileLayout));
           await noErrorCopy(fresh);
         } finally { await fresh.close(); }
         return '/u/:username (공유하지 않음)';
@@ -728,3 +775,4 @@ async function main() {
 await main();
 // A failed check is a QA finding; make it visible as a red run. Skips stay green.
 if (steps.some((s) => s.status === 'fail')) process.exitCode = 1;
+

@@ -251,7 +251,8 @@ async function screenPagination(service, serviceModule, calls, setFail) {
     screen.scroll();
     assert.equal(calls.length, terminalCalls, 'menu step does not request store pages');
     screen.input('메뉴 이름').onChangeText('아메리카노'); screen.render();
-    screen.press('음료 › 아메리카노'); screen.render(); screen.press('다음'); await flush();
+    // The app classifies the exact menu automatically; no category button is needed.
+    screen.press('다음'); await flush();
     page = screen.render();
     assert.equal(screen.selections[0].store.catalogId, 'store-40', 'menu preflight receives the selected page-three catalog identity');
     assert.match(page, /4 \/ 4 · 카페인중독 · 지점40/, 'selected store survives the existing-photo step transition');
@@ -467,3 +468,4 @@ async function main() {
   console.log('Store search pages passed: screen scroll 20/20/1, rapid-scroll deduplication, visible append recovery, cursor retry, terminal status, stale/disabled/provider guards, server order, and page-three item/photo/brand selection.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

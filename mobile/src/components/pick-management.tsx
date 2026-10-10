@@ -88,7 +88,7 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
     if (submitting.current) return;
     submitting.current = true;
     try {
-      await removePick.mutateAsync({ categoryId: pick.categoryId, channel: pick.channel });
+      await removePick.mutateAsync({ categoryId: pick.categoryId, channel: pick.channel, pickId: pick.id });
       onRemoved();
     } catch {
       // Mutation state displays the error without leaving the confirmation.
@@ -180,3 +180,4 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   error: { color: OnePick.danger, fontSize: 12, lineHeight: 18, marginTop: 10 },
 });
+

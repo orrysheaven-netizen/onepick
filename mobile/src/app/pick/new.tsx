@@ -18,7 +18,7 @@ import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { isPhotoFailure, showPhotoFailure } from '@/lib/photos/photoFailure';
 import { pickDraftStore, type PickDraftStep, type RestoredPickDraft } from '@/lib/pick/pickDraft';
 import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
-import { extractNaverMapUrl, isNaverMapUrl, type MenuOption, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
+import { extractNaverMapUrl, isNaverMapUrl, type StoreCandidate, type StoreSelection } from '@/services/storeFirstService';
 import type { LinkPlaceMatch } from '@/types/domain/linkCategorySuggestion';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 
@@ -158,8 +158,6 @@ export default function NewPickScreen() {
   const [store, setStore] = useState<Store | null>(null);
   const [menuQuery, setMenuQuery] = useState('');
   const [aiMenuName, setAiMenuName] = useState('');
-  const [manualCategory, setManualCategory] = useState(false);
-  const [categoryQuery, setCategoryQuery] = useState('');
   const [menu, setMenu] = useState<{ categoryId: string | null; name: string } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   // Known from the selected item row itself, before the item detail loads.
@@ -179,6 +177,13 @@ export default function NewPickScreen() {
   const [expectedPreviousPickId, setExpectedPreviousPickId] = useState<string | null | undefined>(undefined);
   const busy = useRef(false);
   const requestIdRef = useRef<string | null>(null);
+  const linkRequestRef = useRef(0);
+  const linkOwnerRef = useRef(user?.id);
+  if (linkOwnerRef.current !== user?.id) {
+    linkOwnerRef.current = user?.id;
+    linkRequestRef.current += 1;
+  }
+  useEffect(() => () => { linkRequestRef.current += 1; }, []);
   // Account whose draft this screen has loaded; null until the session resolves.
   const [hydratedFor, setHydratedFor] = useState<string | null>(null);
   // Saved step 3/4 to return to after the menu selection is re-checked on the server.
@@ -189,12 +194,15 @@ export default function NewPickScreen() {
   const [menuPrefilled, setMenuPrefilled] = useState(false);
   const restoredDraftRef = useRef(false);
   const entryMenuPrefillConsumedRef = useRef(false);
+  const [confirmReplacement, setConfirmReplacement] = useState(false);
   const drafts = pickDraftStore();
 
   const resetForm = () => {
+    linkRequestRef.current += 1;
+    setConfirmReplacement(false);
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
     setLinkEntry(!entryProviderId); setEntryLink(''); setNameOnlyFromLink(false);
-    setMenuQuery(''); setAiMenuName(''); setManualCategory(false); setCategoryQuery(''); setMenu(null);
+    setMenuQuery(''); setAiMenuName(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
@@ -212,11 +220,14 @@ export default function NewPickScreen() {
     // restored menu/photo/review step goes back to 1/4.
     setLinkEntry(!(draft.query || draft.requesting));
     setMapLink(draft.mapLink); setStore(draft.store as Store | null); setMenuQuery(draft.menuQuery);
-    setManualCategory(draft.manualCategory); setCategoryQuery(draft.categoryQuery); setMenu(draft.menu);
+    // Legacy drafts may contain a user-selected category. Reclassify the menu.
+    setMenu(null);
     setPickScope(draft.pickScope); setReview(draft.review); setPhoto(draft.photo); setPhotoReselect(draft.photoLost);
     // Item, photo requirement and the current Pick slot come from the server again:
     // later steps resume only after the menu step's own checks pass (never auto-submit).
-    if (draft.step >= 4 && draft.store && draft.menu) { setStep(2); setResumeStep(draft.step); }
+    // A prior restore may have saved menu:null while awaiting classification.
+    // Keep the target using the typed name, not an untrusted saved category.
+    if (draft.step >= 4 && draft.store && (draft.menu || draft.menuQuery.trim())) { setStep(2); setResumeStep(draft.step); }
     else setStep(draft.step >= 4 ? (draft.store ? 2 : 1) : draft.step);
   };
   // Load once per resolved account. Nothing is read while the session is still being
@@ -291,26 +302,56 @@ export default function NewPickScreen() {
     storeKey,
     aiMenuName,
     Boolean(user) && step === 2 && menus.isSuccess && Boolean(aiMenuName) && aiMenuName === requestedMenu
-      && exactMenuMatches.length === 0 && !prefilledMenu,
+      && exactMenuMatches.length !== 1 && !prefilledMenu,
   );
   useEffect(() => {
-    if (step !== 2 || !menus.isSuccess || !requestedMenu || exactMenuMatches.length > 0 || prefilledMenu) {
-      if (!requestedMenu || exactMenuMatches.length > 0) setAiMenuName('');
+    if (step !== 2 || !menus.isSuccess || !requestedMenu || exactMenuMatches.length === 1 || prefilledMenu) {
+      if (!requestedMenu || exactMenuMatches.length === 1) setAiMenuName('');
       return;
     }
     const timeout = setTimeout(() => setAiMenuName(requestedMenu), 450);
     return () => clearTimeout(timeout);
   }, [step, menus.isSuccess, requestedMenu, exactMenuMatches.length, prefilledMenu?.categoryId]);
 
+  const aiAllowed = new Set(availableMenus.map((option) => option.categoryId));
+  const aiSuggestions = (suggestions.data?.suggestions ?? [])
+    .filter((entry) => aiAllowed.has(entry.categoryId) && entry.confidence === 'high');
+  const aiTried = Boolean(requestedMenu && aiMenuName === requestedMenu);
+  const highConfidenceIds = new Set(aiSuggestions.map((entry) => entry.categoryId));
+  const autoSuggestedMenu = aiTried && !suggestions.isFetching && !suggestions.isError
+    && !suggestions.data?.needsNewCategory && highConfidenceIds.size === 1
+    ? { categoryId: aiSuggestions[0].categoryId, name: requestedMenu }
+    : null;
+  const exactMenu = exactMenuMatches.length === 1
+    ? { categoryId: exactMenuMatches[0].categoryId, name: requestedMenu }
+    : null;
+  // Step 2 always derives its category from current inputs/server data, including
+  // restored legacy drafts. The committed menu is used only in later steps.
+  const classifiedMenu = menus.isSuccess ? prefilledMenu ?? exactMenu ?? autoSuggestedMenu : null;
+  // An unknown dish is still a valid registration. Preserve its name and let
+  // the server save a separate unclassified Pick instead of inventing a category.
+  const effectiveMenu = classifiedMenu ?? (requestedMenu && requestedMenu.length <= 40 && storeChannel === 'offline'
+    ? { categoryId: null, name: requestedMenu } : null);
+  const classificationPending = Boolean(requestedMenu && !effectiveMenu && !menus.isError
+    && (!menus.isSuccess || !aiTried || suggestions.isFetching));
+  const classificationUnresolved = Boolean(requestedMenu && menus.isSuccess && !effectiveMenu
+    && aiTried && !suggestions.isFetching);
+  // Classification has settled once the menu list (and any AI pass for the typed
+  // name) has answered. Until then the unclassified fallback above is only a
+  // placeholder for the person's own "다음" tap, never a decision a draft restore
+  // may make on its own (#836 H1).
+  const classificationSettled = menus.isError
+    || (menus.isSuccess && (Boolean(classifiedMenu) || (aiTried && !suggestions.isFetching)));
+
   const draftOwner = user && hydratedFor === user.id ? user.id : null;
   useEffect(() => {
     if (!draftOwner || done) return;
     drafts.save(draftOwner, {
       step: resumeStep ?? (step === 6 ? 5 : step), query, requesting, requestPart, newName, mapLink, store,
-      menuQuery, manualCategory, categoryQuery, menu, pickScope, review,
+      menuQuery, manualCategory: false, categoryQuery: '', menu, pickScope, review,
     });
   }, [draftOwner, done, resumeStep, step, query, requesting, requestPart, newName, mapLink, store, menuQuery,
-    manualCategory, categoryQuery, menu, pickScope, review]);
+    menu, pickScope, review]);
   useEffect(() => {
     // Keep a 'lost' marker until a new photo is chosen, so a second round trip still asks.
     if (!draftOwner || done || (!photo && photoReselect)) return;
@@ -343,6 +384,9 @@ export default function NewPickScreen() {
   };
   const goBack = () => {
     if (saving || busy.current) return;
+    linkRequestRef.current += 1;
+    setConfirmReplacement(false);
+    setResumeStep(null);
     if (step === 6) { if (router.canGoBack()) router.back(); else router.replace('/'); return; }
     if (step === 1 && requesting && nameOnlyFromLink) { setRequesting(false); setNameOnlyFromLink(false); setLinkEntry(true); return; }
     if (step === 1 && requesting && requestPart === 'link') { setRequestPart('name'); return; }
@@ -366,8 +410,6 @@ export default function NewPickScreen() {
     setMenu(null);
     setMenuPrefilled(true);
     setAiMenuName('');
-    setManualCategory(false);
-    setCategoryQuery('');
   };
   const pickStore = (candidate: Store) => {
     if (store && storeKey !== (candidate.kind === 'place' ? `place:${candidate.catalogId}` : candidate.kind === 'seller' ? `seller:${candidate.providerId}` : `new:offline:${candidate.name}`)) {
@@ -376,14 +418,23 @@ export default function NewPickScreen() {
     }
     setStore(candidate);
     setAiMenuName('');
-    setManualCategory(false);
-    setCategoryQuery('');
     applyEntryMenuPrefill();
     setStep(2);
   };
   const findByLink = () => {
     if (!validEntryLink || linkLookup.isPending) return;
-    linkLookup.mutate({ url: entryLink.trim() });
+    const url = entryLink.trim();
+    const request = ++linkRequestRef.current;
+    linkLookup.mutate({ url }, { onSuccess: (result) => {
+      if (request !== linkRequestRef.current || result.kind !== 'place') return;
+      const name = result.resolvedName?.trim().replace(/\s+/g, ' ') ?? '';
+      // Missing from the catalog is a new store, not a registration dead end.
+      // Prepare it once for this lookup; the existing final save writes newPlace.
+      // Keep candidate confirmation when a catalog match might already exist.
+      if (name && name.length <= 100 && !result.needsName && result.places.length === 0) {
+        pickStore({ kind: 'new', name, channel: 'offline', mapUrl: url });
+      }
+    } });
   };
   // No catalog match: register the store under the name read from the link, with the link itself.
   const registerFromLink = () => {
@@ -408,13 +459,22 @@ export default function NewPickScreen() {
     if (!user || !store || !effectiveMenu || busy.current) return;
     // A restored review step stays there only when no photo is missing.
     const photoStep = (next: 4 | 5): Step => (resume === 5 && next === 4 && photo ? 5 : next);
-    if (!menu) setMenu(effectiveMenu);
-    if (!effectiveMenu.categoryId) return;
+    // Consume the target only after success, not on failed lookups or
+    // while waiting for an explicit brand-scope choice.
+    setMenu(effectiveMenu);
+    if (!effectiveMenu.categoryId) {
+      setResumeStep(null);
+      setExpectedPreviousPickId(null);
+      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null);
+      setPickScope('branch'); setStep(photoStep(4));
+      return;
+    }
 
     busy.current = true;
     try {
       if (store.kind === 'new') {
         await readCurrentSlotSnapshot(effectiveMenu.categoryId);
+        setResumeStep(null);
         setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope('branch'); setStep(photoStep(4));
         return;
       }
@@ -431,17 +491,22 @@ export default function NewPickScreen() {
       setItemId(target.itemId);
       setItemHadPhoto(target.hasPhoto);
       setItemPending(target.pending);
+      setResumeStep(null);
       setStep(target.hasPhoto ? 5 : photoStep(4));
     } catch { /* Each mutation exposes its own error under the menu controls. */ }
     finally { busy.current = false; }
   };
 
+  // A restored later step resumes on its own only for a menu the catalog/AI
+  // classified. While the menu list or the AI pass is still loading nothing is
+  // decided; when they settle without a match the person stays on this step and
+  // confirms the unclassified registration with their own tap (photo and review
+  // restored so far are kept and used by that tap).
   useEffect(() => {
-    if (resumeStep === null || !user || step !== 2) return;
+    if (resumeStep === null || !user || step !== 2 || !classificationSettled || !classifiedMenu) return;
     const target = resumeStep;
-    setResumeStep(null);
-    if (store && menu) void confirmMenu(target);
-  }, [resumeStep, user, step, store, menu]);
+    if (store) void confirmMenu(target);
+  }, [resumeStep, user, step, store, classificationSettled, classifiedMenu?.categoryId]);
 
   const pickNewPhoto = async () => {
     if (busy.current) return;
@@ -456,7 +521,6 @@ export default function NewPickScreen() {
   const save = async (expectedOverride?: string | null) => {
     if (!user || !store || !menu || busy.current || saving) return;
     if (!reviewValid) { setShowReviewError(true); return; }
-    if (!menu.categoryId) { setSaveError(new AppError('CATEGORY_NOT_PICKABLE')); return; }
     if (needsPhoto && !photo) { setSaveError(new AppError('PHOTO_REQUIRED')); setStep(4); return; }
     const expected = expectedOverride !== undefined ? expectedOverride : expectedPreviousPickId;
     if (expected === undefined) { setSaveError(new AppError('INTERNAL_ERROR')); return; }
@@ -470,6 +534,7 @@ export default function NewPickScreen() {
       const result = await registration.mutateAsync({
         userId: user.id,
         categoryId: menu.categoryId,
+        ...(!menu.categoryId ? { menuName: menu.name } : {}),
         channel: storeChannel,
         oneLineReview: trimmedReview,
         requestId,
@@ -526,35 +591,9 @@ export default function NewPickScreen() {
     await save(latestExpected);
   };
 
-  const aiAllowed = new Set(availableMenus.map((option) => option.categoryId));
-  const aiSuggestions = (suggestions.data?.suggestions ?? [])
-    .filter((entry) => aiAllowed.size === 0 || aiAllowed.has(entry.categoryId))
-    .filter((entry) => entry.confidence !== 'low');
-  const aiTried = Boolean(requestedMenu && aiMenuName === requestedMenu);
-  const autoSuggestedMenu = aiTried && !manualCategory && !suggestions.isFetching
-    && exactMenuMatches.length === 0 && aiSuggestions.length > 0
-    ? { categoryId: aiSuggestions[0].categoryId, name: requestedMenu || aiSuggestions[0].label }
-    : null;
-  const effectiveMenu = menu ?? prefilledMenu ?? autoSuggestedMenu;
-  const showManualCategory = Boolean(requestedMenu && exactMenuMatches.length === 0
-    && (manualCategory || (aiTried && !suggestions.isFetching && aiSuggestions.length === 0)));
-  const normalizedCategoryQuery = compactMenuName(categoryQuery);
-  const manualMatches = (normalizedCategoryQuery
-    ? availableMenus.filter((option) => {
-        const label = compactMenuName([option.groupName, option.name].filter(Boolean).join(' '));
-        return label.includes(normalizedCategoryQuery);
-      })
-    : availableMenus).slice(0, 20);
-  const chooseMenu = (option: Pick<MenuOption, 'categoryId' | 'name'>) => {
-    if (menu?.categoryId !== option.categoryId) {
-      setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
-      setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
-    }
-    setMenu({ categoryId: option.categoryId, name: requestedMenu || option.name });
-  };
-
   const cancel = () => {
     if (saving || busy.current || done) return;
+    linkRequestRef.current += 1;
     drafts.clear();
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -614,7 +653,7 @@ export default function NewPickScreen() {
             {linkEntry ? <>
               <View style={styles.fieldBlock}>
                 <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
-                  value={entryLink} onChangeText={(value) => { setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
+                  value={entryLink} onChangeText={(value) => { linkRequestRef.current += 1; setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
                   onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
                   placeholder="https://naver.me/…" placeholderTextColor={OnePick.textSecondary} />
                 {entryLink.trim() && !validEntryLink
@@ -631,7 +670,7 @@ export default function NewPickScreen() {
                   ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해주세요.'
                   : linkMatches.length > 0
                     ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라주세요.`
-                    : linkName ? `${linkName}은(는) 아직 목록에 없어요. 새 매장으로 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
+                    : linkName ? `${linkName}의 메뉴를 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
                 {(linkSelected ? [linkSelected] : linkMatches).map((candidate) => <Pressable key={candidate.catalogId}
                   accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
                   style={({ pressed }) => [styles.resultCard, candidate === linkSelected && styles.resultCardSelected, pressed && styles.flowPressed]}>
@@ -723,12 +762,12 @@ export default function NewPickScreen() {
                 ? <>
                   <FlowButton label="매장명 가져오기" disabled={!validEntryLink} loading={linkLookup.isPending} onPress={findByLink} />
                   {!linkLookup.isPending ? <FlowButton variant="text" label="URL 없음"
-                    onPress={() => { setLinkEntry(false); linkLookup.reset(); }} /> : null}
+                    onPress={() => { linkRequestRef.current += 1; setLinkEntry(false); linkLookup.reset(); }} /> : null}
                 </>
                 : <>
                   {linkSelected ? <FlowButton label="다음" onPress={() => pickStore(linkSelected)} /> : null}
                   <FlowButton variant={linkSelected || linkMatches.length > 0 ? 'secondary' : 'primary'}
-                    label={linkSelected || linkMatches.length > 0 ? '찾는 매장이 없어요.' : linkName ? '새 매장으로 등록' : '매장 이름 입력하기'}
+                    label={linkSelected || linkMatches.length > 0 ? '찾는 매장이 없어요.' : linkName ? '다음' : '매장 이름 입력하기'}
                     onPress={registerFromLink} />
                 </>
               : !requesting && providerPrefillStore
@@ -749,23 +788,26 @@ export default function NewPickScreen() {
         {step === 2 && store ? <>
           <View style={styles.body}>
             <Text style={styles.stepMeta}>2 / 4 · {storeDisplayName}</Text>
+            <Text style={styles.helper} accessibilityLiveRegion="polite">{storeDisplayName} 매장을 선택했어요.</Text>
             <Text style={styles.title}>어떤 메뉴인가요?</Text>
             <View style={styles.fieldBlock}>
               <FieldLabel label="메뉴명" />
               <View style={styles.inputWrap}>
                 <TextInput accessibilityLabel="메뉴 이름" maxLength={40} value={menuQuery}
                   onChangeText={(value) => {
+                    setResumeStep(null);
                     setMenuPrefilled(false);
-                    setMenuQuery(value); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
+                    setMenuQuery(value); setMenu(null); setAiMenuName('');
                     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
-                  onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && !prefilledMenu) setAiMenuName(requestedMenu); }}
+                  onSubmitEditing={() => { if (menus.isSuccess && requestedMenu && exactMenuMatches.length !== 1 && !prefilledMenu) setAiMenuName(requestedMenu); }}
                   returnKeyType="search" style={[styles.input, styles.inputWithClear]} placeholder="예: 미역국" placeholderTextColor={OnePick.textSecondary} />
                 {menuQuery ? <Pressable accessibilityRole="button" accessibilityLabel="메뉴명 지우기"
                   onPress={() => {
+                    setResumeStep(null);
                     setMenuPrefilled(false);
-                    setMenuQuery(''); setMenu(null); setAiMenuName(''); setManualCategory(false); setCategoryQuery('');
+                    setMenuQuery(''); setMenu(null); setAiMenuName('');
                     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
                     setPickChangedElsewhere(false); setExpectedPreviousPickId(undefined); requestIdRef.current = null;
                   }}
@@ -774,62 +816,22 @@ export default function NewPickScreen() {
                 </Pressable> : null}
               </View>
               <Text style={styles.helper}>{menuPrefilled && entryMenuName
-                ? `${entryMenuName} 메뉴에서 시작해 메뉴명을 미리 채웠어요. 매장에서 부르는 이름으로 고쳐 써도 돼요.`
-                : '매장에서 부르는 메뉴 이름 그대로 적어주세요. 카테고리는 입력한 이름으로 추천해드려요.'}</Text>
+                ? '매장 메뉴명으로 고쳐 써도 돼요.'
+                : '매장 메뉴명을 그대로 적어주세요.'}</Text>
             </View>
 
-            {menus.isError ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
+            {menus.isError && !effectiveMenu ? <StateCard compact tone="danger" title="카테고리를 불러오지 못했어요."
               action={{ label: '다시 불러오기', onPress: () => { void menus.refetch(); } }} /> : null}
 
-            {prefilledMenu && prefilledCategoryOption ? <View style={styles.fieldBlock}>
-              <FieldLabel label="카테고리" required={false} />
-              <View style={styles.chips}>
-                <FlowChip label={[prefilledCategoryOption.groupName, prefilledCategoryOption.name].filter(Boolean).join(' › ')}
-                  selected onPress={() => chooseMenu(prefilledCategoryOption)} />
-              </View>
-            </View> : requestedMenu && exactMenuMatches.length > 0 ? <View style={styles.fieldBlock}>
-              <FieldLabel label="카테고리" required={false} />
-              <View style={styles.chips}>
-                {exactMenuMatches.map((option) => <FlowChip key={option.categoryId}
-                  label={[option.groupName, option.name].filter(Boolean).join(' › ')}
-                  selected={effectiveMenu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-              </View>
+            {effectiveMenu ? <Text style={styles.helper}>
+              메뉴를 확인했어요. 다음으로 넘어가주세요.
+            </Text> : null}
+            {classificationPending ? <View style={styles.loadingRow}>
+              <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>메뉴를 확인하고 있어요.</Text>
             </View> : null}
-
-            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && suggestions.isFetching ? <View style={styles.fieldBlock}>
-              <FieldLabel label="카테고리" required={false} />
-              <View style={styles.loadingRow}><ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>메뉴명으로 카테고리를 찾고 있어요.</Text></View>
-            </View> : null}
-
-            {menus.isSuccess && requestedMenu && exactMenuMatches.length === 0 && aiTried && !suggestions.isFetching && aiSuggestions.length > 0 && !showManualCategory
-              ? <View style={styles.fieldBlock}>
-                <FieldLabel label="카테고리 · AI 추천" required={false} />
-                <View style={styles.chips}>
-                  {aiSuggestions.map((entry) => <FlowChip key={entry.categoryId} label={entry.label}
-                    accessibilityLabel={`AI 추천 ${entry.label}`} selected={effectiveMenu?.categoryId === entry.categoryId}
-                    onPress={() => chooseMenu({ categoryId: entry.categoryId, name: entry.label })} />)}
-                </View>
-                {aiSuggestions.find((entry) => entry.categoryId === effectiveMenu?.categoryId)
-                  ? <Text style={styles.helper}>{aiSuggestions.find((entry) => entry.categoryId === effectiveMenu?.categoryId)?.reason}</Text> : null}
-                <FlowButton variant="text" label="다른 카테고리 찾기" onPress={() => { setManualCategory(true); setMenu(null); }} />
-              </View> : null}
-
-            {showManualCategory ? <View style={styles.fieldBlock}>
-              <FieldLabel label="카테고리" />
-              <Text style={styles.helper}>카테고리를 추천하지 못했어요. 가까운 것을 직접 골라주세요.</Text>
-              <TextInput accessibilityLabel="카테고리 검색" value={categoryQuery} onChangeText={setCategoryQuery}
-                style={styles.input} placeholder="카테고리 검색 (예: 국수)" placeholderTextColor={OnePick.textSecondary} />
-              <View style={styles.chips}>
-                {manualMatches.map((option) => <FlowChip key={option.categoryId}
-                  label={[option.groupName, option.name].filter(Boolean).join(' › ')}
-                  selected={menu?.categoryId === option.categoryId} onPress={() => chooseMenu(option)} />)}
-              </View>
-              <Text style={styles.helper}>원픽을 바로 저장하려면 현재 등록 가능한 카테고리 중 하나를 골라주세요.</Text>
-            </View> : null}
-
-            {requestedMenu && exactMenuMatches.length === 0 && !aiTried && !prefilledMenu ? <View style={styles.loadingRow}>
-              <ActivityIndicator color={OnePick.textPrimary} /><Text style={styles.helperInline}>입력이 끝나면 카테고리를 추천해드려요.</Text>
-            </View> : null}
+            {classificationUnresolved ? <StateCard compact title="메뉴를 분류하지 못했어요."
+              text="입력한 내용은 유지돼요. 메뉴 이름을 확인하거나 다시 시도해주세요."
+              action={{ label: '다시 확인하기', onPress: () => { void suggestions.refetch(); } }} /> : null}
             {preflight?.brand ? <View style={styles.fieldBlock}>
               <FieldLabel label="원픽 범위" />
               <Text style={styles.helper}>지점을 고르면 이 매장만, 브랜드 전체를 고르면 모든 지점과 별개의 원픽이 돼요.</Text>
@@ -849,8 +851,8 @@ export default function NewPickScreen() {
           </View>
           <View style={styles.footer}>
             <FlowButton label={preflight?.brand && !pickScope ? '범위 선택하기' : '다음'}
-              disabled={!effectiveMenu || suggestions.isFetching || Boolean(preflight?.brand && !pickScope)}
-              loading={selectItem.isPending} onPress={() => void confirmMenu()} />
+              disabled={!effectiveMenu || Boolean(preflight?.brand && !pickScope)}
+              loading={selectItem.isPending} onPress={() => void confirmMenu(resumeStep ?? undefined)} />
           </View>
         </> : null}
 
@@ -892,7 +894,7 @@ export default function NewPickScreen() {
             <View style={styles.fieldBlock}>
               <FieldLabel label="한줄평" />
               <TextInput accessibilityLabel="원픽 한줄평" multiline maxLength={100} editable={!saving && step !== 6} value={review}
-                onChangeText={(value) => { setReview(value); setShowReviewError(false); }} style={[styles.input, styles.reviewInput]}
+                onChangeText={(value) => { setReview(value); setShowReviewError(false); setConfirmReplacement(false); }} style={[styles.input, styles.reviewInput]}
                 placeholder="예: 국물이 진한데 부담스럽지 않아요." placeholderTextColor={OnePick.textSecondary} />
             </View>
             <Text style={styles.counter}>{review.length} / 100자</Text>
@@ -900,8 +902,20 @@ export default function NewPickScreen() {
             {saveError ? <Text accessibilityRole="alert" style={styles.error}>{errorMessage(saveError)}</Text> : null}
           </View>
           <View style={styles.footer}>
-            <FlowButton label={pickChangedElsewhere ? '변경 확인 후 등록하기' : '원픽 등록하기'} loading={saving || currentPickSlot.isPending} disabled={step === 6}
-              onPress={() => void (pickChangedElsewhere ? confirmChangedPickAndSave() : save())} />
+            {confirmReplacement && !pickChangedElsewhere ? <>
+              <Text accessibilityRole="alert" style={styles.noticeText}>이 메뉴의 기존 원픽을 바꿀까요?{'\n'}새 원픽 · {pickDisplayName}</Text>
+              <FlowButton label="원픽 바꾸기" loading={saving} disabled={step === 6}
+                onPress={() => void save()} />
+              <FlowButton variant="secondary" label="돌아가기" disabled={saving || step === 6}
+                onPress={() => setConfirmReplacement(false)} />
+            </> : <FlowButton label={pickChangedElsewhere ? '변경 확인 후 등록하기' : '원픽 등록하기'}
+              loading={saving || currentPickSlot.isPending} disabled={step === 6}
+              onPress={() => {
+                if (!reviewValid) { setShowReviewError(true); return; }
+                if (pickChangedElsewhere) { void confirmChangedPickAndSave(); return; }
+                if (replacingVisiblePick) { setConfirmReplacement(true); return; }
+                void save();
+              }} /> }
           </View>
         </> : null}
       </ScrollView>
