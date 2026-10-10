@@ -24,7 +24,7 @@ import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
 import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
-import { profileDisplayName, profileHandle } from '@/lib/profile/profileName';
+import { profileDisplayName, profileHandle, profileMentionName } from '@/lib/profile/profileName';
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
 import { isSeedProfileId } from '@/lib/seedProfiles';
@@ -351,7 +351,7 @@ export default function PublicProfileScreen() {
 
           {!user ? <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
-            <Text style={styles.joinText}>{profileDisplayName(query.data.profile)}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
+            <Text style={styles.joinText}>{profileMentionName(query.data.profile)}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
             <Button variant="secondary" fullWidth style={styles.joinButton} label="내 원픽 만들기"
               accessibilityLabel="로그인하고 내 원픽 만들기"
               onPress={() => router.push({ pathname: '/auth/login', params: { action: 'join_from_profile' } })} />
@@ -366,7 +366,7 @@ export default function PublicProfileScreen() {
           </View> : null}
         </> : null}
       </ScrollView>}
-      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>{profileDisplayName(query.data.profile)}님을 팔로우했어요.</Text></View> : null}
+      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>{profileMentionName(query.data.profile)}님을 팔로우했어요.</Text></View> : null}
       <Modal visible={loginSheetOpen} transparent animationType="slide" onRequestClose={closeFollowLogin}>
         <View style={styles.modalBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="로그인 안내 닫기" onPress={closeFollowLogin} style={StyleSheet.absoluteFill} />

@@ -37,11 +37,23 @@ for (const source of [owner, publicProfile]) {
   assert.match(source, /<Chip label="기타"/);
 }
 
-// Nickname-ready names (#804): fall back to the username, no duplicate @username line.
+// Nickname names (#804 via #863 data contract): identification falls back to the username,
+// person mentions fall back to the user-confirmed 원픽 사용자, no duplicate @username line.
 assert.match(names, /return nickname \? nickname : null;/);
 assert.match(names, /profileNickname\(profile\) \?\? profile\.username/);
+assert.match(names, /export const UNSET_NICKNAME_MENTION = '원픽 사용자';/);
+assert.match(names, /profileNickname\(profile\) \?\? UNSET_NICKNAME_MENTION/);
 assert.match(names, /profileNickname\(profile\) \? `@\$\{profile\.username\}` : null/);
 assert.doesNotMatch(owner, /profile\.nickname|\.nickname\b/, 'Screens read nicknames only through lib/profile/profileName');
+assert.doesNotMatch(publicProfile, /profile\.nickname|\.nickname\b/, 'Public profile reads nicknames only through lib/profile/profileName');
+assert.match(publicProfile, /\{profileMentionName\(query\.data\.profile\)\}님처럼/, 'Join card mentions the person with the mention fallback');
+assert.match(publicProfile, /\{profileMentionName\(query\.data\.profile\)\}님을 팔로우했어요\./, 'Follow toast mentions the person with the mention fallback');
+assert.match(publicProfile, /name=\{profileDisplayName\(query\.data\.profile\)\}/, 'Header identity keeps the identification name');
+// Data contract shared with #863: the read model carries profiles.nickname.
+const profileType = read('src/types/domain/profile.ts');
+const profileMapper = read('src/repositories/mappers/profileMapper.ts');
+assert.match(profileType, /^  nickname: string \| null;$/m, 'Profile domain type carries nickname (#863)');
+assert.match(profileMapper, /nickname: row\.nickname,/, 'Profile mapper reads profiles.nickname (#863)');
 
 // Own profile: settings in the header, 프로필 편집 | 프로필 공유, then 원픽 | 기록 tabs.
 const headerIndex = owner.indexOf('<View style={styles.profileHeader}>');
@@ -128,7 +140,7 @@ assert.match(publicProfile, /OnePickFeatures\.profileAi \? <ProfileAiComment/);
 assert.match(aiComment, /<SectionHeader title=\{sectionTitle\} \/>/);
 assert.match(aiComment, /card: \{ backgroundColor: OnePick\.accentSoft, borderRadius: 20, padding: 16, marginBottom: 18 \}/);
 
-// Runtime: nickname fallback (#804 not shipped yet → username, no handle line).
+// Runtime: nickname fallbacks (identification → username, mention → 원픽 사용자; no handle line when unset).
 {
   const ts = require('typescript');
   const vm = require('node:vm');
@@ -139,6 +151,11 @@ assert.match(aiComment, /card: \{ backgroundColor: OnePick\.accentSoft, borderRa
   assert.equal(exports.profileDisplayName({ username: 'duck', nickname: '  ' }), 'duck', 'A blank nickname counts as unset');
   assert.equal(exports.profileDisplayName({ username: 'duck', nickname: ' 덕이 ' }), '덕이');
   assert.equal(exports.profileHandle({ username: 'duck', nickname: '덕이' }), '@duck');
+  assert.equal(exports.profileMentionName({ username: 'duck' }), '원픽 사용자');
+  assert.equal(exports.profileMentionName({ username: 'duck', nickname: null }), '원픽 사용자');
+  assert.equal(exports.profileMentionName({ username: 'duck', nickname: '  ' }), '원픽 사용자');
+  assert.equal(exports.profileMentionName({ username: 'duck', nickname: ' 덕이 ' }), '덕이');
+  assert.equal(exports.profileDisplayName({ username: 'duck', nickname: null }), 'duck', 'DB null nickname (#863) keeps the username in the header');
 }
 
 console.log('#757 profile structure checks passed: shared identity, 원픽 | 기록 tabs, single-button Pick rows, settings moves and the public single follow CTA.');
