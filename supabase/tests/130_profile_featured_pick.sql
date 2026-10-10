@@ -247,6 +247,29 @@ select is((select pick_id from private.profile_featured_picks
   where user_id='fa090000-0000-4000-8000-000000000001'),null::uuid,
   'reinstatement and republication do not restore invalidated highlight');
 
+-- Leaving the food tree removes MVP eligibility without touching the Pick itself.
+select set_config('request.jwt.claim.sub','fa090000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+select is((public.set_my_featured_pick((select p.id from public.picks p
+  join public.items i on i.id=p.item_id
+  where p.user_id='fa090000-0000-4000-8000-000000000001'
+    and i.name='Feature Item 2'),9)->>'revision')::bigint,
+  10::bigint,'owner can select another valid food Pick');
+reset role;
+update public.categories set parent_id=(select id from public.categories where slug='content')
+where id=(select category_id from featured_extra_ids where seq=2);
+select is((select pick_id from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),null::uuid,
+  'moving a category outside food clears its featured reference');
+select is((select revision from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),11::bigint,
+  'moving category outside food increments version');
+update public.categories set parent_id=(select id from public.categories where slug='food')
+where id=(select category_id from featured_extra_ids where seq=2);
+select is((select pick_id from private.profile_featured_picks
+  where user_id='fa090000-0000-4000-8000-000000000001'),null::uuid,
+  're-entering food does not restore the previously removed featured reference');
+
 -- Public API has a strictly allowlisted response; the revision is owner-only.
 select set_config('request.jwt.claim.sub','',true);
 set local role anon;
