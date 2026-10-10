@@ -138,6 +138,63 @@ function replies() {
   return { auth, view, comments, mutation, removal, deletes, writes, pending, reads };
 }
 
+// Comment-origin registration uses an atomic expected-null server contract.
+// This harness checks app behavior only, not the database transaction itself.
+function commentChoice() {
+  const returnPickId = 'c3333333-3333-4333-8333-333333333333';
+  const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry() {} };
+  const params = { itemId, categoryId, channel: 'offline', returnPickId };
+  const data = {
+    item: { id: itemId, categoryId, name: '라면', status: 'active', imageUrl: 'https://image.test/item.jpg' },
+    canChoose: true, isRestaurant: true, pickChannel: 'offline', myPickStatus: { type: 'not_selected' },
+  };
+  let latestStatus = { type: 'not_selected' };
+  let registerMode = 'success';
+  const query = { data, isPending: false, isError: false, isFetching: false, refreshes: 0,
+    refetch: async () => {
+      query.refreshes++;
+      return { isError: false, data: { ...data, myPickStatus: latestStatus } };
+    },
+  };
+  const registrationWrites = [], ordinaryWrites = [], destinations = [];
+  const registration = { isPending: false, error: null,
+    mutateAsync: async (payload) => {
+      registrationWrites.push(payload);
+      if (registerMode === 'conflict') {
+        registration.error = new AppError('PICK_CHANGED_ELSEWHERE');
+        throw registration.error;
+      }
+      registration.error = null;
+      return { itemId, pickId: 'new-comment-pick', published: true, replacedPickId: null, retried: false };
+    },
+  };
+  const ordinary = { isPending: false, error: null,
+    mutateAsync: async (payload) => { ordinaryWrites.push(payload); throw new Error('unguarded change_pick'); },
+  };
+  const router = {
+    canGoBack: () => false, back() {},
+    push: (route) => destinations.push({ kind: 'push', route }),
+    replace: (route) => destinations.push({ kind: 'replace', route }),
+    dismissTo: (route) => destinations.push({ kind: 'dismissTo', route }),
+  };
+  const view = harness('app/pick/choose.tsx', 'default', {
+    'expo-router': { useRouter: () => router, useLocalSearchParams: () => params },
+    '@/hooks/useAuthSession': { useAuthSession: () => auth },
+    '@/hooks/useItemDetail': { useItemDetail: () => query },
+    '@/hooks/useChoosePick': { useChoosePick: () => ordinary },
+    '@/hooks/useRegisterPick': { useRegisterItemPick: () => registration },
+  });
+  const draft = () => {
+    view.render();
+    view.input().onChangeText('내가 고른 이유');
+    view.render();
+  };
+  return { view, auth, params, data, query, registration, registrationWrites, ordinaryWrites, destinations,
+    returnPickId, draft, setLatestStatus: (status) => { latestStatus = status; },
+    setRegisterMode: (mode) => { registerMode = mode; },
+  };
+}
+
 let failures = 0, checks = 0;
 async function check(name, run) {
   checks++;
@@ -242,6 +299,56 @@ async function main() {
     assert.doesNotMatch(c.view.render({ pickId: 'pick' }), /이 댓글을 삭제할까요/);
     c.auth.user = null; c.view.render({ pickId: 'pick' });
     assert.equal(deleteButtons().length, 0, 'Signed-out readers cannot delete');
+  });
+  await check('Comment-origin offline save uses expected-null and returns to exact thread', async () => {
+    const c = commentChoice(); c.draft();
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+    assert.equal(c.ordinaryWrites.length, 0, 'Never call the non-atomic change_pick path');
+    assert.equal(c.registrationWrites[0].expectedPreviousPickId, null);
+    assert.equal(c.registrationWrites[0].channel, 'offline');
+    assert.equal(c.registrationWrites[0].itemId, itemId);
+    assert.equal(c.registrationWrites[0].requestId, '11111111-1111-4111-8111-111111111111');
+    assert.equal(c.query.refreshes, 1, 'Only the first attempt refreshes before atomic save');
+    assert.match(c.view.render(), /댓글 남기러 가기/);
+    c.view.button('댓글 남기러 가기').onPress();
+    assert.equal(c.destinations.at(-1).kind, 'dismissTo');
+    assert.equal(c.destinations.at(-1).route.pathname, '/pick/[pickId]');
+    assert.equal(c.destinations.at(-1).route.params.pickId, c.returnPickId);
+  });
+  await check('Comment-origin entry blocks a newly selected other Pick', async () => {
+    const c = commentChoice(); c.draft();
+    c.setLatestStatus({ type: 'selected_other', currentPickId: 'different-pick', currentItemId: 'other-item' });
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 0);
+    assert.equal(c.ordinaryWrites.length, 0);
+    assert.match(c.view.render(), /기존 원픽은 변경하지 않았어요/);
+  });
+  await check('Comment-origin conflict keeps request ID and never replaces a Pick', async () => {
+    const c = commentChoice(); c.draft(); c.setRegisterMode('conflict');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 1);
+    assert.match(c.view.render(), /다른 기기에서 원픽이 바뀌었어요/);
+    c.setRegisterMode('success');
+    c.view.button('내 원픽으로 고르기').onPress(); await flush();
+    assert.equal(c.registrationWrites.length, 2);
+    assert.equal(c.registrationWrites[0].requestId, c.registrationWrites[1].requestId);
+    assert.equal(c.query.refreshes, 1, 'Retry preserves request ID and avoids rebasing on a newer Pick');
+    assert.equal(c.ordinaryWrites.length, 0);
+    assert.match(c.view.render(), /댓글 남기러 가기/);
+  });
+  await check('Comment-origin auth recovery keeps the protected discussion intent', async () => {
+    const c = commentChoice(); c.registration.error = new AppError('PROFILE_NOT_FOUND');
+    assert.match(c.view.render(), /사용자명 만들고 계속/);
+    c.view.button('사용자명 만들고 계속').onPress();
+    assert.equal(c.destinations.at(-1).route.pathname, '/auth/username');
+    assert.equal(c.destinations.at(-1).route.params.action, 'comment_pick');
+    assert.equal(c.destinations.at(-1).route.params.pickId, c.returnPickId);
+    assert.equal(c.destinations.at(-1).route.params.itemId, undefined);
+    c.registration.error = new AppError('AUTH_REQUIRED');
+    c.view.render(); c.view.button('다시 로그인하고 계속').onPress();
+    assert.equal(c.destinations.at(-1).route.pathname, '/auth/login');
+    assert.equal(c.destinations.at(-1).route.params.action, 'comment_pick');
   });
   console.log(`Pre-pilot recovery: ${checks - failures}/${checks} checks passed.`);
   if (failures) process.exitCode = 1;
