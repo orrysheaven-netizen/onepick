@@ -231,6 +231,12 @@ begin
     update private.profile_featured_picks
     set pick_id=null,revision=revision+1,updated_at=now()
     where pick_id=p_pick_id;
+  else
+    -- An administrative ownership transfer invalidates the old owner's highlight,
+    -- even when the Pick itself stays publicly eligible.
+    update private.profile_featured_picks
+    set pick_id=null,revision=revision+1,updated_at=now()
+    where pick_id=p_pick_id and user_id is distinct from v_pick.user_id;
   end if;
 end;
 $$;
