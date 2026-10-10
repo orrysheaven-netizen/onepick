@@ -136,6 +136,8 @@ async function main() {
     'The on-screen draft reflects the original idempotent request');
   assert.match(commentChoose, /editable=\{!saving && !commentAttempt\.current\}/,
     'The review input is read-only after the first comment-origin save attempt');
+  assert.match(commentChoose, /returnPickId && !commentAttempt\.current && pickStatus\?\.type !== 'not_selected'/,
+    'A lost-response retry is not confused with an unconfirmed Pick replacement');
   assert.match(commentChoose, /error\.code === 'PICK_CHANGED_ELSEWHERE'[\s\S]*?setCommentPickConflict\(true\)/,
     'A server conflict permanently blocks retry in this comment flow');
   assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| commentPickConflict/,

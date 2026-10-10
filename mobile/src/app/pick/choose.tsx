@@ -333,7 +333,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             <Text style={styles.helperText}>팁을 남기면 이 원픽이 쇼핑꿀팁으로 표시돼요. 비워두면 링크만 남아요.</Text>
           </> : null}
           </> : null}
-          {commentPickError || (returnPickId && pickStatus?.type !== 'not_selected') ? (
+          {commentPickError || (returnPickId && !commentAttempt.current && pickStatus?.type !== 'not_selected') ? (
             <Text accessibilityRole="alert" style={styles.reviewError}>
               {commentPickError ?? '댓글 작성 때문에 기존 원픽을 변경하지 않아요. 댓글 화면으로 돌아가주세요.'}
             </Text>

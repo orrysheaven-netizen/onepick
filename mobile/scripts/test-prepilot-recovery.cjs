@@ -345,7 +345,10 @@ async function main() {
     c.view.button('내 원픽으로 고르기').onPress(); await flush();
     assert.equal(c.registrationWrites.length, 1);
     c.setRegisterMode('success');
+    c.data.myPickStatus = { type: 'selected_this', pickId: 'new-comment-pick', oneLineReview: '내가 고른 이유' };
     c.view.render();
+    assert.doesNotMatch(c.view.render(), /댓글 작성 때문에 기존 원픽을 변경하지 않아요/,
+      'A retried lost response must not be mislabeled as a new unconfirmed replacement');
     assert.equal(c.view.input().editable, false,
       'The in-flight idempotent retry keeps the original review read-only');
     assert.match(c.view.render(), /다시 시도하면 처음 작성한 한줄평을 그대로 사용해요/);
