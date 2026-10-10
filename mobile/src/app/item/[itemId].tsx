@@ -329,6 +329,10 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     : allPicks;
   const focusAvailable = !focusPickId || picks.some(({ pick }) => pick.id === focusPickId);
   const displayChannels = mvpFoodScope ? [OnePickMvp.publicPickChannel] : item.channels;
+  // The public count follows the same channel rule as the review list above.
+  const publicCountScope = mvpFoodScope
+    ? { channel: OnePickMvp.publicPickChannel, includeUnchanneled: itemSupportsPublicChannel }
+    : undefined;
   if (!itemSupportsPublicChannel) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
       <StateCard title="현재 공개 중인 원픽이 아니에요." text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
@@ -492,7 +496,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
             <Text style={styles.itemName}>{itemTitle(item.name, category?.name, isRestaurant)}</Text>
           </>}
           <YouTubeVideoLink item={item} />
-          <ItemPickCount itemId={item.id} />
+          <ItemPickCount itemId={item.id} channelScope={publicCountScope} />
           {hasOwnPendingPick ? <Text style={styles.pendingPickNotice}>내 원픽은 등록됐어요. 공개 전 관리자 확인 중이에요.</Text> : null}
           {!mvpFoodScope ? <ItemChannelLinks itemId={item.id} /> : null}
 

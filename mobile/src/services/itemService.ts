@@ -3,7 +3,7 @@ import type { PickChannel } from '@/lib/items/pickChannel';
 import type { CategoryRepository } from '@/repositories/interfaces/categoryRepository';
 import type { PickRepository } from '@/repositories/interfaces/pickRepository';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
-import type { PickReadItem, ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { PickCountChannelScope, PickReadItem, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const FOOD_ROOT_SLUG = 'food';
 
@@ -118,15 +118,29 @@ export class ItemService {
       .filter((entry) => entry.pick.userId !== userId && !ownIds.has(entry.pick.id))
       .map((entry) => ({ pick: entry.pick, profile: entry.profile, isMine: false }));
 
+    // item_review_page only exposes is_current, so the read adapter maps a
+    // current needs_review Pick to 'active'. The viewer's own Picks were already
+    // read under the owner RLS (getCurrentPicksInCategory) with their real
+    // status; restore it so an own pending registration is not mistaken for a
+    // public Pick. Other members' rows are untouched and nothing new is exposed.
+    const ownCurrentStatus = new Map(currentPicks
+      .filter((pick) => pick.itemId === item.id && pick.userId === userId)
+      .map((pick) => [pick.id, pick.status] as const));
+    const withOwnStatus = <T extends { pick: PickReadItem['pick'] }>(entry: T): T => {
+      const status = userId && entry.pick.userId === userId ? ownCurrentStatus.get(entry.pick.id) : undefined;
+      return status && status !== entry.pick.status ? { ...entry, pick: { ...entry.pick, status } } : entry;
+    };
+    ownReview = ownReview.map(withOwnStatus);
+
     const reviews = [...ownReview, ...otherReviews];
     // Shared links can reference a review beyond the first page or an ended choice.
     // Read through the same permission-checked repository and verify its product.
     if (focusPickId && !reviews.some(({ pick }) => pick.id === focusPickId)) {
       const focused = cachedFocus ?? await this.readRepository.getPickById(focusPickId);
       if (focused && focused.pick.itemId === item.id && focused.pick.status !== 'hidden') {
-        reviews.splice(ownReview.length, 0, {
+        reviews.splice(ownReview.length, 0, withOwnStatus({
           pick: focused.pick, profile: focused.profile, isMine: focused.pick.userId === userId,
-        });
+        }));
       }
     }
     // Product detail is not a history screen. Keep current reviews ahead of ended
@@ -170,8 +184,10 @@ export class ItemService {
     return this.readRepository.getSearchItemMeta(itemIds);
   }
 
-  getPickCount(itemId: string) {
-    return this.readRepository.countActivePicks(itemId);
+  getPickCount(itemId: string, channelScope?: PickCountChannelScope) {
+    return channelScope
+      ? this.readRepository.countActivePicks(itemId, channelScope)
+      : this.readRepository.countActivePicks(itemId);
   }
 
   async search(query: string, categoryId?: string, signal?: AbortSignal, categoryIds?: string[]) {

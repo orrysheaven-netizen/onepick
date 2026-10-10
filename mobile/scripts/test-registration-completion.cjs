@@ -208,6 +208,24 @@ const privateOnly = render();
 assert.ok(!find('이 메뉴 화면 공유'), 'A private needs_review Pick is not publicly shareable');
 assert.match(privateOnly, /공개 전 관리자 확인 중이에요/, 'The owner sees their private registration state');
 
+// 7) Owner / other member / anonymous: the pending notice is owner-only, and a
+//    public active Pick from someone else keeps the item shareable.
+const publicPick = { id: 'pick-b', userId: 'member-b', channel: 'offline', status: 'active', isCurrent: true, isDeleted: false };
+detail = { ...detail, picks: [{ pick: { ...ownerPick, status: 'needs_review' }, profile: null }, { pick: publicPick, profile: null }] };
+resetState();
+const ownerMixed = render();
+assert.match(ownerMixed, /공개 전 관리자 확인 중이에요/, 'Owner still sees the pending notice beside public reviews');
+assert.ok(find('이 메뉴 화면 공유'), 'Another member\'s public Pick keeps the item shareable');
+session = { user: { id: 'member-b' }, isLoading: false, error: null };
+detail = { ...detail, picks: [{ pick: publicPick, profile: null }] };
+resetState();
+assert.doesNotMatch(render(), /공개 전 관리자 확인 중이에요/, 'Another member never sees an owner pending notice');
+session = { user: null, isLoading: false, error: null };
+resetState();
+assert.doesNotMatch(render(), /공개 전 관리자 확인 중이에요/, 'Anonymous viewers never see a pending notice');
+assert.ok(find('이 메뉴 화면 공유'), 'Anonymous viewers can share public content');
+session = { user: { id: 'owner' }, isLoading: false, error: null };
+
 // Timing/position are guarded separately from the render-based state checks.
 const screen = fs.readFileSync(path.join(__dirname, '../src/app/item/[itemId].tsx'), 'utf8');
 assert.match(screen, /setTimeout\(\(\) => setPickSavedToast\(false\), 2000\)/);

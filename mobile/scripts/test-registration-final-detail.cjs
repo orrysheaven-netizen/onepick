@@ -103,7 +103,7 @@ assert.match(shareActions, /canReport = Boolean\(user && user\.id !== props\.aut
 assert.doesNotMatch(detail, /category\?\.name\s*\?\?\s*['"]카테고리['"]/);
 assert.match(detail, /<Text style=\{styles\.detailFieldLabel\}>매장<\/Text>/);
 assert.match(detail, /<Text style=\{styles\.detailFieldLabel\}>메뉴<\/Text>/);
-assert.match(detail, /<ItemPickCount itemId=\{item\.id\} \/>/);
+assert.match(detail, /<ItemPickCount itemId=\{item\.id\} channelScope=\{publicCountScope\} \/>/);
 assert.match(detail, /pick\.status === 'needs_review' && !pick\.isDeleted/);
 assert.match(detail, /공개 전 관리자 확인 중이에요/);
 assert.match(detail, /myPickStatus\.type === 'selected_this' \? null : canChoose/);
