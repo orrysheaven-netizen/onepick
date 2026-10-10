@@ -17,6 +17,8 @@ interface PickShareActionsProps {
   categoryName: string;
   itemName: string;
   oneLineReview: string;
+  /** Item detail handles content sharing in the header, so its review row is report-only. */
+  showShare?: boolean;
 }
 
 /** A review card's corner actions: a share icon, and a "⋯" menu holding 신고 for other people's Picks. */
@@ -49,10 +51,10 @@ export function PickShareActions(props: PickShareActionsProps) {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        <Pressable accessibilityRole="button" accessibilityLabel="이 원픽 공유" disabled={isSharing}
+        {props.showShare !== false ? <Pressable accessibilityRole="button" accessibilityLabel="이 원픽 공유" disabled={isSharing}
           onPress={() => void handleShare()} hitSlop={ICON_SLOP} style={({ pressed }) => [styles.icon, (pressed || isSharing) && styles.pressed]}>
           <Icon name="share" color={OnePick.textSecondary} />
-        </Pressable>
+        </Pressable> : null}
         {canReport ? <Pressable accessibilityRole="button" accessibilityLabel={menuOpen ? '더보기 닫기' : '더보기'}
           onPress={() => setMenuOpen((open) => !open)} hitSlop={ICON_SLOP} style={({ pressed }) => [styles.icon, pressed && styles.pressed]}>
           <Icon name="more" color={OnePick.textSecondary} />
