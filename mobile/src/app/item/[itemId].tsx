@@ -103,14 +103,16 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const revisionMutation = useRevisePendingItem();
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
-  // Set only by /pick/new right before it replaces itself with this screen.
-  const [pickSavedToast, setPickSavedToast] = useState(() => consumePickSavedToast(focusPickId));
-  const itemLoaded = Boolean(query.data);
+  // A one-shot registration handoff reveals the final detail before any toast.
+  // Shared links, refreshes and other item visits cannot replay the completion UI.
+  const [arrivedFromRegistration] = useState(() => consumePickSavedToast(focusPickId));
+  const [completionPending, setCompletionPending] = useState(arrivedFromRegistration);
+  const [pickSavedToast, setPickSavedToast] = useState(false);
   useEffect(() => {
-    if (!pickSavedToast || !itemLoaded) return;
-    const timer = setTimeout(() => setPickSavedToast(false), 2600);
+    if (!pickSavedToast) return;
+    const timer = setTimeout(() => setPickSavedToast(false), 2000);
     return () => clearTimeout(timer);
-  }, [pickSavedToast, itemLoaded]);
+  }, [pickSavedToast]);
 
   useEffect(() => {
     const data = query.data;
@@ -154,11 +156,11 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   useEffect(() => {
     scrolledTo.current = undefined;
     // A photo invitation opens the uploader, not a review far below it.
-    if (params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
+    if (!arrivedFromRegistration && params.photo !== '1' && focusPickId && reviewPositions.current[focusPickId] !== undefined) {
       focusReview(focusPickId);
       scrolledTo.current = focusPickId;
     }
-  }, [focusPickId, focusReview, user?.id, params.photo]);
+  }, [arrivedFromRegistration, focusPickId, focusReview, user?.id, params.photo]);
   useEffect(() => {
     if (!highlightedId) return;
     const timer = setTimeout(() => setHighlightedId(undefined), 4000);
@@ -336,12 +338,19 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
     if (!canChoose) return;
     router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
+  const completeRegistration = () => {
+    if (!completionPending) return;
+    setCompletionPending(false);
+    setPickSavedToast(true);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <Icon name="back" />
+      <ScrollView ref={scroll} style={styles.detailScroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Pressable accessibilityRole="button" accessibilityLabel={arrivedFromRegistration ? '홈으로 이동' : '뒤로 가기'}
+          onPress={() => arrivedFromRegistration ? router.replace('/') : router.canGoBack() ? router.back() : router.replace('/')}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <Icon name={arrivedFromRegistration ? 'home' : 'back'} />
         </Pressable>
 
         {query.isError ? <StateCard compact tone="danger" accessibilityRole="alert" title="최신 정보를 불러오지 못했어요." text="마지막으로 불러온 내용을 표시하고 있어요."
@@ -449,7 +458,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           picks.map(({ pick, profile }) => (
             <View key={`${user?.id ?? 'public'}:${pick.id}`} onLayout={(event) => {
               reviewPositions.current[pick.id] = event.nativeEvent.layout.y;
-              if (params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
+              if (!arrivedFromRegistration && params.photo !== '1' && pick.id === focusPickId && scrolledTo.current !== focusPickId) {
                 focusReview(pick.id);
                 scrolledTo.current = pick.id;
               }
@@ -463,8 +472,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
-      {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
-        <Text style={styles.toastText}>원픽을 정했어요.</Text>
+      {completionPending ? <View style={styles.completionFooter}>
+        <Button label="완료" fullWidth onPress={completeRegistration} accessibilityLabel="원픽 등록 완료" />
+      </View> : null}
+      {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toastOverlay}>
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>원픽을 등록했어요.</Text>
+        </View>
       </View> : null}
     </SafeAreaView>
   );
@@ -479,14 +493,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: OnePickSpace.gutter,
     paddingBottom: OnePickSpace.xxxl + OnePickSpace.lg,
   },
-  centered: { alignSelf: 'center' },
-  toast: {
-    position: 'absolute',
+  detailScroll: { flex: 1 },
+  completionFooter: {
+    width: '100%',
+    maxWidth: OnePick.maxWidth,
     alignSelf: 'center',
-    bottom: OnePickSpace.xxxl,
-    backgroundColor: OnePick.actionPrimary,
-    borderRadius: OnePickRadius.full,
-    paddingHorizontal: OnePickSpace.lg,
+    paddingHorizontal: OnePickSpace.gutter,
+    paddingVertical: OnePickSpace.sm,
+    backgroundColor: OnePick.bgDefault,
+  },
+  centered: { alignSelf: 'center' },
+  toastOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toast: {
+    minHeight: 60,
+    minWidth: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: OnePick.textPrimary,
+    borderRadius: OnePickRadius.lg,
+    paddingHorizontal: OnePickSpace.xl,
     paddingVertical: OnePickSpace.md,
   },
   toastText: { ...OnePickType.bodyMedium, color: OnePick.onAction },
