@@ -91,6 +91,7 @@ async function main() {
       },
     },
     '@/lib/query/invalidatePickData': { invalidatePickData },
+    '@/lib/home/firstPickNotice': load('src/lib/home/firstPickNotice.ts'),
     '@/services': {
       pickService: { choosePick: async () => savedPick },
       observabilityService: { captureProductEvent: async () => {} },
@@ -221,3 +222,4 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+

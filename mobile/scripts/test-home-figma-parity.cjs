@@ -1,5 +1,5 @@
-// Home must match the Figma 30-1 / 30-1A–D values (10-05 "피그마 기준 적용").
-// Each check names the Figma node it comes from, so a drift points back to the design.
+// Home keeps the existing 30E contracts while the feed card follows the approved
+// 2026-10-07 Figma v3 (screen 993:7239 / card 993:7228).
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -78,3 +78,4 @@ assert.ok(icon('ui/search.svg').includes('M15.5 15.5 20 20'), 'Search icon 656:3
 assert.ok(icon('ui/clear.svg').includes('m8.5 8.5 7 7'), 'Input clear 514:2856 geometry');
 
 console.log('Home Figma parity checks passed: v3 feed card, Home-only gutter, menu tile, sections, theme selector, popups and icons.');
+

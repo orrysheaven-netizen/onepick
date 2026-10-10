@@ -26,6 +26,36 @@ export function useHomeItemRanking(channel: PickChannel | null = null, limit = 2
   });
 }
 
+/** Time until the next Korean midnight; refresh when the DB's daily seed changes. */
+export function dailyQuestionRefreshDelay(now = Date.now()) {
+  const day = 24 * 60 * 60_000;
+  const koreaOffset = 9 * 60 * 60_000;
+  return day - ((now + koreaOffset) % day) + 100;
+}
+
+/** The server chooses the daily menu; local time only schedules a fresh read. */
+export function useDailyQuestionCategory(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.dailyQuestion(),
+    queryFn: () => homeService.getDailyQuestionCategoryId(),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+    refetchInterval: () => dailyQuestionRefreshDelay(),
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
+  });
+}
+
+/** Figma 30E "함께하는 사람들": current public Picks read with the viewer's visibility rules. */
+export function useHomeParticipantPicks(userId: string | undefined, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.participants(userId),
+    queryFn: () => homeService.getParticipantPicks(),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
 /**
  * Full public feed (Home → 사람들의 원픽 더보기): 20 Picks per server page, all pages kept
  * so the list never drops rows it already showed, each Pick shown once.
@@ -94,6 +124,10 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
   return {
     ...feed,
     data,
+    // The viewer's own current Picks, settled independently of the feed pages, so Home can
+    // answer "did I pick today's menu?" while the feed is still loading or failed (#762).
+    contextData: context.data,
+    isContextError: context.isError,
     error: context.error ?? (feedEnabled ? feed.error : null),
     isError: context.isError || (feedEnabled && feed.isError),
     isPending: context.isPending || (feedEnabled && feed.isPending),
@@ -102,3 +136,4 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
     refetch,
   };
 }
+

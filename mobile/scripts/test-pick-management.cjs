@@ -62,6 +62,7 @@ async function main() {
   const hookImports = {
     '@tanstack/react-query': { useMutation: (options) => options, useQueryClient: () => queryClient },
     '@/lib/query/invalidatePickData': { invalidatePickData },
+    '@/lib/home/firstPickNotice': loadSource('lib/home/firstPickNotice.ts'),
     '@/services': { pickService: service, observabilityService: { captureProductEvent: async (event) => { capturedEvents.push(event); } } },
   };
   const { useManagePick } = loadSource('hooks/useManagePick.ts', hookImports);
@@ -164,3 +165,4 @@ async function main() {
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

@@ -32,6 +32,7 @@ function screen(relative, imports, platform = 'ios') {
       return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
     },
     useMemo: (fn) => fn(),
+    useCallback: (fn) => fn,
     useRef(initial) {
       const i = refCursor++;
       if (!(i in refs)) refs[i] = { current: initial };
@@ -76,3 +77,4 @@ function screen(relative, imports, platform = 'ios') {
   };
 }
 module.exports = { load, screen, names };
+

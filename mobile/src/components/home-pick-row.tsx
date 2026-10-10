@@ -97,3 +97,4 @@ const styles = StyleSheet.create({
   review: { ...OnePickFeedType.review, color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });
+

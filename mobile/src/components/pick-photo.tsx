@@ -140,3 +140,4 @@ const styles = StyleSheet.create({
   addText: { color: OnePick.accent, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.7 },
 });
+

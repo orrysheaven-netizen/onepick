@@ -258,6 +258,7 @@ export type AppDatabase = Omit<Database, 'public'> & {
       notification_preferences: TableShape<NotificationPreferencesRow, { user_id: string; followee_pick_change?: boolean; updated_at?: string }, { followee_pick_change?: boolean; updated_at?: string }>;
     };
     Functions: Omit<Database['public']['Functions'], 'category_top_items' | 'home_editorial_items'> & {
+      home_daily_question: { Args: never; Returns: string | null };
       search_store_catalog: {
         Args: { p_query: string; p_limit?: number };
         Returns: StoreCatalogRow[];

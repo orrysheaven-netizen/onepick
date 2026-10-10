@@ -1,19 +1,32 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { HomeInviteRow, HomePeopleRow, HomeQuestionCard, HomeReplyBanner, HomeUnpickedMenus } from '@/components/home-early-sections';
+import { HomeFeedbackButton } from '@/components/home-feedback-button';
 import { HomePickRow } from '@/components/home-pick-row';
 import { RecentItemCard } from '@/components/recent-item-card';
 import { HomeHeader } from '@/components/home-header';
 import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickLayout, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useExploreCategories } from '@/hooks/useExploreData';
+import { useExploreCategories, useFoodMenuPickCounts } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
-import { useHomeData, useHomeItemRanking } from '@/hooks/useHomeData';
+import { useDailyQuestionCategory, useHomeData, useHomeItemRanking, useHomeParticipantPicks } from '@/hooks/useHomeData';
+import { useMyProfile } from '@/hooks/useMyProfile';
+import { useHomeReplyBanner, useNotificationCount } from '@/hooks/useNotifications';
+import { browseScope } from '@/lib/categories/browseScope';
+import {
+  earlyHomeDiscovery, firstPickTransition, homeParticipants, myQuestionAnswer, myScopedPicks, questionFooter,
+  showParticipants, totalPickCount, unpickedCategories,
+} from '@/lib/home/earlyHome';
+import { consumeFirstPickNotice, peekFirstPickNotice } from '@/lib/home/firstPickNotice';
+import { profileMentionName } from '@/lib/profile/profileName';
+import { sharePick } from '@/lib/share/sharePick';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
+import type { Category } from '@/types/domain/category';
 
 const HOME_FEED_LIMIT = 10;
 const HOME_MENU_LIMIT = 6;
@@ -50,9 +63,23 @@ export default function HomeScreen() {
   const followingItems = followingQuery.data?.items ?? [];
   const isLoading = isSessionLoading || followDefaultPending || (!sessionError && homeQuery.isPending);
   const data = homeQuery.data;
-  // Hidden category chips need no initial request. The search dialog loads the
-  // same cached tree when opened; future chip rollout still loads it here.
-  const categoriesQuery = useExploreCategories(Boolean(OnePickFeatures.categoryChips) && !isSessionLoading && !sessionError);
+  const homeEnabled = !isSessionLoading && !sessionError;
+  // The viewer's own current Picks settle with the context read alone; the question card,
+  // reply banner, people row and invite never wait on (or hide behind) the feed pages (#762).
+  const contextData = homeQuery.contextData;
+  const contextReady = homeEnabled && !followDefaultPending && Boolean(contextData);
+  // Nickname for the question sentence: the #804 mention rule (nickname, else 원픽 사용자),
+  // read from the same cached profile the Profile tab uses. Signed-out viewers get no name.
+  const myProfileQuery = useMyProfile(homeEnabled ? user?.id : undefined);
+  const mentionName = user && myProfileQuery.data ? profileMentionName(myProfileQuery.data.profile) : null;
+  const menuCountsQuery = useFoodMenuPickCounts(mvpChannel, homeEnabled);
+  const discovery = earlyHomeDiscovery(totalPickCount(menuCountsQuery.data));
+  const questionQuery = useDailyQuestionCategory(homeEnabled);
+  const participantsQuery = useHomeParticipantPicks(user?.id, homeEnabled);
+  // Search shares the cached tree. Load it here only when a visible Home feature needs it.
+  const needsCategoryCatalog = Boolean(OnePickFeatures.categoryChips || questionQuery.data ||
+    discovery === 'unpicked' || (participantsQuery.data?.complete && participantsQuery.data.rows.length >= 3));
+  const categoriesQuery = useExploreCategories(homeEnabled && needsCategoryCatalog);
   const categoryCatalog = categoriesQuery.data ?? [];
   const categoryFilters = useMemo(() => buildHomeCategoryFilters(categoryCatalog), [categoryCatalog]);
   const [selectedCategoryGroupId, setSelectedCategoryGroupId] = useState<string | null>(null);
@@ -68,13 +95,89 @@ export default function HomeScreen() {
     [data?.picks, selectedCategoryGroup],
   );
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
-  // Figma 30-1 (10-04/10-05): no group chips; the top six store×menu items in a 2×3 grid.
-  const itemRankingQuery = useHomeItemRanking(mvpChannel, HOME_RANKING_CANDIDATES, !isSessionLoading && !sessionError);
+  const ready = !isLoading && !sessionError && Boolean(data);
+  const showRanking = homeEnabled && !followDefaultPending && discovery === 'popular';
+
+  // ---- Current Home integration (#762) --------------------------------------------
+  // The food menu list Explore browses, in catalog order.
+  const menuCategories = useMemo(() => {
+    const leafIds = browseScope(categoryCatalog, { chips: false, groupSlug: OnePickMvp.browseGroupSlug }).leafIds ?? [];
+    const byId = new Map(categoryCatalog.map((category) => [category.id, category]));
+    return leafIds.map((id) => byId.get(id)).filter((category): category is Category => Boolean(category));
+  }, [categoryCatalog]);
+  const menuIds = useMemo(() => new Set(menuCategories.map((category) => category.id)), [menuCategories]);
+  // Everyone's Picks per menu (server aggregate, suspended members excluded): total, answers, unpicked.
+  // The 7-day ranking is only visible after the 30-Pick threshold, so do not pay for its RPC
+  // in the early-MVP state or while the threshold total is still unknown.
+  const itemRankingQuery = useHomeItemRanking(
+    mvpChannel,
+    HOME_RANKING_CANDIDATES,
+    homeEnabled && discovery === 'popular',
+  );
   // The product contract never displays a photo-less card; only URL load failure uses the fixed placeholder.
   const rankedItems = (itemRankingQuery.data ?? []).filter((item) => Boolean(item.thumbnailUrl)).slice(0, HOME_MENU_LIMIT);
-  const ready = !isLoading && !sessionError && Boolean(data);
-  // Ranking has its own loading/error state and must not wait for feed enrichment.
-  const showRanking = !isSessionLoading && !sessionError && !followDefaultPending;
+  // Resolve the DB-selected daily menu against the current public food catalog.
+  const questionCategory = questionQuery.data ? menuCategories.find((category) => category.id === questionQuery.data) ?? null : null;
+  const myPicks = useMemo(() => myScopedPicks(contextData?.currentPicks ?? [], menuIds, mvpChannel), [contextData?.currentPicks, menuIds, mvpChannel]);
+  const myAnswer = myQuestionAnswer(myPicks, questionCategory?.id ?? null);
+  const unpicked = discovery === 'unpicked' && menuCountsQuery.data
+    ? unpickedCategories(menuCategories, menuCountsQuery.data, questionCategory?.id ?? null)
+    : [];
+  const people = useMemo(() => participantsQuery.data?.complete
+    ? homeParticipants(participantsQuery.data.rows, menuIds, mvpChannel) : [], [participantsQuery.data, menuIds, mvpChannel]);
+  // Unread replies on the viewer's Picks: a complete count from the inbox's own grouped
+  // notifications, read independently of the inbox tab's pages. Unknown/incomplete → hidden.
+  const replyUserId = homeEnabled ? user?.id : undefined;
+  const replyBannerQuery = useHomeReplyBanner(replyUserId, Boolean(replyUserId));
+  const banner = replyBannerQuery.data?.banner ?? null;
+  // The tab badge already polls the unread total; when it moves, the banner is out of date.
+  const unreadBadge = useNotificationCount(replyUserId, Boolean(replyUserId)).data;
+  useEffect(() => {
+    if (!replyUserId || unreadBadge === undefined || !replyBannerQuery.data || replyBannerQuery.isFetching) return;
+    if (unreadBadge !== replyBannerQuery.data.unreadTotal) void replyBannerQuery.refetch({ cancelRefetch: false });
+  }, [replyUserId, unreadBadge, replyBannerQuery.data?.unreadTotal]);
+  // "원픽 완료 · 친구에게 공유하기" appears once, right after a successful first save.
+  const [firstPickNoticeId, setFirstPickNoticeId] = useState<string | null>(null);
+  const myPickIds = myPicks.map(({ pick }) => pick.id).join(',');
+  useEffect(() => {
+    const pending = peekFirstPickNotice(user?.id);
+    if (!pending || !contextData) return;
+    if (!myPicks.some(({ pick }) => pick.id === pending.pickId)) return; // wait for the refreshed list
+    consumeFirstPickNotice(user?.id, pending.pickId);
+    // Only a 0 → 1 transition (pre-save state known) is a first Pick.
+    const priorScoped = myScopedPicks(pending.priorPicks, menuIds, mvpChannel);
+    if (firstPickTransition(priorScoped, myPicks, pending.pickId)) setFirstPickNoticeId(pending.pickId);
+  }, [user?.id, myPickIds, Boolean(contextData)]);
+  // Leaving Home after the line was on screen ends it.
+  useFocusEffect(useCallback(() => {
+    if (!firstPickNoticeId) return undefined;
+    return () => setFirstPickNoticeId(null);
+  }, [firstPickNoticeId]));
+  const footer = questionFooter(myPicks, firstPickNoticeId);
+  const showPeople = showParticipants(people);
+  const menuCountsFailed = menuCountsQuery.isError && !menuCountsQuery.data;
+  const hasEarlySections = Boolean(banner || questionQuery.isError || questionCategory || menuCountsFailed || unpicked.length);
+  const startPick = (category?: Category) => router.push(category
+    ? { pathname: '/pick/new', params: { categoryId: category.id, menuName: category.name } }
+    : '/pick/new');
+  const openReplyBanner = () => {
+    if (!banner) return;
+    // Same destination and read contract as the notifications tab: only this group is marked read.
+    router.push({ pathname: '/pick/[pickId]', params: {
+      pickId: banner.target.pickId,
+      notificationGroupId: banner.target.groupId,
+      notificationSnapshot: banner.target.snapshot,
+      notificationKind: 'comment',
+    } });
+  };
+  const shareFirstPick = () => {
+    if (footer.kind !== 'first-pick-done') return;
+    const { pick, profile, item, category } = footer.pick;
+    void sharePick({
+      pickId: pick.id, username: profile?.username ?? '', categoryName: category?.name ?? '',
+      itemName: item?.name ?? '', oneLineReview: pick.oneLineReview,
+    }).catch(() => undefined);
+  };
 
   useEffect(() => {
     if (selectedCategoryGroupId && (!showCategoryFilters || !categoryFilters.some((group) => group.id === selectedCategoryGroupId))) {
@@ -83,7 +186,12 @@ export default function HomeScreen() {
   }, [categoryFilters, selectedCategoryGroupId, showCategoryFilters]);
   const refresh = () => {
     if (isSessionLoading || sessionError) return;
-    if (!itemRankingQuery.isFetching) void itemRankingQuery.refetch({ cancelRefetch: false });
+    if (discovery === 'popular' && !itemRankingQuery.isFetching) void itemRankingQuery.refetch({ cancelRefetch: false });
+    if (!menuCountsQuery.isFetching) void menuCountsQuery.refetch({ cancelRefetch: false });
+    if (!questionQuery.isFetching) void questionQuery.refetch({ cancelRefetch: false });
+    if (!participantsQuery.isFetching) void participantsQuery.refetch({ cancelRefetch: false });
+    // Signed in only: a disabled query's refetch() would still run for a signed-out viewer.
+    if (replyUserId && !replyBannerQuery.isFetching) void replyBannerQuery.refetch({ cancelRefetch: false });
     if (showFollowing) {
       if (!followingQuery.isFetching) void followingQuery.refetch({ cancelRefetch: false });
       return;
@@ -177,14 +285,25 @@ export default function HomeScreen() {
             onPress={() => router.push({ pathname: '/auth/login', params: { action: 'home' } })} />
         </View>}
 
+        {contextReady && hasEarlySections ? <View style={styles.earlyStack}>
+          {questionQuery.isError ? <StateCard compact tone="danger" title="오늘의 질문을 불러오지 못했어요."
+            action={{ label: '다시 불러오기', disabled: questionQuery.isFetching, onPress: () => { if (!questionQuery.isFetching) void questionQuery.refetch(); } }} /> : null}
+          {questionCategory ? <HomeQuestionCard category={questionCategory} nickname={mentionName}
+            answerCount={menuCountsQuery.data ? menuCountsQuery.data.get(questionCategory.id) ?? 0 : null}
+            answered={Boolean(myAnswer)} footer={footer}
+            onAnswer={() => startPick(questionCategory)}
+            onBrowseAnswers={() => router.push({ pathname: '/menu/[slug]', params: { slug: questionCategory.slug } })}
+            onRegister={() => startPick()} onShareFirstPick={shareFirstPick} /> : null}
+          {banner ? <HomeReplyBanner count={banner.count} onPress={openReplyBanner} /> : null}
+          {menuCountsFailed ? <StateCard compact tone="danger" title="메뉴별 원픽 수를 불러오지 못했어요."
+            action={{ label: '다시 불러오기', disabled: menuCountsQuery.isFetching, onPress: () => { if (!menuCountsQuery.isFetching) void menuCountsQuery.refetch(); } }} /> : null}
+          {unpicked.length ? <HomeUnpickedMenus categories={unpicked} onPick={startPick} /> : null}
+        </View> : null}
+
+        {/* 30E: the existing "많이 고른 메뉴" takes the same slot once everyone has 30+ Picks. */}
         {showRanking ? <View style={styles.rankingSection}>
           <View style={styles.rankingHeader}>
             <Text accessibilityRole="header" style={styles.rankingSort}>최근 7일 원픽 많은 순</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="인기 메뉴 더보기" onPress={() => router.push('/popular')}
-              hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
-            style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
-              <Text style={styles.moreText}>더보기</Text>
-            </Pressable>
           </View>
           {itemRankingQuery.isPending ? <StateCard compact loading title="인기 메뉴를 불러오고 있어요." /> : null}
           {itemRankingQuery.isError ? <StateCard compact tone="danger" title="인기 메뉴를 불러오지 못했어요."
@@ -198,10 +317,10 @@ export default function HomeScreen() {
             action={{ label: '전체 메뉴 보기', onPress: () => router.push('/explore') }} /> : null}
         </View> : null}
 
-        <View style={styles.sectionDivider} />
+        {showRanking ? <View style={styles.sectionDivider} /> : null}
         <View style={styles.feedHeader}>
-          <Text accessibilityRole="header" style={styles.feedTitle}>사람들의 원픽</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="사람들의 원픽 더보기" onPress={() => router.push('/feed')}
+          <Text accessibilityRole="header" style={styles.feedTitle}>모두의 원픽</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="모두의 원픽 더보기" onPress={() => router.push('/feed')}
             hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
             <Text style={styles.moreText}>더보기</Text>
@@ -242,8 +361,11 @@ export default function HomeScreen() {
           action={homeQuery.hasNextPage
             ? { label: '다음 원픽 더 불러오기', accessibilityLabel: selectedCategoryGroup.name + ' 다음 원픽 더 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }
             : { label: '전체 보기', accessibilityLabel: '전체 카테고리 보기', onPress: () => setSelectedCategoryGroupId(null) }} /> : null}
-        ListFooterComponent={ready && data ? <>
-          <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>
+        ListFooterComponent={contextReady ? <>
+          {showPeople ? <View style={styles.inviteFooter}><HomePeopleRow people={people} onOpenProfile={openProfile} /></View> : null}
+          {/* 30E 834:4889: invite reuses the profile share path; 의견 보내기 opens the admin-configured mailbox (#831). */}
+          {user ? <View style={styles.inviteFooter}><HomeInviteRow onInvite={() => router.push('/profile')} feedback={<HomeFeedbackButton style={styles.inviteAction} />} /></View>
+            : <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>}
         </> : null}
       />}
     </SafeAreaView>
@@ -277,6 +399,10 @@ const styles = StyleSheet.create({
   fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.bgDefault },
   // Figma 30-1 (92:39): content starts 12 below the header; header row 28 high, 12 above the grid.
   rankingSection: { marginTop: OnePickSpace.md },
+  // Figma 30E 834:4748: content starts 12 below the header, 24 between sections.
+  earlyStack: { gap: OnePickSpace.xxl, marginTop: OnePickSpace.md, marginBottom: OnePickSpace.xxl },
+  inviteFooter: { marginTop: OnePickSpace.xxl },
+  inviteAction: { flex: 1 },
   rankingHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.md },
   rankingSort: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 },
@@ -302,4 +428,5 @@ const styles = StyleSheet.create({
   footerText: { ...OnePickType.body, color: OnePick.textSecondary, flex: 1 },
   pressed: { opacity: 0.65 },
 });
+
 

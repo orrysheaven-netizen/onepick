@@ -1,4 +1,8 @@
-import type { HomeFeedPick, PickChannel, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+import type { HomeFeedPick, PickChannel, PickReadItem, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+
+const PARTICIPANT_PAGE_SIZE = 100;
+/** Early-MVP scale guard: 10 pages = 1,000 current Picks. Beyond that a server aggregate is needed. */
+const PARTICIPANT_MAX_PAGES = 10;
 
 export class HomeService {
   constructor(private readonly readRepository: ReadRepository) {}
@@ -29,6 +33,31 @@ export class HomeService {
     };
   }
 
+  /** Date-seeded random food menu chosen by the DB each Korean calendar day. */
+  getDailyQuestionCategoryId() {
+    return this.readRepository.getDailyQuestionCategoryId();
+  }
+
+  /**
+   * Every current public Pick, newest first, for Home's "함께하는 사람들". The read goes through
+   * the viewer's RLS (suspended and blocked members are already excluded). `complete` is false
+   * when the scale guard stopped paging, so the caller can avoid showing partial counts.
+   */
+  async getParticipantPicks(): Promise<{ rows: PickReadItem[]; complete: boolean }> {
+    const rows: PickReadItem[] = [];
+    let cursor: ReadCursor | null = null;
+    for (let page = 0; page < PARTICIPANT_MAX_PAGES; page += 1) {
+      const batch = await this.readRepository.getPicks({
+        statuses: ['active'], orderBy: 'started_at', limit: PARTICIPANT_PAGE_SIZE, cursor,
+      });
+      rows.push(...batch);
+      if (batch.length < PARTICIPANT_PAGE_SIZE) return { rows, complete: true };
+      const last = batch[batch.length - 1].pick;
+      cursor = { timestamp: last.startedAt, id: last.id };
+    }
+    return { rows, complete: false };
+  }
+
   getRecentItemRanking(channel: PickChannel | null = null, limit = 20) {
     return this.readRepository.getFoodItemRecentRanking(channel, limit);
   }
@@ -53,3 +82,4 @@ export class HomeService {
     }] : []);
   }
 }
+

@@ -30,6 +30,7 @@ function fixture(kind, platform = 'web') {
   const calls = {};
   const components = {
     'onepick-brand': 'OnePickBrand', 'notification-button': 'NotificationButton',
+    'home-early-sections': 'HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus', 'home-feedback-button': 'HomeFeedbackButton',
     'home-feed-card': 'HomeFeedCard', 'home-pick-row': 'HomePickRow', 'home-header': 'HomeHeader', 'recent-item-card': 'RecentItemCard', 'item-search': 'ItemSearch', 'explore-search-results': 'ExploreSearchResults', 'pick-photo': 'PickPhoto',
     'profile-bio-editor': 'ProfileBioEditor', 'profile-pick-card': 'ProfilePickCard',
     'profile-pick-groups': 'ProfilePickGroups', 'profile-ai-panel': 'ProfileAiPanel',
@@ -40,11 +41,16 @@ function fixture(kind, platform = 'web') {
     ? 'app/(tabs)/(profile)/profile.tsx'
     : `app/(tabs)/${kind === 'home' ? 'index' : kind}.tsx`;
   const view = screen(screenPath, {
-    'expo-router': { useRouter: () => ({ push() {} }), useLocalSearchParams: () => ({}) },
+    'expo-router': { useRouter: () => ({ push() {} }), useLocalSearchParams: () => ({}), useFocusEffect: () => {} },
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]),
+      useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
+    '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
+    '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+    '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
       useFollowingFeed: (...args) => { calls.following = args; return following; },
@@ -52,7 +58,7 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useExploreData': { useExploreCategories: () => categories, useCategoryTopItems: (id) => { calls.categoryId = id; return top; },
       useRecentPickedItems: () => ({ ...query([]), isFetchingNextPage: false }), useFoodMenuPickCounts: () => query(new Map()) },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
-    '@/hooks/useMyProfile': { useMyProfile: () => profile },
+    '@/hooks/useMyProfile': { useMyProfile: () => profile }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/hooks/useMyProfileLists': { useMyPickHistory: (id) => { calls.historyId = id; return history; }, useMyItemRequests: (id) => { calls.requestsId = id; return requests; }, useMyComments: () => query(undefined) },
     '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/lib/categories/categoryTree': { categoryLabel: (c) => c.name, selectableCategories: (cs) => cs,
@@ -210,3 +216,4 @@ async function main() {
   console.log(`Web refresh runtime cases passed: ${passed}/${passed}. Synthetic hooks/hosts only; no live account or browser.`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

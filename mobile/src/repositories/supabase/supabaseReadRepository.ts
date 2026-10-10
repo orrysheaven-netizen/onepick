@@ -332,6 +332,12 @@ export class SupabaseReadRepository implements ReadRepository {
     return new Map<string, number>(data.map((row: any) => [String(row.category_id), Number(row.pick_count) || 0]));
   }
 
+  async getDailyQuestionCategoryId() {
+    const { data, error } = await this.countClient.rpc('home_daily_question');
+    if (error) throw mapSupabaseError(error);
+    return data ?? null;
+  }
+
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
     // Use the same public count client as item detail: personal blocks must not
     // change the aggregate. Optional channel scope is server-side before limiting.
@@ -741,3 +747,4 @@ export class SupabaseReadRepository implements ReadRepository {
     });
   }
 }
+

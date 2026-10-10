@@ -66,8 +66,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, marginBottom: OnePickSpace.sm },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10 },
   title: { ...OnePickType.title, color: OnePick.textPrimary },
-  gap: { height: 12 },
+  gap: { height: OnePickSpace.xxl },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },
   pressed: { opacity: 0.65 },
 });
+

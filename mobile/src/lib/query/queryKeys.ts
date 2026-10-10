@@ -11,6 +11,8 @@ export const queryKeys = {
     dishPicks: (userId: string | undefined, categoryId: string, channel: string | null) =>
       ['home', userId ?? 'public', 'dish', categoryId, channel ?? 'all'] as const,
     myDishPicks: (userId: string, categoryId: string) => ['home', userId, 'dish', categoryId, 'mine'] as const,
+    dailyQuestion: () => ['home', 'daily-question'] as const,
+    participants: (userId?: string) => ['home', userId ?? 'public', 'participants'] as const,
   },
   explore: {
     all: ['explore'] as const,
@@ -104,3 +106,4 @@ export const queryKeys = {
     reports: ['safety', 'reports'] as const,
   },
 } as const;
+

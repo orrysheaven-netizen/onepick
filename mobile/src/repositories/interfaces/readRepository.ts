@@ -242,6 +242,11 @@ export interface ReadRepository {
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Explore (Figma 31): current public Picks per food menu; menus without a row have none. */
   getFoodMenuPickCounts(channel?: PickChannel | null): Promise<Map<string, number>>;
+  /**
+   * Daily random open food menu chosen by the DB, using the Asia/Seoul calendar.
+   * null when the public food catalog has no eligible menu.
+   */
+  getDailyQuestionCategoryId(): Promise<string | null>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
   /** Leaf categories that have a public ranking page, in browse order. */
@@ -268,3 +273,4 @@ export interface ReadRepository {
   getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null, scope?: RootCategoryScope | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }
+
