@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -117,13 +117,14 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   // Do not change the regular /pick/choose behavior or unlaunched channels.
   const atomicCommentRegistration = Boolean(returnPickId && itemQuery.data?.isRestaurant
     && pickChannel === OnePickMvp.publicPickChannel && !OnePickFeatures.purchaseLinks);
-  const formTitle = pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
-    : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
-  const submitLabel = useMemo(() => {
-    if (pickStatus?.type === 'selected_other') return '원픽 바꾸기';
-    if (pickStatus?.type === 'selected_this') return '한줄평 저장하기';
-    return '내 원픽으로 고르기';
-  }, [pickStatus]);
+  // A lost response is a receipt check, not a new Pick or review edit.
+  const checkingCommentReceipt = Boolean(returnPickId && commentAttempt.current && !savedChoice && !commentPickConflict);
+  const formTitle = checkingCommentReceipt ? '원픽 저장 결과를 확인할까요?'
+    : pickStatus?.type === 'selected_other' ? '원픽을 바꿀까요?'
+      : pickStatus?.type === 'selected_this' ? '한줄평을 고쳐볼까요?' : '이걸 내 원픽으로 정할까요?';
+  const submitLabel = checkingCommentReceipt ? '저장 결과 다시 확인하기'
+    : pickStatus?.type === 'selected_other' ? '원픽 바꾸기'
+      : pickStatus?.type === 'selected_this' ? '한줄평 저장하기' : '내 원픽으로 고르기';
 
   const handleSubmit = async () => {
     if (submitPhase.current === 'saving' || submitPhase.current === 'saved'

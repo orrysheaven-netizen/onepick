@@ -134,6 +134,10 @@ async function main() {
     'An idempotent retry cannot display a different unsaved review');
   assert.match(commentChoose, /const review = commentAttempt\.current\?\.review \?\? draftReview/,
     'The on-screen draft reflects the original idempotent request');
+  assert.match(commentChoose, /const checkingCommentReceipt = Boolean\(returnPickId && commentAttempt\.current && !savedChoice && !commentPickConflict\)/,
+    'Lost-response retry is explicitly distinguished from a new Pick or review edit');
+  assert.match(commentChoose, /const submitLabel = checkingCommentReceipt \? '저장 결과 다시 확인하기'/,
+    'Retry CTA names the receipt recheck rather than editing a prior Pick');
   assert.match(commentChoose, /editable=\{!saving && !commentAttempt\.current\}/,
     'The review input is read-only after the first comment-origin save attempt');
   assert.match(commentChoose, /returnPickId && !commentAttempt\.current && pickStatus\?\.type !== 'not_selected'/,
