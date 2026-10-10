@@ -215,7 +215,8 @@ async function main() {
   openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); page = render();
   assert.equal(step(page), '2');
   assert.equal(input('메뉴 이름').value, '라멘');
-  assert.match(page, /라멘 메뉴에서 시작해 메뉴명을 미리 채웠어요/);
+  assert.match(page, /매장 메뉴명으로 고쳐 써도 돼요/);
+  assert.doesNotMatch(page, /카테고리는 앱이 자동으로 분류해요/);
   assert.match(page, /메뉴를 확인했어요/);
   input('메뉴 이름').onChangeText('쇼유라멘'); page = render();
   press('이전 단계'); page = render();
@@ -327,47 +328,39 @@ async function main() {
   input('원픽 한줄평').onChangeText('시원한 육수가 좋아요'); render(); press('원픽 등록하기'); await flush();
   assert.equal(calls.filter(([name]) => name === 'register').length, 1);
 
-  // Missing category cannot become a fake request-success state.
-  reset();
-  aiResult = { suggestions: [{ categoryId: 'cat-suyuk', label: '고기 › 저신뢰추천', reason: '확신이 낮아요', confidence: 'low' }], needsNewCategory: false };
-  openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
-  input('메뉴 이름').onChangeText('할머니 비법 국수'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
-  assert.match(page, /메뉴를 분류하지 못했어요/);
-  assert.match(page, /입력한 내용은 유지돼요/);
-  assert.ok(!inputs.some((props) => props.accessibilityLabel === '카테고리 검색'));
-  assert.ok(pressables.find((props) => textOf(props.children) === '다음').disabled);
-
-  // Uncertain/unsupported categories never silently select the first candidate.
+  // Unknown/uncertain menus keep the typed name and save independently, without
+  // silently choosing an arbitrary category or reusing a catalog item's photo.
   for (const testCase of [
+    { suggestions: [{ categoryId: 'cat-suyuk', confidence: 'low' }] },
     { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'medium' }] },
     { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }, { categoryId: 'cat-suyuk', confidence: 'high' }] },
     { suggestions: [{ categoryId: 'cat-gomtang', confidence: 'high' }] },
     { suggestions: [{ categoryId: 'unknown-category', confidence: 'high' }] },
     { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }], needsNewCategory: true },
     { suggestions: [] },
+    { suggestions: [], failed: true },
+    { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }], fetching: true },
   ]) {
     reset(); aiResult = { needsNewCategory: false, ...testCase };
     openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
-    input('메뉴 이름').onChangeText('비법 국수'); render(); input('메뉴 이름').onSubmitEditing(); page = render();
-    assert.match(page, /메뉴를 분류하지 못했어요/);
-    assert.ok(pressables.find((props) => textOf(props.children) === '다음').disabled);
-    press('다시 확인하기'); render();
-    assert.equal(input('메뉴 이름').value, '비법 국수', 'retry preserves the menu');
-    assert.equal(calls.filter(([name]) => name === 'reclassify').length, 1);
-    assert.equal(calls.filter(([name]) => name === 'select' || name === 'register').length, 0);
-    aiResult = { suggestions: [{ categoryId: 'cat-naengmyeon', confidence: 'high' }], needsNewCategory: false };
-    render(); press('다음'); await flush(); render();
-    assert.equal(calls.find(([name]) => name === 'select')[1].categoryId, 'cat-naengmyeon');
-  }
-
-  // Refetching or failed classification cannot reuse stale high-confidence data.
-  for (const status of ['fetching', 'error']) {
-    reset();
-    openStoreSearch(); input('매장명 검색').onChangeText('을밀대'); render(); press('을밀대 선택'); render();
     input('메뉴 이름').onChangeText('비법 국수'); render(); input('메뉴 이름').onSubmitEditing();
-    aiFetching = status === 'fetching'; aiFailed = status === 'error'; page = render();
-    assert.ok(pressables.find((props) => textOf(props.children) === '다음').disabled);
-    assert.equal(calls.filter(([name]) => name === 'select').length, 0);
+    aiFailed = Boolean(testCase.failed); aiFetching = Boolean(testCase.fetching); page = render();
+    assert.doesNotMatch(page, /메뉴를 분류하지 못했어요/);
+    assert.ok(!inputs.some((props) => props.accessibilityLabel === '카테고리 검색'));
+    press('다음'); await flush(); page = render();
+    assert.equal(step(page), '3');
+    assert.equal(calls.filter(([name]) => name === 'select' || name === 'current-slot').length, 0);
+    press('사진 고르기'); await flush(); render(); press('다음'); render();
+    input('원픽 한줄평').onChangeText('이 집만의 메뉴예요'); render();
+    press('원픽 등록하기'); await flush();
+    const saved = calls.find(([name]) => name === 'register')[1];
+    assert.equal(saved.categoryId, null);
+    assert.equal(saved.menuName, '비법 국수');
+    assert.equal(saved.expectedPreviousPickId, null);
+    assert.ok(saved.catalogId);
+    assert.ok(saved.photo);
+    assert.equal(saved.itemId, undefined);
+    assert.equal(destination.pathname, '/item/[itemId]');
   }
 
   // Catalog-missing store identity is collected inside step 1, one input per
@@ -590,4 +583,3 @@ async function main() {
   console.log('Store-first v6 checks passed: offline four-step flow, branch/brand scope, visible Pick snapshot, response-id navigation, and explicit concurrency reconfirmation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
-

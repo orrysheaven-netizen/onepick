@@ -245,7 +245,7 @@ const service = load('services/storeFirstService.ts', {
   '@/lib/supabase/client': { supabase: {} },
 });
 
-let auth, calls, detail, selectResult, selectFails, choosePhotoResult, draftStore;
+let auth, calls, detail, selectResult, selectFails, currentSlotFails, choosePhotoResult, draftStore, menuOptionsQuery, aiQuery;
 const mutation = (name, run) => ({ isPending: false, isError: false, error: null, reset() {},
   mutateAsync: async (input) => { calls.push([name, input]); return run(input); } });
 const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
@@ -260,7 +260,7 @@ const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBa
   '@/hooks/useItemDetail': { useItemDetail: (itemId) => ({ data: itemId ? detail : undefined, refetch: async () => {} }) },
   '@/hooks/useRegisterPick': {
     useChoosePhoto: () => mutation('choosePhoto', () => choosePhotoResult),
-    useReadCurrentPickSlot: () => mutation('currentSlot', () => null),
+    useReadCurrentPickSlot: () => mutation('currentSlot', () => { if (currentSlotFails) throw new AppError('INTERNAL_ERROR'); return null; }),
     useRegisterItemPick: () => mutation('register', (input) => ({ itemId: input.itemId ?? 'created', pickId: 'pick-1', published: true, replacedPickId: null, retried: false })),
   },
   '@/hooks/useLinkCategorySuggestions': { useLinkCategorySuggestions: () => ({
@@ -271,8 +271,8 @@ const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBa
     useStoreSearch: (channel, query, enabled) => ({ data: enabled && query.trim() ? [
       { kind: 'place', catalogId: 'cat-1', name: '을밀대', branchName: null, region: '서울 마포구', address: '숭문길 24', providerCategory: '국수/칼국수', mapUrl: null },
     ] : [], valid: enabled && query.trim().length > 0, isWaiting: false, isFetching: false, isError: false, refetch() {} }),
-    useMenuOptions: () => ({ data: [{ categoryId: 'cat-naengmyeon', name: '평양냉면', groupName: '면', placeEnabled: true }], isSuccess: true, isError: false, refetch() {} }),
-    useMenuSuggestions: () => ({ data: undefined, isPending: true, isFetching: false, isError: false }),
+    useMenuOptions: () => menuOptionsQuery,
+    useMenuSuggestions: (store, key, menuName, enabled) => ({ ...aiQuery, data: enabled && menuName.trim() ? aiQuery.data : undefined }),
     useSelectStoreItem: () => mutation('select', () => { if (selectFails) throw new AppError('ITEM_NOT_FOUND'); return selectResult; }),
   },
   '@/lib/items/pickChannel': pickChannel,
@@ -283,13 +283,21 @@ const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBa
 });
 
 function mount() { states = []; refs = []; effectDeps = []; }
+const menuList = [{ categoryId: 'cat-naengmyeon', name: '평양냉면', groupName: '면', placeEnabled: true }];
+const menusLoaded = () => ({ data: menuList, isSuccess: true, isError: false, refetch() {} });
+const menusLoading = () => ({ data: undefined, isSuccess: false, isError: false, refetch() {} });
+const menusFailed = () => ({ data: undefined, isSuccess: false, isError: true, refetch() {} });
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function reset(backend = sessionBackend()) {
   mount(); calls = []; destination = undefined; uuidCounter = 0; routeParams = {};
   auth = { user: { id: 'owner' }, isLoading: false, error: null };
   detail = { item: { id: 'item-1', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null }, myPickStatus: { type: 'not_selected' } };
   selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false };
   selectFails = false;
+  currentSlotFails = false;
   choosePhotoResult = { ...photo };
+  menuOptionsQuery = menusLoaded();
+  aiQuery = { data: undefined, isPending: true, isFetching: false, isError: false };
   draftStore = drafts.createPickDraftStore(backend);
   return backend;
 }
@@ -398,6 +406,14 @@ async function screenTests() {
   assert.match(page, /사진을 다시 선택해주세요/);
   assert.equal(isDisabled('다음'), true, 'required photo cannot be skipped');
   assert.equal(count('register'), 0);
+  // #862 / #861 M4: a successful server re-check must consume resumeStep.
+  // With a missing photo, the visible photo step (4) must replace the old
+  // review target (5) in persistent storage, or the next restore would skip it.
+  assert.equal(draftStore.load('owner').step, 4,
+    'successful resume clears the old review target when a photo is missing');
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '3', 'a second restore remains on the required photo step');
+  assert.equal(draftStore.load('owner').step, 4, 'the photo step persists after another restore');
   choosePhotoResult = { ...photo };
   press('사진 고르기'); await flush(); page = await render();
   assert.doesNotMatch(page, /사진을 다시 선택해주세요/);
@@ -490,6 +506,203 @@ async function screenTests() {
   assert.ok(pressables.some((props) => props.accessibilityLabel === '을밀대 선택'),
     'restored name-search results remain available after going back from 2/4');
   assert.equal(count('register'), 0);
+
+  // 10. (#836 H1) Menu list still loading when a later step is restored: the
+  //     unclassified fallback must not be auto-confirmed. The restore waits on the
+  //     menu step, then resumes with the classified category once the list arrives.
+  reset();
+  await writeUntilReview();
+  const selectsAtRestore = count('select'), slotsAtRestore = count('currentSlot');
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'restore waits for the menu list instead of confirming');
+  assert.equal(count('select'), selectsAtRestore, 'no item selection before the menu list is known');
+  assert.equal(count('currentSlot'), slotsAtRestore);
+  assert.equal(count('register'), 0);
+  assert.ok(draftStore.load('owner').photo, 'restored photo kept while waiting');
+  menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4', 'resumes to the review step once the menu is classified');
+  assert.equal(count('select'), selectsAtRestore + 1, 'resumed with the catalog category, not as unclassified');
+  assert.equal(calls.filter(([name]) => name === 'select').at(-1)[1].categoryId, 'cat-naengmyeon');
+  assert.equal(count('currentSlot'), slotsAtRestore + 1);
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(count('register'), 0, 'no automatic submit');
+  press('원픽 등록하기'); await flush(); page = await render();
+  let resumed = calls.find(([n]) => n === 'register')[1];
+  assert.equal(resumed.itemId, 'item-1', 'saved against the classified catalog item');
+  assert.equal(resumed.categoryId, 'cat-naengmyeon');
+  assert.equal(resumed.photo.base64, 'QUJD', 'restored photo used');
+  assert.equal(resumed.oneLineReview, '육수가 깔끔해요');
+
+  // 10b. Same restore while the menu list is loading, then the list loads but the
+  //      name is unknown: the AI pass is awaited too, and when it settles with no
+  //      match nothing is confirmed by itself. The person's own "다음" keeps the
+  //      quick unclassified registration with the restored photo and review.
+  reset();
+  draftStore.save('owner', fields({ menuQuery: '비법 국수', menu: { categoryId: null, name: '비법 국수' } }));
+  draftStore.savePhoto('owner', photo);
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  menuOptionsQuery = menusLoaded();
+  aiQuery = { data: undefined, isPending: false, isFetching: true, isError: false };
+  page = await render(); await sleep(500); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'still waiting while the AI classification is running');
+  assert.equal(count('select'), 0);
+  aiQuery = { data: { suggestions: [], needsNewCategory: false }, isPending: false, isFetching: false, isError: false };
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'an unclassified result never resumes on its own');
+  assert.equal(input('메뉴 이름').value, '비법 국수');
+  assert.equal(count('select'), 0);
+  assert.equal(count('register'), 0);
+  assert.ok(draftStore.load('owner').photo, 'restored photo kept for the manual confirmation');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'manual confirmation returns to the restored review with its photo');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(count('select'), 0, 'unclassified registration selects no catalog item');
+  press('원픽 등록하기'); await flush(); page = await render();
+  resumed = calls.find(([n]) => n === 'register')[1];
+  assert.equal(resumed.categoryId, null);
+  assert.equal(resumed.menuName, '비법 국수');
+  assert.equal(resumed.itemId, undefined);
+  assert.equal(resumed.photo.base64, 'QUJD');
+  assert.equal(resumed.oneLineReview, '육수가 깔끔해요');
+
+  // 10c. Menu list fails to load: nothing is confirmed for the person; the manual
+  //      path (fallback + retry card) stays available.
+  reset();
+  await writeUntilReview();
+  const selectsAtFailedRestore = count('select');
+  mount(); menuOptionsQuery = menusFailed();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'a failed menu list never auto-confirms the restore');
+  assert.equal(count('select'), selectsAtFailedRestore);
+  assert.equal(count('register'), 0);
+  assert.ok(!isDisabled('다음'), 'the person may still continue by hand');
+  menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4', 'a later successful load still resumes the classified restore');
+  assert.equal(count('select'), selectsAtFailedRestore + 1);
+  assert.equal(calls.filter(([name]) => name === 'select').at(-1)[1].categoryId, 'cat-naengmyeon');
+
+  // 11. (#858) Two cold restores before classification keep the review target
+  //     despite the first restore's menu:null auto-save.
+  reset();
+  await writeUntilReview();
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  assert.equal(draftStore.load('owner').menu, null, 'old category not trusted');
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5, 'review step survives another restore');
+  menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4', 'classification resumes review');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+  assert.equal(count('register'), 0, 'no automatic submit');
+
+  // 11b. Three cold restores with an unknown menu require a manual choice.
+  reset();
+  draftStore.save('owner', fields({ menuQuery: '비법 국수', menu: { categoryId: null, name: '비법 국수' } }));
+  draftStore.savePhoto('owner', photo);
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  mount(); page = await render(); page = await render();
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  menuOptionsQuery = menusLoaded();
+  page = await render();
+  input('메뉴 이름').onSubmitEditing();
+  aiQuery = { data: { suggestions: [], needsNewCategory: false }, isPending: false, isFetching: false, isError: false };
+  page = await render();
+  assert.equal(stepOf(page), '2', 'unclassified does not auto-confirm');
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'manual confirmation resumes the review');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+
+  // 11c. Failed menu load followed by another cold restore, then recovery.
+  reset();
+  await writeUntilReview();
+  mount(); menuOptionsQuery = menusFailed();
+  page = await render(); page = await render();
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '4');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+
+  // 12. Failed server selection must not consume the step before retry.
+  reset();
+  await writeUntilReview();
+  selectFails = true;
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+  selectFails = false;
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'retry returns to saved review');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+
+  // 12a. Failure to read the current Pick slot after item selection must keep
+  //      the original restore target until a successful retry. No auto-submit.
+  reset();
+  await writeUntilReview();
+  const slotsBeforeFailure = count('currentSlot');
+  // A generic slot-read failure (INTERNAL_ERROR), not a concurrent Pick change.
+  currentSlotFails = true;
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2', 'slot read failure leaves the menu to retry');
+  assert.ok(count('currentSlot') > slotsBeforeFailure, 'the failing slot read was attempted');
+  assert.equal(draftStore.load('owner').step, 5, 'failure does not consume the review resume target');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD', 'failure keeps the photo');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요', 'failure keeps the review');
+  assert.equal(count('register'), 0, 'failure never submits a Pick');
+  const slotsAfterFailure = count('currentSlot');
+  currentSlotFails = false;
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '4', 'successful slot retry restores the review step');
+  assert.ok(count('currentSlot') > slotsAfterFailure, 'slot retry re-reads current state');
+  assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
+  assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
+  assert.equal(count('register'), 0, 'retry does not auto-submit');
+
+  // 12b. A brand-scope wait keeps the step; changing scope still requires
+  //      a fresh photo as before, without losing the review.
+  reset();
+  await writeUntilReview();
+  selectResult = { itemId: 'item-1', categoryId: 'cat-naengmyeon', hasPhoto: false, pending: false,
+    brand: { itemId: 'brand-1', name: '을밀대', hasPhoto: false, pending: false } };
+  mount(); page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(draftStore.load('owner').step, 5);
+  press('이 지점'); page = await render();
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '3', 'scope change still requires a photo');
+  assert.equal(draftStore.load('owner').review, '육수가 깔끔해요');
+
+  // 13. Editing the restored name cancels the old resume target.
+  reset();
+  await writeUntilReview();
+  mount(); menuOptionsQuery = menusLoading();
+  page = await render(); page = await render();
+  input('메뉴 이름').onChangeText('다른 메뉴');
+  page = await render();
+  assert.equal(draftStore.load('owner').step, 2);
+  mount(); menuOptionsQuery = menusLoaded();
+  page = await render(); page = await render();
+  assert.equal(stepOf(page), '2');
+  assert.equal(input('메뉴 이름').value, '다른 메뉴');
+  press('다음'); await flush(); page = await render();
+  assert.equal(stepOf(page), '3', 'editing cannot skip the photo step');
 }
 
 async function signOutTests() {

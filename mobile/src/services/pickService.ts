@@ -86,10 +86,11 @@ export class PickService {
     });
   }
 
-  removePick(categoryId: string, channel?: PickChannel | null) {
-    return this.pickRepository.removePick(categoryId, channel);
+  removePick(categoryId: string, channel?: PickChannel | null, pickId?: string) {
+    return this.pickRepository.removePick(categoryId, channel, pickId);
   }
   deleteReview(pickId: string) {
     return this.pickRepository.deleteReview(pickId);
   }
 }
+
