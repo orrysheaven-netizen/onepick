@@ -128,8 +128,10 @@ async function main() {
     'Atomic comment registration is scoped to food and the public channel');
   assert.match(commentChoose, /registerCommentPick\.mutateAsync\([\s\S]*?expectedPreviousPickId: null,[\s\S]*?requestId/,
     'Comment-entry registration uses the existing expected-null RPC');
-  assert.match(commentChoose, /commentRequestId\.current \?\? Crypto\.randomUUID\(\)/,
-    'The request ID remains stable for a lost-response retry');
+  assert.match(commentChoose, /commentAttempt\.current \?\? \{ id: Crypto\.randomUUID\(\), review: trimmedReview \}/,
+    'The request ID and original review remain stable for a lost-response retry');
+  assert.match(commentChoose, /oneLineReview: attempt\.review,[\s\S]*?requestId: attempt\.id/,
+    'An idempotent retry cannot display a different unsaved review');
   assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
     'Unsupported comment-origin flows fail closed before reaching change_pick');
   assert.match(commentChoose, /published: result\.published/,

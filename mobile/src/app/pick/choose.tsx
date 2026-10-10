@@ -80,9 +80,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
   // Mutation state arrives on a later render. A synchronous phase also guards
   // same-frame double taps and old event handlers after an acknowledged save.
   const submitPhase = useRef<'idle' | 'saving' | 'saved'>('idle');
-  // Reuse the same ID when a comment-originated registration response is lost.
-  // The keyed form resets this on account/item changes.
-  const commentRequestId = useRef<string | null>(null);
+  // An idempotent retry must preserve its original review as well as request ID:
+  // the server can return the first successful write after its response was lost.
+  // The keyed form resets the attempt on account/item/comment changes.
+  const commentAttempt = useRef<{ id: string; review: string } | null>(null);
   // Preserve the acknowledged result even if a later detail refresh fails.
   // Navigation uses the returned Pick IDs, never a potentially stale myPickStatus.
   const loadedItem = itemQuery.data?.item;
@@ -137,7 +138,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       // Only the existing food/offline registration RPC enforces expected-null
       // atomically. A last-moment read is a UX preflight, not the safety boundary.
       // On a lost response the retained request ID makes retry idempotent.
-      if (returnPickId && !commentRequestId.current) {
+      if (returnPickId && !commentAttempt.current) {
         const latest = await itemQuery.refetch();
         if (latest.isError || !latest.data) {
           setCommentPickError('원픽 상태를 확인하지 못했어요. 다시 시도해주세요.');
@@ -150,20 +151,20 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
       }
       setCommentPickError(null);
       if (atomicCommentRegistration) {
-        const requestId = commentRequestId.current ?? Crypto.randomUUID();
-        commentRequestId.current = requestId;
+        const attempt = commentAttempt.current ?? { id: Crypto.randomUUID(), review: trimmedReview };
+        commentAttempt.current = attempt;
         const result = await registerCommentPick.mutateAsync({
           userId: user.id,
           categoryId: item.categoryId,
           channel: OnePickMvp.publicPickChannel,
-          oneLineReview: trimmedReview,
+          oneLineReview: attempt.review,
           itemId: item.id,
           expectedPreviousPickId: null,
-          requestId,
+          requestId: attempt.id,
         });
         // register_item_pick returns an ID receipt, not a full Pick row.
         setSavedChoice({
-          pick: { id: result.pickId, itemId: result.itemId, userId: user.id, oneLineReview: trimmedReview },
+          pick: { id: result.pickId, itemId: result.itemId, userId: user.id, oneLineReview: attempt.review },
           item,
           published: result.published,
         });
@@ -330,7 +331,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             {saveError instanceof AppError && saveError.code === 'AUTH_REQUIRED' ?
               <Button variant="secondary" size="sm" label="다시 로그인하고 계속" onPress={openLogin} style={styles.errorAction} /> : null}
           </View> : null}
-          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || Boolean(returnPickId && (!atomicCommentRegistration || (pickStatus?.type !== 'not_selected' && !commentRequestId.current)))} onPress={() => void handleSubmit()} style={styles.submit} />
+          <Button size="lg" fullWidth label={submitLabel} loading={saving} disabled={needsPhotoStep || Boolean(returnPickId && (!atomicCommentRegistration || (pickStatus?.type !== 'not_selected' && !commentAttempt.current)))} onPress={() => void handleSubmit()} style={styles.submit} />
           {needsPhotoStep ? <Text style={styles.footnote}>사진을 먼저 등록하면 저장할 수 있어요.</Text> : null}
           <Text style={styles.footnote}>원픽은 언제든 바꿀 수 있어요.</Text>
         </> : null}

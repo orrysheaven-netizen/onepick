@@ -330,9 +330,15 @@ async function main() {
     assert.equal(c.registrationWrites.length, 1);
     assert.match(c.view.render(), /다른 기기에서 원픽이 바뀌었어요/);
     c.setRegisterMode('success');
+    c.view.input().onChangeText('재시도 중 바뀐 초안');
+    c.view.render();
     c.view.button('내 원픽으로 고르기').onPress(); await flush();
     assert.equal(c.registrationWrites.length, 2);
     assert.equal(c.registrationWrites[0].requestId, c.registrationWrites[1].requestId);
+    assert.equal(c.registrationWrites[0].oneLineReview, c.registrationWrites[1].oneLineReview,
+      'The same idempotency key must replay the original review, not a changed draft');
+    assert.match(c.view.render(), /내가 고른 이유/,
+      'The receipt shows the review submitted with the original request ID');
     assert.equal(c.query.refreshes, 1, 'Retry preserves request ID and avoids rebasing on a newer Pick');
     assert.equal(c.ordinaryWrites.length, 0);
     assert.match(c.view.render(), /댓글 남기러 가기/);
