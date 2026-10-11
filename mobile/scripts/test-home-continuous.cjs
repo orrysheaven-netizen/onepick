@@ -44,7 +44,9 @@ async function main() {
   assert.equal(query.data.currentPicks[0], 'current');
   assert.equal(query.data.picks[0].pickId, 'a');
   assert.equal(contextOptions.staleTime, 5 * 60_000, 'Home context gets a long stale window');
-  assert.equal(feedOptions.maxPages, 3, 'Infinite home cache stays bounded');
+  // 이웃 제안 (2026-10-11) reveals more rows while scrolling, like /feed: no maxPages window,
+  // so rows already on screen are never dropped (each server page is still 20 rows).
+  assert.equal(feedOptions.maxPages, undefined, 'Home keeps every loaded page while the user scrolls');
 
   const cursor = { timestamp: '2026-09-17T12:00:00.123456+00:00', id: 'page-one-last' };
   contextOptions.queryFn();
@@ -124,6 +126,6 @@ async function main() {
   assert.equal(formatRelativeTime('not-a-date', now), '', 'Bad timestamps render nothing instead of NaN');
   assert.equal(formatRelativeTime('2026-09-21T12:05:00+09:00', now), '방금', 'Clock skew never shows a negative age');
 
-  console.log('Continuous home passed: cached context, single-read pagination, bounded pages, deduplication and relative time labels.');
+  console.log('Continuous home passed: cached context, single-read pagination, kept pages, deduplication and relative time labels.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
