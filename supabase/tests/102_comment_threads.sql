@@ -71,11 +71,23 @@ begin
   assert not public.can_comment_on_pick(ended_pick), 'A member without the item cannot write';
   reset role;
 
-  -- The author may always write under their own review, current or not.
+  -- The author may always join the thread under their own review, current or
+  -- not, but only by replying to another member's comment (#731).
   perform set_config('request.jwt.claim.sub',owner_u::text,true);
   set local role authenticated;
   assert public.can_comment_on_pick(ended_pick), 'The review author may write under their own ended review';
+  raised := false;
+  begin
+    insert into public.comments(pick_id,user_id,body) values(ended_pick, owner_u, 'new top-level');
+  exception when others then
+    raised := sqlerrm like '%row-level security%';
+  end;
+  assert raised, 'The review author cannot add a top-level comment';
+  -- c_owner stands for a top-level comment written before that rule; the
+  -- reading, locating and my_comment_page checks below still use it.
+  reset role;
   insert into public.comments(id,pick_id,user_id,body,created_at) values(c_owner, ended_pick, owner_u, 'thanks', base + interval '3 minutes');
+  set local role authenticated;
   -- Replies: one level, same Pick, live parent.
   insert into public.comments(pick_id,user_id,body,parent_comment_id,created_at) values(ended_pick, owner_u, 'reply to cur', c_cur, base + interval '4 minutes') returning id into r_owner;
   raised := false;

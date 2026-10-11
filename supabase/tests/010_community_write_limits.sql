@@ -15,6 +15,7 @@ declare
   c constant uuid := 'f9200000-0000-4000-8000-000000000001';
   item uuid;
   pick uuid;
+  b_pick uuid;
   comment_id uuid;
   comment_ids uuid[] := '{}';
 begin
@@ -33,6 +34,7 @@ begin
   select id into pick from public.picks where user_id=a and category_id=c and status='active';
   perform set_config('request.jwt.claim.sub',b::text,true);
   perform public.register_pick(c,item,'Quota item','Same item review');
+  select id into b_pick from public.picks where user_id=b and category_id=c and status='active';
   for i in 1..10 loop
     insert into public.comments(pick_id,user_id,body) values(pick,b,'Comment '||i)
       returning id into comment_id;
@@ -56,7 +58,8 @@ begin
     assert false, 'Clients cannot reset quotas';
   exception when insufficient_privilege then null; end;
   perform set_config('request.jwt.claim.sub',a::text,true);
-  insert into public.comments(pick_id,user_id,body) values(pick,a,'Separate user quota');
+  -- A review author only replies on their own review, so A uses B's review.
+  insert into public.comments(pick_id,user_id,body) values(b_pick,a,'Separate user quota');
   for i in 1..10 loop
     insert into public.content_reports(reporter_user_id,target_type,target_id,reason)
       values(a,'comment',comment_ids[i],'spam');
