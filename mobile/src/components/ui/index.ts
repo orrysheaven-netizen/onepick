@@ -3,6 +3,7 @@ export { Avatar } from './avatar';
 export { BrandMark } from './brand-mark';
 export { Button } from './button';
 export type { ButtonSize, ButtonVariant } from './button';
+export { ChannelBadge, CHANNEL_BADGE_LABELS } from './channel-badge';
 export { Chip } from './chip';
 export { PickCard } from './pick-card';
 export { SectionHeader } from './section-header';

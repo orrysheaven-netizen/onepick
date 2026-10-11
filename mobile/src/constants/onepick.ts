@@ -151,9 +151,8 @@ export const OnePickIcon = {
 // hidden until separately approved. Backend follow data remains intact.
 //
 // profileFollowConnections: approved public follower/following counts + list surface.
-// The sanitized RPC is already deployed; keep this separate from legacy own counts.
-//
-// followCounts: legacy own-profile count component remains separately gated.
+// The sanitized RPC is already deployed. #757 replaced the legacy own-profile count
+// card (ProfileFollowCounts / followCounts) with the same public counts in ProfileIdentity.
 //
 // purchaseLinks: schema is ready too, but the feed/profile surfaces that make
 // purchase links useful are not fully rolled out yet.
@@ -162,15 +161,16 @@ export const OnePickFeatures = {
   profileFollowConnections: true,
   followingFeed: false,
   followNotifications: false,
-  followCounts: false,
   purchaseLinks: false,
   // Keep both profile features implemented, but unmounted during the early MVP.
   tasteComposition: false,
   profileAi: false,
+  // #757 (PM confirmed 2026-10-05): the own profile's private 기록 tab shows past
+  // Picks and pending/rejected registration requests.
+  profilePickHistory: true,
+  profileItemRequests: true,
   // Hidden during the early MVP; the data and components stay in place.
-  profilePickHistory: false,
   profileSocialLinks: false,
-  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
   // Initial food MVP exposes only the physical-store channel in registration.

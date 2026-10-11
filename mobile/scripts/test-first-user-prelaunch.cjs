@@ -181,7 +181,7 @@ async function main() {
     /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
     'the public profile fallback must share the loaded username and current Pick count',
   );
-  assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
+  assert.match(publicProfileSource, /accessibilityLabel="프로필 공유"/, 'the public profile must expose a share CTA (header icon, #757)');
 
   const oldShareBase = process.env.EXPO_PUBLIC_SHARE_BASE_URL;
   process.env.EXPO_PUBLIC_SHARE_BASE_URL = 'https://onepick.example';

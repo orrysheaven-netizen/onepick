@@ -86,10 +86,10 @@ async function main() {
     assert.match(screen, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/,
       `${name} profile applies the shared offline FOOD exposure rule`);
     assert.match(screen, /음식 원픽 보기/);
-    assert.match(screen, /다른 취향 원픽 보기/);
+    assert.match(screen, /기타 원픽 보기/, `${name} profile uses the shared 음식 / 기타 chip names (#757)`);
   }
-  assert.match(ownerScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Owner Figma 03 rows render every Pick in the selected scope');
-  assert.match(publicScreen, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickRow/, 'Public Figma 40 rows render every Pick in the selected scope');
+  assert.match(ownerScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Owner rows render every Pick in the selected scope');
+  assert.match(publicScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Public rows render every Pick in the selected scope with the shared #757 row');
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 

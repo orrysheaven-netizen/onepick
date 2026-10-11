@@ -100,6 +100,16 @@ function cursorFilter(column: 'started_at' | 'updated_at' | 'created_at', cursor
   return `${column}.${comparison}.${cursor.timestamp},and(${column}.eq.${cursor.timestamp},id.${comparison}.${cursor.id})`;
 }
 
+// Same as repositories/mappers/profileMapper (kept local: no extra import). The database keeps only the owner's `<id>/<uuid>.jpg` path in the
+// public `profile-images` bucket (DB CHECK), so the URL is always our own storage.
+const PROFILE_IMAGE_PATH = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.jpg$/;
+function profileImagePublicUrl(path: string | null | undefined): string | null {
+  if (!path || !PROFILE_IMAGE_PATH.test(path)) return null;
+  // Static dot notation: Expo only inlines public env vars accessed this way.
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, '');
+  return base ? `${base}/storage/v1/object/public/profile-images/${path}` : null;
+}
+
 /** "서울특별시", "강남구" → "서울 강남구" (store regions next to Pick counts). */
 function shortRegion(region1?: string | null, region2?: string | null) {
   const first = region1?.trim().replace(/(특별자치시|특별자치도|특별시|광역시|도)$/, '') || null;
@@ -207,7 +217,7 @@ export class SupabaseReadRepository implements ReadRepository {
       nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
       items: rows.map((row) => ({
         pickId: row.pick_id, userId: row.user_id, username: row.username,
-        profileImageUrl: row.profile_image_url,
+        profileImageUrl: profileImagePublicUrl(row.profile_image_url),
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
         oneLineReview: row.one_line_review,

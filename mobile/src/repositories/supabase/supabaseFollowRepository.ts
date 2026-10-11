@@ -4,6 +4,16 @@ import type { AppSupabaseClient } from '@/lib/supabase/client';
 import type { FollowRepository } from '@/repositories/interfaces/followRepository';
 import type { FollowConnectionCursor, FollowDirection } from '@/types/domain/safety';
 
+// Same as repositories/mappers/profileMapper (kept local: no extra import). The database keeps only the owner's `<id>/<uuid>.jpg` path in the
+// public `profile-images` bucket (DB CHECK), so the URL is always our own storage.
+const PROFILE_IMAGE_PATH = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.jpg$/;
+function profileImagePublicUrl(path: string | null | undefined): string | null {
+  if (!path || !PROFILE_IMAGE_PATH.test(path)) return null;
+  // Static dot notation: Expo only inlines public env vars accessed this way.
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, '');
+  return base ? `${base}/storage/v1/object/public/profile-images/${path}` : null;
+}
+
 export class SupabaseFollowRepository implements FollowRepository {
   constructor(private readonly client: AppSupabaseClient) {}
 
@@ -80,7 +90,7 @@ export class SupabaseFollowRepository implements FollowRepository {
     const items = visible.map((row) => ({
       userId: row.user_id,
       username: row.username,
-      profileImageUrl: row.profile_image_url,
+      profileImageUrl: profileImagePublicUrl(row.profile_image_url),
       bio: row.bio,
       viewerIsFollowing: row.viewer_is_following,
     }));

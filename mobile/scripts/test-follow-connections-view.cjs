@@ -159,7 +159,7 @@ assert.match(source, /viewerUserId !== item\.userId/);
 assert.match(source, /initialFollowing=\{item\.viewerIsFollowing\}/);
 assert.match(source, /usePublicFollowCounts\(profileId, viewerUserId \?\? null\)/);
 assert.match(source, /useFollowConnections\(profileId, direction, viewerUserId \?\? null\)/);
-assert.doesNotMatch(source, /profileImageUrl/, 'Dormant profile image URL is not treated as an active avatar feature');
+assert.match(source, /imageUrl=\{item\.profileImageUrl\}/, 'Profile photos show in the follow list (user decision 10-05)');
 
 const hookSource = fs.readFileSync(path.join(root, 'src/hooks/useFollow.ts'), 'utf8');
 assert.match(hookSource, /initialFollowing\?: boolean/);

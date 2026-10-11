@@ -84,16 +84,16 @@ assert.match(lab, /isLabCategory\(category\.id, categories, OnePickMvp\.mainThem
 assert.match(labIndex, /pathname: '\/lab\/\[username\]', params: \{ username: profileQuery\.data\.profile\.username \}/, '/lab opens my own 실험실');
 assert.match(owner, /profileScope === 'food' \? publicMainPicks : labPicks/, 'owner shows only the public FOOD channel while keeping other tastes in place');
 assert.match(owner, /음식 원픽 보기/);
-assert.match(owner, /다른 취향 원픽 보기/);
+assert.match(owner, /기타 원픽 보기/);
 // 실험실 is the only place to start a non-food Pick; with Explore's door gone the
-// owner's 다른 취향 tab must still lead there, whether it is empty or not.
+// owner's 기타 tab must still lead there, whether it is empty or not.
 assert.match(owner, /const openLab = \(\) => router\.push\('\/lab'\);/, 'the owner profile can open 실험실');
-assert.match(owner, /label: '다른 취향 원픽 고르기', variant: 'secondary', onPress: openLab/, 'an empty 다른 취향 tab offers the 실험실 entry');
-assert.match(owner, /profileScope === 'other' && visibleProfilePicks\.length > 0 \? \(\s*<Button[^>]*label="다른 취향 원픽 고르기"[\s\S]*?onPress=\{openLab\}/,
-  'a filled 다른 취향 tab keeps the 실험실 entry');
+assert.match(owner, /label: '기타 원픽 고르기', variant: 'secondary', onPress: openLab/, 'an empty 기타 tab offers the 실험실 entry');
+assert.match(owner, /profileScope === 'other' && visibleProfilePicks\.length > 0 \? \(\s*<Button[^>]*label="기타 원픽 고르기"[\s\S]*?onPress=\{openLab\}/,
+  'a filled 기타 tab keeps the 실험실 entry');
 assert.match(publicProfile, /profileScope === 'food' \? publicMainPicks : labPicks/, 'public profile shows only the public FOOD channel while keeping other tastes in place');
 assert.match(publicProfile, /음식 원픽 보기/);
-assert.match(publicProfile, /다른 취향 원픽 보기/);
+assert.match(publicProfile, /기타 원픽 보기/);
 assert.match(owner, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/);
 assert.match(publicProfile, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/);
 assert.match(publicProfile, /const currentPicks = publicMainPicks;/, 'the share card carries only publicly exposed FOOD Picks');

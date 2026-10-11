@@ -35,7 +35,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
         {isMine ? (
           <Text style={[styles.author, styles.mineLabel]}>내 한줄평</Text>
         ) : <>
-          <Avatar name={profile?.username ?? '?'} size={24} />
+          <Avatar name={profile?.username ?? '?'} size={24} imageUrl={profile?.profileImageUrl} />
           <View style={styles.author}>
             {profile ? (
               <Pressable accessibilityRole="button" accessibilityLabel={`@${profile.username} 공개 프로필 보기`}

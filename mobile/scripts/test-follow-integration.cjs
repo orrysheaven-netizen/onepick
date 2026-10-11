@@ -13,23 +13,23 @@ const connections = read('src/components/follow-connections-view.tsx');
 
 assert.match(constants, /profileFollowConnections: true/,
   'Public follow counts/list use their own approved exposure gate');
-assert.match(constants, /followCounts: false/,
-  'Legacy own-profile counts remain independently hidden');
+assert.doesNotMatch(constants, /^\s*followCounts:/m,
+  'Legacy own-profile count gate is removed (#757); ProfileIdentity shows the public counts');
 
 assert.ok(profile.includes('useLocalSearchParams<{ username?: string; connections?: string; returnTo?: string }>()'),
   'Public profile keeps username, connections and safe return origin in one route contract');
 assert.match(profile, /usePublicFollowCounts\([\s\S]*?query\.data\?\.profile\.id[\s\S]*?user\?\.id \?\? null/);
 assert.match(profile, /connections === 'followers' \|\| connections === 'following'/);
 assert.match(profile, /const publicPickCount = publicMainPicks\.length \+ labPicks\.length/);
-assert.match(profile, /원픽 \{publicPickCount\}/);
+assert.match(profile, /key: 'picks', label: '원픽', value: String\(publicPickCount\)/);
 assert.doesNotMatch(profile, /원픽 \{query\.data\.currentPicks\.length\}/,
   'Hidden FOOD online/recipe Picks must not inflate the public profile count');
-assert.match(profile, /팔로워 \{publicFollowCounts\.data\?\.followerCount \?\? '—'\}/);
-assert.match(profile, /팔로잉 \{publicFollowCounts\.data\?\.followingCount \?\? '—'\}/);
-assert.match(profile, /onPress=\{\(\) => openConnections\('followers'\)\}/);
-assert.match(profile, /onPress=\{\(\) => openConnections\('following'\)\}/);
-assert.match(profile, /<View style=\{styles\.followActions\}>[\s\S]*?<FollowButton[\s\S]*?fullWidth \/>[\s\S]*?<Button[\s\S]*?variant="secondary"[\s\S]*?label="공유"/,
-  'Public profile renders Follow/Following + Share as one approved core action row');
+assert.match(profile, /label: '팔로워', value: publicFollowCounts\.data \? String\(publicFollowCounts\.data\.followerCount\) : '—'/);
+assert.match(profile, /label: '팔로잉', value: publicFollowCounts\.data \? String\(publicFollowCounts\.data\.followingCount\) : '—'/);
+assert.match(profile, /onPress: \(\) => openConnections\('followers'\)/);
+assert.match(profile, /onPress: \(\) => openConnections\('following'\)/);
+assert.match(profile, /\? <FollowButton[\s\S]*?fullWidth \/> : null\}/,
+  '#757: Follow/Following is the single primary CTA (share lives in the header)');
 
 assert.match(profile, /pathname: '\/u\/\[username\]'[\s\S]*?connections: direction/,
   '40 → 41 keeps the canonical public-profile URL and adds relationship state only');

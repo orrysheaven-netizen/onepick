@@ -60,7 +60,7 @@ export function FollowConnectionsView({
         accessibilityLabel={`@${item.username} 프로필 보기`}
         onPress={() => onOpenProfile(item.username)}
         style={({ pressed }) => [styles.identityAction, pressed && styles.pressed]}>
-        <Avatar name={item.username} size={40} tone="subtle" />
+        <Avatar name={item.username} size={40} tone="subtle" imageUrl={item.profileImageUrl} />
         <View style={styles.identityCopy}>
           <Text numberOfLines={1} style={styles.username}>{item.username}</Text>
           {item.bio ? <Text numberOfLines={1} style={styles.bio}>{item.bio}</Text> : null}

@@ -15,6 +15,7 @@ function loadSource(relativePath, imports = {}) {
   const exports = {};
   vm.runInNewContext(result.outputText, {
     exports,
+    process: { env: { EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co' } },
     require: (name) => {
       assert.ok(name in imports, 'Unexpected runtime dependency: ' + name);
       return imports[name];
@@ -28,7 +29,8 @@ async function main() {
   const connectionRows = Array.from({ length: 21 }, (_, i) => ({
     user_id: `user-${String(i + 1).padStart(2, '0')}`,
     username: `user_${String(i + 1).padStart(2, '0')}`,
-    profile_image_url: i === 0 ? 'https://example.test/u1.jpg' : null,
+    // Stored value is the owner's profile-images path; the app derives the public URL.
+    profile_image_url: i === 0 ? 'f1220000-0000-4000-8000-000000000001/0b6f8a52-3c1e-4d7a-9f10-2a3b4c5d6e7f.jpg' : i === 1 ? 'https://tracker.example/pixel.jpg' : null,
     bio: i === 0 ? '첫 사용자 소개' : null,
     viewer_is_following: i % 2 === 0,
   }));
@@ -65,7 +67,7 @@ async function main() {
   same(page.items[0], {
     userId: 'user-01',
     username: 'user_01',
-    profileImageUrl: 'https://example.test/u1.jpg',
+    profileImageUrl: 'https://project.supabase.co/storage/v1/object/public/profile-images/f1220000-0000-4000-8000-000000000001/0b6f8a52-3c1e-4d7a-9f10-2a3b4c5d6e7f.jpg',
     bio: '첫 사용자 소개',
     viewerIsFollowing: true,
   });
