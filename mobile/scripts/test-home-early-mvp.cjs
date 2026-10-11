@@ -368,22 +368,27 @@ function home(options = {}) {
 test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)', () => {
   for (const total of [0, 29]) {
     const { text, calls, view } = home({ counts: countsOf(total ? { ramen: total } : {}) });
-    assert.ok(view.all('Chip').some((chip) => chip.label.startsWith('+ ')), `total ${total} retains menu actions`);
+    assert.ok(view.all('Chip').some((chip) => /첫 원픽 남기기$/.test(chip.accessibilityLabel)), `total ${total} retains menu actions`);
+    assert.match(text(), /아직 정하지 않은 원픽/, `total ${total} shows the one-line title`);
     assert.doesNotMatch(text(), /오늘의 질문|아직 아무도 안 골랐어요|내 원픽 \d+개/, 'Legacy labels are removed');
     assert.doesNotMatch(text(), /최근 7일 원픽 많은 순/, `total ${total} hides 많이 고른 메뉴`);
     assert.equal(calls.itemRanking[2], false, `total ${total} does not fetch the hidden ranking`);
   }
   for (const total of [30, 31]) {
     const { text, calls, view } = home({ counts: countsOf({ ramen: total }) });
-    assert.equal(view.all('Chip').filter((chip) => chip.label.startsWith('+ ')).length, 0, `total ${total}`);
+    assert.equal(view.all('Chip').filter((chip) => /첫 원픽 남기기$/.test(chip.accessibilityLabel)).length, 0, `total ${total}`);
+    assert.doesNotMatch(text(), /아직 정하지 않은 원픽/, `total ${total} hides the title with the chips`);
     assert.match(text(), /최근 7일 원픽 많은 순/, `total ${total} restores 많이 고른 메뉴`);
     assert.equal(calls.itemRanking[2], true, `total ${total} enables the visible ranking`);
   }
   const chips = home({ counts: countsOf({ ramen: 2 }) });
-  deepEq(chips.view.all('Chip').map((c) => c.label), ['+ 칼국수', '+ 곱창', '+ 막창', '+ 대창'],
+  deepEq(chips.view.all('Chip').map((c) => c.label), ['칼국수', '곱창', '막창', '대창'],
     'Unpicked menus skip picked 라면 and today’s 냉면; only four remain');
   const route = chips.press('곱창 첫 원픽 남기기');
   deepEq(route, { pathname: '/pick/new', params: { categoryId: 'gopchang', menuName: '곱창' } }, 'Chip opens the existing registration flow');
+  assert.ok(chips.view.all('ScrollView').some((p) => p.horizontal && p.contentContainerStyle?.gap === 6),
+    '2026-10-11 두 줄 구성: chips sit on one sideways-scrolling line under the one-line title');
+  assert.doesNotMatch(chips.text(), /다른 메뉴 찾아보기|메뉴를 고르면/, 'No description line and no secondary action');
 });
 
 test('Refresh requests ranking only while the popular section is visible', () => {
@@ -425,11 +430,10 @@ test('Today’s question: DB daily menu only, answer count, 등록 / 다른 원�
   const titleModule = load('lib/home/questionTitle.ts');
   assert.match(open.text(), new RegExp(titleModule.homeQuestionTitle().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'Fixed title sits on the question card');
   assert.match(open.text(), /4명이 냉면 원픽을 남겼어요\./);
-  assert.match(open.text(), /다른 원픽을 남겨요/, '0 Picks');
+  assert.doesNotMatch(open.text(), /다른 원픽을 남겨요|다른 메뉴 찾아보기/, '0 Picks: the secondary action was removed (2026-10-11 두 줄 구성)');
   deepEq(open.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } });
-  assert.equal(open.press('다른 원픽을 남겨요'), '/pick/new');
   const answered = home({ currentPicks: [row('me', 'naengmyeon', '2026-10-05T00:00:00Z', { id: 'n1' }), row('me', 'ramen', '2026-10-04T00:00:00Z', { id: 'r1' })] });
-  assert.match(answered.text(), /다른 원픽을 남겨요/, '1+ Picks');
+  assert.doesNotMatch(answered.text(), /다른 원픽을 남겨요/, '1+ Picks');
   deepEq(answered.press('다른 냉면 원픽도 구경해요'), { pathname: '/menu/[slug]', params: { slug: 'naengmyeon' } }, 'Answered → same-menu people Picks, not own detail');
   const zeroAnswers = home({ counts: countsOf({ ramen: 1 }) });
   assert.match(zeroAnswers.text(), /0명이 냉면 원픽을 남겼어요\./, 'A menu nobody answered shows 0, not a made-up number');
@@ -460,7 +464,7 @@ test('Question photo opens the same menu list before and after answering; regist
     assert.ok(before.view.find('Image', (p) => p.accessibilityLabel === '곱창 사진'), 'Same photo is still drawn inside');
     deepEq(before.press('곱창 원픽 목록 보기'), target, 'Not answered → menu list');
     deepEq(before.press('곱창 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'gopchang', menuName: '곱창' } }, 'Answer button keeps registration');
-    assert.equal(before.press('다른 원픽을 남겨요'), '/pick/new', 'Secondary CTA keeps registration');
+    assert.doesNotMatch(before.text(), /다른 원픽을 남겨요/, 'Secondary CTA was removed (2026-10-11 두 줄 구성)');
     const after = home({ question: 'gopchang', currentPicks: [row('me', 'gopchang', '2026-10-05T00:00:00Z', { id: 'g1' })] });
     deepEq(after.press('곱창 원픽 목록 보기'), target, 'Answered → the same destination');
     deepEq(after.press('다른 곱창 원픽도 구경해요'), target, 'Photo and browse button agree');
@@ -489,7 +493,7 @@ test('Feed card menu name links to its public menu; others keep the old target',
 test('First Pick: success shows the completion line once; cancel/failure never do', () => {
   const first = [row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'new-1' })];
   const cancelled = home({ currentPicks: [] });
-  assert.match(cancelled.text(), /다른 원픽을 남겨요/, 'Cancelled registration (no save) keeps the 0-Pick line');
+  assert.doesNotMatch(cancelled.text(), /원픽 완료/, 'Cancelled registration (no save) shows no completion line');
   notice.armFirstPickNotice('me', 'new-1', []);
   const shown = home({ currentPicks: first });
   shown.view.flushEffects(); shown.view.render();
@@ -499,7 +503,7 @@ test('First Pick: success shows the completion line once; cancel/failure never d
   assert.equal(notice.peekFirstPickNotice('me'), null, 'Handoff consumed');
   const leave = shown.calls.focus(); leave(); shown.view.render();
   assert.doesNotMatch(shown.text(), /원픽 완료/, 'Leaving Home ends the one-time line');
-  assert.match(shown.text(), /다른 원픽을 남겨요/);
+  assert.doesNotMatch(shown.text(), /다른 원픽을 남겨요/);
   const again = home({ currentPicks: first }); again.view.flushEffects(); again.view.render();
   assert.doesNotMatch(again.text(), /원픽 완료/, 'Never shown a second time');
   notice.armFirstPickNotice('me', 'new-2', first);
@@ -515,7 +519,7 @@ test('R1 · replacing the only Pick (1→1) or an unknown pre-save state never s
   notice.armFirstPickNotice('me', 'replacement', [old]);
   const replaced = home({ currentPicks: replacement }); replaced.view.flushEffects(); replaced.view.render();
   assert.doesNotMatch(replaced.text(), /원픽 완료/, '1 → 1 replacement');
-  assert.match(replaced.text(), /다른 원픽을 남겨요/);
+  assert.doesNotMatch(replaced.text(), /다른 원픽을 남겨요/);
   assert.equal(notice.peekFirstPickNotice('me'), null, 'Handoff consumed (ruled out)');
   // An old out-of-scope Pick (another menu set) does not make a new in-scope Pick "not first".
   notice.armFirstPickNotice('me', 'replacement', [row('me', 'movie', '2026-10-01T00:00:00Z', { id: 'film' })]);
@@ -578,7 +582,7 @@ test('Signed-out Home: no reply/invite, question still asks, login handled by re
   assert.equal(guest.calls.replyRefetch, undefined, 'Signed-out refresh never requests notifications');
   assert.doesNotMatch(guest.text(), /새 답글|친구 초대 링크/);
   assert.match(guest.text(), /냉면 먹으러 어디 가요\?/);
-  assert.match(guest.text(), /다른 원픽을 남겨요/);
+  assert.doesNotMatch(guest.text(), /다른 원픽을 남겨요/);
   const member = home();
   assert.ok(member.view.find('HomeInviteRow') === undefined, 'Invite row is the real component, not a stub');
   assert.match(member.text(), /친구 초대 링크/);

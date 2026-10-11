@@ -306,7 +306,7 @@ export default function HomeScreen() {
             onAnswer={() => startPick(questionCategory)}
             onBrowseAnswers={() => openMenu(questionCategory.slug)}
             onOpenMenu={() => openMenu(questionCategory.slug)}
-            onRegister={() => startPick()} onShareFirstPick={shareFirstPick} /> : null}
+            onShareFirstPick={shareFirstPick} /> : null}
           {banner ? <HomeReplyBanner count={banner.count} onPress={openReplyBanner} /> : null}
           {menuCountsFailed ? <StateCard compact tone="danger" title="메뉴별 원픽 수를 불러오지 못했어요."
             action={{ label: '다시 불러오기', disabled: menuCountsQuery.isFetching, onPress: () => { if (!menuCountsQuery.isFetching) void menuCountsQuery.refetch(); } }} /> : null}

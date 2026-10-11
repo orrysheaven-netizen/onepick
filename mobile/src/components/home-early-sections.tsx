@@ -34,15 +34,13 @@ type QuestionCardProps = {
   onBrowseAnswers: () => void;
   /** The question photo opens this menu's list of everyone's Picks, before and after answering. */
   onOpenMenu: () => void;
-  onRegister: () => void;
   onShareFirstPick: () => void;
 };
 
 /** 1070:8278 — one question, with registration or same-menu discovery by Pick status. */
-export function HomeQuestionCard({ category, nickname, answerCount, answered, footer, onAnswer, onBrowseAnswers, onOpenMenu, onRegister, onShareFirstPick }: QuestionCardProps) {
-  const footerLabel = footer.kind === 'first-pick-done'
-    ? '원픽 완료 · 친구에게 공유해요'
-    : '다른 원픽을 남겨요';
+export function HomeQuestionCard({ category, nickname, answerCount, answered, footer, onAnswer, onBrowseAnswers, onOpenMenu, onShareFirstPick }: QuestionCardProps) {
+  // 2026-10-11 두 줄 구성 확정: '다른 원픽을 남겨요' 보조 동작은 삭제. 첫 원픽 직후 공유 줄만 남음.
+  const footerLabel = footer.kind === 'first-pick-done' ? '원픽 완료 · 친구에게 공유해요' : null;
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" style={styles.cardTitle}>{homeQuestionTitle()}</Text>
@@ -57,12 +55,12 @@ export function HomeQuestionCard({ category, nickname, answerCount, answered, fo
       <Button fullWidth label={answered ? `다른 ${category.name} 원픽도 구경해요` : `내 ${category.name} 원픽을 남겨요`}
         accessibilityLabel={answered ? `다른 ${category.name} 원픽도 구경해요` : `${category.name} 원픽 답하기`}
         onPress={answered ? onBrowseAnswers : onAnswer} />
-      <Pressable accessibilityRole="button" accessibilityLabel={footerLabel}
-        onPress={footer.kind === 'first-pick-done' ? onShareFirstPick : onRegister}
+      {footerLabel ? <Pressable accessibilityRole="button" accessibilityLabel={footerLabel}
+        onPress={onShareFirstPick}
         style={({ pressed }) => [styles.footerLink, pressed && styles.pressed]}>
         <Text style={styles.footerText}>{footerLabel}</Text>
         <Icon name="chevronRight" size="sm" color={OnePick.textPrimary} />
-      </Pressable>
+      </Pressable> : null}
     </View>
   );
 }
@@ -94,14 +92,20 @@ export function HomePeopleRow({ people, onOpenProfile }: { people: HomeParticipa
   );
 }
 
-/** 834:4783 — menus nobody has picked yet (shown below 30 Picks in total). */
+/**
+ * 834:4783 → 1203:8588 — menus nobody has picked yet (shown below 30 Picks in total).
+ * 2026-10-11 confirmed two-line layout: one title line + one chip line (scrolls sideways when
+ * the names are long). No description, no '다른 메뉴 찾아보기'. Chips keep the existing
+ * menu-preselected registration route and 44px touch targets.
+ */
 export function HomeUnpickedMenus({ categories, onPick }: { categories: Category[]; onPick: (category: Category) => void }) {
   return (
     <View style={styles.section}>
-      <View style={styles.chipWrap}>
-        {categories.map((category) => <Chip key={category.id} label={`+ ${category.name}`}
+      <Text accessibilityRole="header" style={styles.sectionTitle} numberOfLines={1}>아직 정하지 않은 원픽</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        {categories.map((category) => <Chip key={category.id} label={category.name}
           accessibilityLabel={`${category.name} 첫 원픽 남기기`} onPress={() => onPick(category)} />)}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -146,7 +150,8 @@ const styles = StyleSheet.create({
   personName: { ...OnePickType.captionMedium, maxWidth: 64, color: OnePick.textPrimary },
   // Figma 30E uses text/tertiary here; Foundations reserves tertiary for non-copy (test-tertiary-usage), so secondary.
   personCount: { ...OnePickType.caption, color: OnePick.textSecondary },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: OnePickSpace.sm },
+  // 1203:8592: one row, 6 between chips (Figma), no wrap.
+  chipRow: { flexDirection: 'row', gap: 6, paddingRight: OnePickSpace.xs },
   inviteRow: { flexDirection: 'row', gap: 10 },
   inviteButton: { flex: 1 },
 });
