@@ -447,6 +447,45 @@ test('Question image and count stay tied to the selected daily menu', () => {
   } finally { category.imageUrl = null; }
 });
 
+// #762 (2026-10-11): the question photo and a feed card's menu name open that menu's people Picks.
+test('Question photo opens the same menu list before and after answering; registration paths unchanged', () => {
+  const gopchang = catalog.find((c) => c.id === 'gopchang');
+  gopchang.imageUrl = 'https://example.test/gopchang.jpg';
+  try {
+    const target = { pathname: '/menu/[slug]', params: { slug: 'gopchang' } };
+    const before = home({ question: 'gopchang' });
+    const photo = before.view.find('Pressable', (p) => p.accessibilityLabel === '곱창 원픽 목록 보기');
+    assert.ok(photo, 'Photo is a labelled button');
+    assert.equal(photo.accessibilityRole, 'button');
+    assert.ok(before.view.find('Image', (p) => p.accessibilityLabel === '곱창 사진'), 'Same photo is still drawn inside');
+    deepEq(before.press('곱창 원픽 목록 보기'), target, 'Not answered → menu list');
+    deepEq(before.press('곱창 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'gopchang', menuName: '곱창' } }, 'Answer button keeps registration');
+    assert.equal(before.press('다른 원픽을 남겨요'), '/pick/new', 'Secondary CTA keeps registration');
+    const after = home({ question: 'gopchang', currentPicks: [row('me', 'gopchang', '2026-10-05T00:00:00Z', { id: 'g1' })] });
+    deepEq(after.press('곱창 원픽 목록 보기'), target, 'Answered → the same destination');
+    deepEq(after.press('다른 곱창 원픽도 구경해요'), target, 'Photo and browse button agree');
+    // No photo → nothing extra to press.
+    const plain = home({ question: 'naengmyeon' });
+    assert.equal(plain.view.find('Pressable', (p) => p.accessibilityLabel === '냉면 원픽 목록 보기'), undefined);
+  } finally { gopchang.imageUrl = null; }
+});
+
+test('Feed card menu name links to its public menu; others keep the old target', () => {
+  const feedPick = (id, categoryId, channels) => ({ pickId: id, userId: 'u', username: 'u', itemId: 'item-' + id, name: '가게',
+    categoryId, categoryName: 'x', oneLineReview: '', thumbnailUrl: null, startedAt: '2026-10-05T00:00:00Z', channels });
+  const view = home({ feed: { picks: [feedPick('a', 'ramen', ['offline']), feedPick('b', 'movie', ['offline']), feedPick('c', 'nope', [])] } });
+  const rows = view.view.all('HomePickRow');
+  assert.equal(rows.length, 3);
+  rows[0].onOpenMenu();
+  deepEq(view.calls.routes.at(-1), { pathname: '/menu/[slug]', params: { slug: 'ramen' } }, 'Real menu → its own list, no other menu');
+  assert.equal(rows[1].onOpenMenu, undefined, 'A category outside the public food menus never links');
+  assert.equal(rows[2].onOpenMenu, undefined, 'Unknown category never links');
+  rows[0].onOpenItem();
+  deepEq(view.calls.routes.at(-1), { pathname: '/item/[itemId]', params: { itemId: 'item-a' } }, 'Photo/review keep item detail');
+  rows[0].onOpenProfile();
+  assert.equal(view.calls.routes.at(-1).pathname, '/u/[username]', 'Profile target unchanged');
+});
+
 test('First Pick: success shows the completion line once; cancel/failure never do', () => {
   const first = [row('me', 'ramen', '2026-10-06T00:00:00Z', { id: 'new-1' })];
   const cancelled = home({ currentPicks: [] });
@@ -633,6 +672,30 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
     visit(row.HomePickRow({ pick: { pickId: 'x', userId: 'u', username: 'u', itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이유', thumbnailUrl: 'https://x', channels }, mine: false, onOpenItem: () => {}, onOpenProfile: () => {} }));
     return nodes;
   };
+  // #762: the menu line of a provider-backed row opens the menu list (44px+ target); legacy rows keep detail.
+  const pressables = (pick, extra) => {
+    const nodes = [];
+    const visit = (n) => { if (!n || typeof n !== 'object') return; if (Array.isArray(n)) return n.forEach(visit);
+      if (typeof n.type === 'function') return visit(n.type(n.props)); nodes.push(n); visit(n.props?.children); };
+    visit(row.HomePickRow({ pick, mine: false, onOpenItem: () => 'item', onOpenProfile: () => 'profile', onOpenProvider: () => 'provider', ...extra }));
+    return nodes.filter((n) => n.type === 'Pressable').map((n) => n.props);
+  };
+  const base = { pickId: 'x', userId: 'u', username: 'u', itemId: 'i', name: '가게', categoryId: 'miyeokguk', categoryName: '미역국', oneLineReview: '이유', thumbnailUrl: 'https://x' };
+  const linked = pressables({ ...base, channels: ['offline'] }, { onOpenMenu: () => 'menu' });
+  const menuLink = linked.find((p) => p.accessibilityLabel === '미역국 원픽 목록 보기');
+  assert.ok(menuLink, 'Menu name is a labelled link');
+  assert.equal(menuLink.onPress(), 'menu');
+  const flat = (style) => Object.assign({}, ...[].concat(style({ pressed: false })).filter(Boolean));
+  const hit = flat(menuLink.style);
+  assert.ok(constants.OnePickType.title.lineHeight + 2 * hit.paddingVertical >= 44, '44px minimum touch area');
+  assert.equal(hit.marginVertical, -hit.paddingVertical, 'Visual layout unchanged');
+  assert.equal(linked.find((p) => p.accessibilityLabel === '가게 매장 보기').onPress(), 'provider', 'Store link unchanged');
+  assert.equal(linked.find((p) => p.accessibilityLabel === 'u 프로필 보기').onPress(), 'profile', 'Profile link unchanged');
+  assert.ok(linked.filter((p) => p.accessibilityLabel?.endsWith('상세 보기')).every((p) => p.onPress() === 'item'), 'Photo/review keep detail');
+  const legacy = pressables({ ...base, channels: [] }, { onOpenMenu: () => 'menu' });
+  assert.equal(legacy.some((p) => p.accessibilityLabel === '미역국 원픽 목록 보기'), false, 'Legacy row title is the item name, not a menu');
+  const noMenu = pressables({ ...base, channels: ['online'] }, {});
+  assert.equal(noMenu.find((p) => p.accessibilityLabel === '가게 상세 보기' && JSON.stringify(p.children).includes('미역국')).onPress(), 'item', 'Without a menu link the line keeps item detail');
   const offline = visitTree(['offline']);
   assert.equal(offline.some((n) => n.type === 'StoreBadge'), false, 'v3 omits the legacy store badge');
   assert.ok(JSON.stringify(offline).includes('이유'), 'Review content remains visible');

@@ -32,12 +32,14 @@ type QuestionCardProps = {
   footer: QuestionFooter;
   onAnswer: () => void;
   onBrowseAnswers: () => void;
+  /** The question photo opens this menu's list of everyone's Picks, before and after answering. */
+  onOpenMenu: () => void;
   onRegister: () => void;
   onShareFirstPick: () => void;
 };
 
 /** 1070:8278 — one question, with registration or same-menu discovery by Pick status. */
-export function HomeQuestionCard({ category, nickname, answerCount, answered, footer, onAnswer, onBrowseAnswers, onRegister, onShareFirstPick }: QuestionCardProps) {
+export function HomeQuestionCard({ category, nickname, answerCount, answered, footer, onAnswer, onBrowseAnswers, onOpenMenu, onRegister, onShareFirstPick }: QuestionCardProps) {
   const footerLabel = footer.kind === 'first-pick-done'
     ? '원픽 완료 · 친구에게 공유해요'
     : '다른 원픽을 남겨요';
@@ -45,8 +47,11 @@ export function HomeQuestionCard({ category, nickname, answerCount, answered, fo
     <View style={styles.card}>
       <Text accessibilityRole="header" style={styles.cardTitle}>{homeQuestionTitle()}</Text>
       <Text style={styles.cardSubtitle}>{homeQuestionSubtitle(category.name, nickname)}</Text>
-      {category.imageUrl ? <Image source={{ uri: category.imageUrl }} accessibilityLabel={`${category.name} 사진`}
-        resizeMode="cover" style={styles.cardImage} /> : null}
+      {category.imageUrl ? <Pressable accessibilityRole="button" accessibilityLabel={`${category.name} 원픽 목록 보기`}
+        onPress={onOpenMenu} style={({ pressed }) => [styles.cardImageAction, pressed && styles.pressed]}>
+        <Image source={{ uri: category.imageUrl }} accessibilityLabel={`${category.name} 사진`}
+          resizeMode="cover" style={styles.cardImage} />
+      </Pressable> : null}
       {answerCount !== null ? <Text style={styles.cardCount}>{`${answerCount.toLocaleString()}명이 ${category.name} 원픽을 남겼어요.`}</Text> : null}
       <View style={styles.cardGap} />
       <Button fullWidth label={answered ? `다른 ${category.name} 원픽도 구경해요` : `내 ${category.name} 원픽을 남겨요`}
@@ -124,6 +129,8 @@ const styles = StyleSheet.create({
   card: { gap: OnePickSpace.sm, padding: OnePickSpace.xxl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   cardTitle: { ...OnePickType.pageTitle, color: OnePick.textSecondary, textAlign: 'center' },
   cardSubtitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  // The 2:1 photo is far taller than the 44px minimum touch target at any card width.
+  cardImageAction: { width: '100%', minHeight: MIN_TOUCH_TARGET },
   cardImage: { width: '100%', aspectRatio: 2, borderRadius: OnePickRadius.md },
   cardCount: { ...OnePickType.body, color: OnePick.textSecondary },
   cardGap: { height: OnePickSpace.sm },

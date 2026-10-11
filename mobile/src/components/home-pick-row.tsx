@@ -12,7 +12,7 @@ import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
  * The read model does not expose branch as a separate field yet, so the current
  * provider/item name stays on the Store Branch role without guessing a split.
  */
-export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }: {
+export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, onOpenMenu }: {
   pick: HomeFeedPick;
   /** Kept for caller compatibility; v3 no longer draws the legacy current-Pick flag. */
   mine?: boolean;
@@ -20,6 +20,11 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }:
   onOpenProfile: () => void;
   /** Store profile; the store/branch line links there when a provider is available. */
   onOpenProvider?: () => void;
+  /**
+   * Everyone's Picks for this menu. Used only when the menu line shows a real menu
+   * (provider-backed rows); otherwise the line keeps opening the Pick's item.
+   */
+  onOpenMenu?: () => void;
 }) {
   const channel = pick.channels?.length === 1 ? pick.channels[0] : undefined;
   // Only provider-backed offline/online rows have a store/provider line. Legacy
@@ -29,6 +34,7 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }:
   const storeBranchName = hasProviderContext ? pick.name : undefined;
   const menuName = hasProviderContext ? pick.categoryName : pick.name;
   const contentName = storeBranchName ? `${storeBranchName} ${menuName}` : menuName;
+  const openMenu = hasProviderContext ? onOpenMenu : undefined;
 
   return <View style={styles.card}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
@@ -46,8 +52,10 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider }:
               </Pressable>
             : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
           : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
-          style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={openMenu ? `${menuName} 원픽 목록 보기` : `${pick.name} 상세 보기`}
+          onPress={openMenu ?? onOpenItem}
+          style={({ pressed }) => [styles.blockAction, openMenu && styles.menuAction, pressed && styles.pressed]}>
           <Text numberOfLines={2} ellipsizeMode="tail" style={styles.menu}>{menuName}</Text>
         </Pressable>
       </View>
@@ -91,6 +99,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   blockAction: { width: '100%' },
+  // As a menu link the title row gets a 44px+ target (one or two lines) without moving the
+  // visual row: equal padding and negative margin leave the layout box unchanged.
+  menuAction: {
+    paddingVertical: (MIN_TOUCH_TARGET - OnePickType.title.lineHeight) / 2,
+    marginVertical: -(MIN_TOUCH_TARGET - OnePickType.title.lineHeight) / 2,
+  },
   storeBranch: { ...OnePickFeedType.storeBranch, color: OnePick.textPrimary },
   menu: { ...OnePickType.title, color: OnePick.textPrimary },
   username: { ...OnePickFeedType.nickname, color: OnePick.textSecondary },

@@ -201,11 +201,20 @@ export default function HomeScreen() {
     }
     if (!homeQuery.isFetching) void homeQuery.refetch({ cancelRefetch: false });
   };
+  // A menu's list of everyone's Picks (the existing /menu/[slug] destination). Only public
+  // Home food menus resolve; anything else returns undefined so callers keep their old target.
+  const menuSlugById = useMemo(() => new Map(menuCategories.map((category) => [category.id, category.slug])), [menuCategories]);
+  const openMenu = (slug: string) => router.push({ pathname: '/menu/[slug]', params: { slug } });
+  const menuOpener = (categoryId: string) => {
+    const slug = menuSlugById.get(categoryId);
+    return slug ? () => openMenu(slug) : undefined;
+  };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username, returnTo: '/' } });
   // Both feed scopes render the same current-Pick row (Figma 30-1D): no comments/share on Home.
   const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id}
     onOpenItem={() => openItem(pick.itemId)}
     onOpenProfile={() => openProfile(pick.username)}
+    onOpenMenu={menuOpener(pick.categoryId)}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;
   const feedGap = () => <View style={styles.feedGap} />;
 
@@ -295,7 +304,8 @@ export default function HomeScreen() {
             answerCount={menuCountsQuery.data ? menuCountsQuery.data.get(questionCategory.id) ?? 0 : null}
             answered={Boolean(myAnswer)} footer={footer}
             onAnswer={() => startPick(questionCategory)}
-            onBrowseAnswers={() => router.push({ pathname: '/menu/[slug]', params: { slug: questionCategory.slug } })}
+            onBrowseAnswers={() => openMenu(questionCategory.slug)}
+            onOpenMenu={() => openMenu(questionCategory.slug)}
             onRegister={() => startPick()} onShareFirstPick={shareFirstPick} /> : null}
           {banner ? <HomeReplyBanner count={banner.count} onPress={openReplyBanner} /> : null}
           {menuCountsFailed ? <StateCard compact tone="danger" title="메뉴별 원픽 수를 불러오지 못했어요."
