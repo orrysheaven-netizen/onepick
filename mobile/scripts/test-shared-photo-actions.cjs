@@ -119,7 +119,7 @@ async function main() {
     '@/components/pick-photo': { PickPhoto: ({ uri }) => React.createElement('span', null, uri || '사진 없음') }, '@/errors/appError': { AppError },
     '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/photos/photoFailure': { showPhotoFailure() {}, isPhotoFailure: () => false },
-    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'), '@/lib/items/pickSavedToast': load('lib/items/pickSavedToast.ts'), '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
+    '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'), '@/lib/items/itemTitle': load('lib/items/itemTitle.ts'), '@/lib/items/pickSavedToast': load('lib/items/pickSavedToast.ts'), '@/lib/share/shareItem': { shareItem: async () => 'copied' }, '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
     '@/services': { observabilityService: { captureProductEvent: async () => {} } },
   });
   const render = () => { buttons = []; stateIndex = 0; refIndex = 0; return renderToStaticMarkup(React.createElement(Detail)); };

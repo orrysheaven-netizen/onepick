@@ -11,6 +11,13 @@ function getShareBaseUrl() {
   return null;
 }
 
+/** Public item route. Never substitute a Pick/review URL for an item share. */
+export function createItemShareUrl(itemId: string) {
+  const encodedItemId = encodeURIComponent(itemId);
+  const baseUrl = getShareBaseUrl();
+  return baseUrl ? `${baseUrl}/item/${encodedItemId}` : `onepick://item/${encodedItemId}`;
+}
+
 export function createPickShareUrl(pickId: string) {
   const encodedPickId = encodeURIComponent(pickId);
   const baseUrl = getShareBaseUrl();

@@ -24,13 +24,13 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
   const isMine = user?.id === pick.userId;
   const isCurrent = pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review');
   const isDeleted = pick.isDeleted ?? false;
-  const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
+  const canManage = !isLoading && isMine && (pick.canManage ?? isCurrent) && !isDeleted;
   const commentCount = pick.commentCount ?? 0;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
   const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId } });
 
   return (
-    <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
+    <View style={[styles.card, isMine && isCurrent && styles.mine, canManage && styles.ownerLayer, highlighted && styles.highlight]}>
       <View style={styles.header}>
         {isMine ? (
           <Text style={[styles.author, styles.mineLabel]}>내 한줄평</Text>
@@ -48,7 +48,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
         {isCurrent ? <CurrentPickFlag mine={isMine} /> : null}
         {canManage ? <PickManagementActions onOpen={setManageMode} /> : null}
         <PickShareActions authorUserId={pick.userId} categoryName={categoryName} oneLineReview={pick.oneLineReview}
-          pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} />
+          pickId={pick.id} itemName={itemName} username={profile?.username ?? '사용자'} showShare={false} />
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={itemName + ' 한줄평 대화 보기'} onPress={openConversation}
         style={({ pressed }) => pressed && styles.pressed}>
@@ -74,8 +74,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   mine: { backgroundColor: 'transparent' },
+  ownerLayer: { position: 'relative', zIndex: 4 },
   highlight: { backgroundColor: OnePick.accentSoft, borderRadius: 14, paddingHorizontal: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 2 },
   author: { flex: 1, minWidth: 0 },
   mineLabel: { color: OnePick.accentDeep, fontSize: 12, lineHeight: 16, fontWeight: '800' },
   username: { color: OnePick.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },

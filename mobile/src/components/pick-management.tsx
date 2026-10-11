@@ -5,6 +5,7 @@ import { AppError } from '@/errors/appError';
 import { DIALOG_CANCEL_LABEL, DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useManagePick } from '@/hooks/useManagePick';
 import type { Pick } from '@/types/domain/pick';
+import { Icon } from '@/components/ui';
 import { OnePick } from '@/constants/onepick';
 
 function getErrorMessage(error: unknown) {
@@ -21,20 +22,29 @@ function getErrorMessage(error: unknown) {
 
 export type PickManagementMode = 'idle' | 'edit' | 'remove' | 'delete';
 
-/** The two small corner actions on my review card that open the edit/remove panel. */
+/** One 44px action opens the three existing owner-only management flows. */
 export function PickManagementActions({ onOpen }: { onOpen: (mode: 'edit' | 'remove' | 'delete') => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const select = (mode: 'edit' | 'remove' | 'delete') => {
+    setExpanded(false);
+    onOpen(mode);
+  };
   return <View style={styles.actions}>
-    <Pressable accessibilityRole="button" accessibilityLabel="한줄평 수정" onPress={() => onOpen('edit')} style={styles.actionLink}>
-      <Text style={styles.actionText}>수정</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={expanded ? '내 한줄평 더보기 닫기' : '내 한줄평 더보기'}
+      accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)} style={styles.moreButton}>
+      <Icon name="more" color={OnePick.textSecondary} />
     </Pressable>
-    <Text style={styles.actionDot}>·</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="원픽 해제" onPress={() => onOpen('remove')} style={styles.actionLink}>
-      <Text style={styles.actionText}>원픽 해제</Text>
-    </Pressable>
-    <Text style={styles.actionDot}>·</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="한줄평 삭제" onPress={() => onOpen('delete')} style={styles.actionLink}>
-      <Text style={styles.actionText}>한줄평 삭제</Text>
-    </Pressable>
+    {expanded ? <View style={styles.menu}>
+      <Pressable accessibilityRole="button" onPress={() => select('edit')} style={styles.menuRow}>
+        <Text style={styles.menuText}>한줄평 수정</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={() => select('remove')} style={styles.menuRow}>
+        <Text style={styles.menuText}>원픽 해제</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={() => select('delete')} style={styles.menuRow}>
+        <Text style={styles.menuText}>한줄평 삭제</Text>
+      </Pressable>
+    </View> : null}
   </View>;
 }
 
@@ -164,10 +174,15 @@ export function PickManagement({ pick, categoryName, onRemoved, mode, onModeChan
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: OnePick.border, backgroundColor: OnePick.surface, borderRadius: 16, padding: 14, marginTop: 4, marginBottom: 8 },
-  actions: { flexDirection: 'row', alignItems: 'center' },
-  actionLink: { minHeight: 32, justifyContent: 'center', paddingHorizontal: 4 },
-  actionText: { color: OnePick.muted, fontSize: 12, fontWeight: '700' },
-  actionDot: { color: OnePick.hint, fontSize: 12 },
+  actions: { position: 'relative', zIndex: 10, alignItems: 'flex-end' },
+  moreButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  menu: {
+    position: 'absolute', right: 0, top: 44, zIndex: 20, width: 176,
+    padding: 4, borderRadius: 12, borderWidth: 1, borderColor: OnePick.border,
+    backgroundColor: OnePick.surface, elevation: 4,
+  },
+  menuRow: { minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
+  menuText: { color: OnePick.text, fontSize: 14, lineHeight: 21 },
   savedNotice: { color: OnePick.success, fontSize: 12, lineHeight: 18, marginBottom: 4 },
   description: { color: OnePick.muted, fontSize: 13, lineHeight: 20, marginTop: 10 },
   input: { minHeight: 96, borderRadius: 15, backgroundColor: OnePick.background, padding: 13, color: OnePick.text, fontSize: 14, lineHeight: 20, textAlignVertical: 'top', marginTop: 12 },

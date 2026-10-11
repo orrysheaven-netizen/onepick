@@ -36,7 +36,8 @@ assert.match(itemRoute, /allPicks\.filter\(\(\{ pick \}\) => pick\.channel === O
 assert.match(itemRoute, /!pick\.channel && itemSupportsPublicChannel/);
 assert.match(itemRoute, /focusAvailable = !focusPickId \|\| picks\.some/);
 assert.match(itemRoute, /displayChannels = mvpFoodScope \? \[OnePickMvp\.publicPickChannel\] : item\.channels/);
-assert.match(itemRoute, /!mvpFoodScope \? <ItemPickCount itemId=\{item\.id\} \/> : null/);
+assert.match(itemRoute, /<ItemPickCount itemId=\{item\.id\} channelScope=\{publicCountScope\} \/>/);
+assert.match(itemRoute, /hasOwnPendingPick \? <Text style=\{styles\.pendingPickNotice\}>/);
 assert.match(itemRoute, /!mvpFoodScope \? <ItemChannelLinks itemId=\{item\.id\} \/> : null/);
 assert.match(itemRoute, /현재 공개 범위에 없어요/);
 

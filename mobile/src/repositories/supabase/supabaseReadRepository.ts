@@ -7,6 +7,7 @@ import type {
   DishChannelOverview,
   ItemBrand,
   PickChannel,
+  PickCountChannelScope,
   PickReadInput,
   CommentLocation,
   ReadCursor,
@@ -448,11 +449,18 @@ export class SupabaseReadRepository implements ReadRepository {
     return meta;
   }
 
-  async countActivePicks(itemId: string) {
+  async countActivePicks(itemId: string, channelScope?: PickCountChannelScope) {
     // One current pick per user/category plus the item/category FK prevents duplicate people.
     // HEAD returns an exact aggregate, independent of the feed's 20-row page size.
-    const { count, error } = await this.countClient.from('picks')
+    // Public count client + status=active only: needs_review stays private.
+    let query = this.countClient.from('picks')
       .select('id', { count: 'exact', head: true }).eq('item_id', itemId).eq('status', 'active');
+    if (channelScope) {
+      query = channelScope.includeUnchanneled
+        ? query.or(`channel.eq.${channelScope.channel},channel.is.null`)
+        : query.eq('channel', channelScope.channel);
+    }
+    const { count, error } = await query;
     if (error) throw mapSupabaseError(error);
     if (count === null) throw new AppError('INTERNAL_ERROR');
     return count;
