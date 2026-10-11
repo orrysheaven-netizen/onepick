@@ -3,7 +3,7 @@
 -- https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 -- Existing OnePick table access must survive the change to future defaults.
 select ok(
@@ -44,6 +44,22 @@ select ok(
   'a new public table is not automatically writable by authenticated'
 );
 select ok(
+  not has_table_privilege('authenticated', 'public.test_130_data_api_grants', 'UPDATE'),
+  'a new public table does not implicitly grant authenticated UPDATE'
+);
+select ok(
+  not has_table_privilege('authenticated', 'public.test_130_data_api_grants', 'DELETE'),
+  'a new public table does not implicitly grant authenticated DELETE'
+);
+select ok(
+  not has_table_privilege('anon', 'public.test_130_data_api_grants', 'INSERT'),
+  'a new public table does not implicitly grant anon INSERT'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.test_130_data_api_grants', 'SELECT'),
+  'a new public table requires an explicit service_role SELECT grant'
+);
+select ok(
   not has_sequence_privilege(
     'authenticated',
     pg_get_serial_sequence('public.test_130_data_api_grants', 'id'),
@@ -76,8 +92,15 @@ select ok(
   not has_table_privilege('authenticated', 'public.test_130_data_api_grants', 'INSERT'),
   'explicit SELECT does not grant write access'
 );
+select ok(
+  not has_table_privilege('service_role', 'public.test_130_data_api_grants', 'SELECT'),
+  'authenticated SELECT does not implicitly open service_role access'
+);
 
 set local role authenticated;
+-- Do not inherit a JWT identity from any preceding test session.
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claims', '{}', true);
 select is(
   (select count(*)::integer from public.test_130_data_api_grants),
   0,
