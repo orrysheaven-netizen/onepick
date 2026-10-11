@@ -14,6 +14,14 @@ class AppError extends Error {
   }
 }
 
+function loadPlain(relative) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(read(relative), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, { exports, require: (name) => { throw new Error('Unexpected import: ' + name); } });
+  return exports;
+}
+
 function loadProfileService() {
   const exports = {};
   const output = ts.transpileModule(read('src/services/profileService.ts'), {
@@ -23,6 +31,7 @@ function loadProfileService() {
     exports,
     require: (name) => {
       if (name === '@/errors/appError') return { AppError };
+      if (name === '@/lib/profile/profilePickGroups') return loadPlain('src/lib/profile/profilePickGroups.ts');
       throw new Error('Unexpected import: ' + name);
     },
   });
@@ -106,7 +115,12 @@ async function main() {
 
   // #826 review: the cap is 20 × 100. Exactly 2,000 rows is complete; only a row past the
   // cap marks the count incomplete (1999 / 2000 / 2001).
-  for (const [total, expected, calls] of [[1999, true, 20], [2000, true, 21], [2001, false, 21]]) {
+  // #757 cost: under 100 current Picks the profile still makes the single read main made;
+  // reads grow only as ceil((N + 1) / 100) for N < 2,000.
+  for (const [total, expected, calls] of [
+    [0, true, 1], [1, true, 1], [99, true, 1], [100, true, 2], [101, true, 2], [250, true, 3],
+    [1999, true, 20], [2000, true, 21], [2001, false, 21],
+  ]) {
     const rowsAt = Array.from({ length: total }, (_, index) => ({
       pick: { id: `b${index}`, status: 'active', updatedAt: `t${String(total - index).padStart(5, '0')}` },
       category: { id: 'c', slug: 's', name: 'n' },
@@ -129,6 +143,14 @@ async function main() {
       assert.equal(boundaryCalls[20].cursor.id, rowsAt[1999].pick.id, 'the probe continues after the last loaded row');
     }
   }
+
+  // #826 review Low: the public list (service) and the shared 원픽 N (isPublicProfilePick)
+  // use one photo rule instead of two copies kept in step by a comment.
+  const serviceSource = read('src/services/profileService.ts');
+  assert.match(serviceSource, /import \{ itemHasVisiblePhoto \} from '@\/lib\/profile\/profilePickGroups'/);
+  assert.doesNotMatch(serviceSource, /function itemHasVisiblePhoto/, 'profileService must not keep its own photo rule');
+  const groupingSource = read('src/lib/profile/profilePickGroups.ts');
+  assert.match(groupingSource, /&& itemHasVisiblePhoto\(item\.item\)/, 'isPublicProfilePick counts with the shared photo rule');
 
   const ownerScreen = read('src/app/(tabs)/(profile)/profile.tsx');
   const publicScreen = read('src/app/(tabs)/(profile)/u/[username].tsx');

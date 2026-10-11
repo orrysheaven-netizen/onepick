@@ -1,11 +1,13 @@
 import { AppError } from '@/errors/appError';
+import { itemHasVisiblePhoto } from '@/lib/profile/profilePickGroups';
 import type { ItemRepository } from '@/repositories/interfaces/itemRepository';
 import type { ProfileRepository } from '@/repositories/interfaces/profileRepository';
 import type { PickReadItem, ReadCursor, ReadRepository, RootCategoryScope } from '@/repositories/interfaces/readRepository';
 import type { Item } from '@/types/domain/item';
 
 const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/;
-// At most one current Pick per category and channel; 20 pages × 100 is a safety cap, not a product limit.
+// At most one current Pick per category and channel (see getAllCurrentPicks for the pending
+// bucket); 20 pages × 100 is a safety cap, not a product limit.
 const CURRENT_PICK_PAGE_SIZE = 100;
 const CURRENT_PICK_PAGE_CAP = 20;
 
@@ -15,14 +17,8 @@ function normalizeUsername(value: string) {
   return username;
 }
 
-function itemHasVisiblePhoto(item: Item | null | undefined) {
-  if (!item) return false;
-  return [item.imagePath, item.imageUrl, item.thumbnailUrl, item.imageSourceUrl]
-    .some((value) => typeof value === 'string' && value.trim().length > 0);
-}
-
-// Keep in step with `isPublicProfilePick` (lib/profile/profilePickGroups), which the
-// owner screen uses to count what visitors see.
+// Same photo rule as `isPublicProfilePick`, which the owner screen uses to count what
+// visitors see (one shared helper, #826 review).
 function visibleCurrentPicks<T extends { item: Item | null }>(rows: T[]) {
   return rows.filter((row) => itemHasVisiblePhoto(row.item));
 }
@@ -71,6 +67,14 @@ export class ProfileService {
    * of the shown scope (#757 A). Pages of 100 by (updated_at, id); `complete` is false
    * only when a row exists past the safety cap, so the count can say so instead of
    * passing as exact. Exactly cap × page rows is still complete.
+   *
+   * Cost: reads are serial (keyset cursor) and number ceil((N + 1) / 100) for N current
+   * Picks, so a profile under 100 makes the same single read as before #757. N is bounded
+   * by DB uniqueness, not by this loop: picks_one_current_per_category_channel allows one
+   * active/needs_review Pick per (user, category, channel), except the pending-product
+   * bucket, which picks_one_current_per_item bounds per item
+   * (20260927130500_add_pick_channel, 20261008052019_register_unclassified_menu_pick).
+   * The cap is only the guard for that unbounded pending bucket.
    */
   private async getAllCurrentPicks(userId: string, statuses: ('active' | 'needs_review')[]) {
     const rows: PickReadItem[] = [];

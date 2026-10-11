@@ -1,5 +1,6 @@
 import type { PickChannel, PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
+import type { Item } from '@/types/domain/item';
 
 export interface ProfilePickGroup {
   id: string;
@@ -194,10 +195,10 @@ export function isMvpProfilePick(
   categories: Category[],
   rootSlug: string,
   channels: readonly PickChannel[],
+  categoryById: ReadonlyMap<string, Category> = indexCategories(categories),
 ) {
   if (item.pick.channel === 'recipe') return false;
   if (item.pick.channel && !channels.includes(item.pick.channel)) return false;
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
   const seen = new Set<string>();
   // A Pick's own category may be hidden from the browse catalog; its embedded row still counts
   // here so the owner can manage it. What visitors see also needs `isPublicProfilePick`.
@@ -232,17 +233,36 @@ function legacyPickChannel(item: PickReadItem): PickChannel {
  * when the catalog has it; otherwise its embedded row must say so. Without either the
  * Pick is not counted as public.
  */
-export function isPublicProfilePick(item: PickReadItem, categories: Category[]) {
-  const photo = item.item;
+export function isPublicProfilePick(
+  item: PickReadItem,
+  categories: Category[],
+  categoryById: ReadonlyMap<string, Category> = indexCategories(categories),
+) {
   return item.pick.status === 'active'
-    && isVisibleOwnCategory(item, categories)
-    && !photo?.photoPendingReview
-    && [photo?.imagePath, photo?.imageUrl, photo?.thumbnailUrl, photo?.imageSourceUrl]
-      .some((value) => typeof value === 'string' && value.trim().length > 0);
+    && isVisibleOwnCategory(item, categoryById)
+    && !item.item?.photoPendingReview
+    && itemHasVisiblePhoto(item.item);
 }
 
-function isVisibleOwnCategory(item: PickReadItem, categories: Category[]) {
-  if (categories.some((category) => category.id === item.pick.categoryId && category.isVisible)) return true;
+/**
+ * The one photo rule for what visitors see. `ProfileService.getProfileByUsername` filters
+ * the public list with it and `isPublicProfilePick` counts with it, so the public list and
+ * the owner's shared 원픽 N cannot drift apart.
+ */
+export function itemHasVisiblePhoto(
+  item: Pick<Item, 'imagePath' | 'imageUrl' | 'thumbnailUrl' | 'imageSourceUrl'> | null | undefined,
+) {
+  if (!item) return false;
+  return [item.imagePath, item.imageUrl, item.thumbnailUrl, item.imageSourceUrl]
+    .some((value) => typeof value === 'string' && value.trim().length > 0);
+}
+
+function indexCategories(categories: Category[]): ReadonlyMap<string, Category> {
+  return new Map(categories.map((category) => [category.id, category]));
+}
+
+function isVisibleOwnCategory(item: PickReadItem, categoryById: ReadonlyMap<string, Category>) {
+  if (categoryById.get(item.pick.categoryId)?.isVisible) return true;
   return item.category?.id === item.pick.categoryId && item.category?.isVisible === true;
 }
 
@@ -253,7 +273,9 @@ export function filterPublicMvpProfilePicks(
   rootSlug: string,
   channels: readonly PickChannel[],
 ) {
-  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels) && isPublicProfilePick(item, categories));
+  const categoryById = indexCategories(categories);
+  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels, categoryById)
+    && isPublicProfilePick(item, categories, categoryById));
 }
 
 export function filterMvpProfilePicks(
@@ -262,7 +284,8 @@ export function filterMvpProfilePicks(
   rootSlug: string,
   channels: readonly PickChannel[],
 ) {
-  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels));
+  const categoryById = indexCategories(categories);
+  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels, categoryById));
 }
 
 /**

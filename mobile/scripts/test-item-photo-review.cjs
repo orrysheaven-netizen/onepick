@@ -18,7 +18,7 @@ function load(file, imports = {}) {
 // L4: a member's first photo for a published product waits for admin review.
 async function main() {
   const { AppError } = load('errors/appError.ts');
-  const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError } });
+  const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError }, '@/lib/profile/profilePickGroups': load('lib/profile/profilePickGroups.ts') });
 
   const bare = { id: 'bare', status: 'active', imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: null };
   const shown = { id: 'shown', status: 'active', imagePath: 'x/full.jpg', imageUrl: 'https://cdn/x/full.jpg', thumbnailUrl: 'https://cdn/x/thumb.jpg', imageSourceUrl: null };

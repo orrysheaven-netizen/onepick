@@ -198,7 +198,7 @@ async function main() {
     assert.match(c.view.render(), /로그인 상태를 확인하지 못했어요/);
   });
   await check('Profile creation retries acknowledge an already saved own profile but do not take another name', async () => {
-    const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError } });
+    const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError }, '@/lib/profile/profilePickGroups': load('lib/profile/profilePickGroups.ts') });
     let own = null, writes = 0, taken = null;
     const repository = { getById: async () => own, getByUsername: async () => taken, create: async (input) => {
       writes++; assert.equal(input.expectedUserId, 'owner'); own = { id: 'owner', username: input.username };
