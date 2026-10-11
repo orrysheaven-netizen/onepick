@@ -17,6 +17,7 @@ function load(file, imports) {
     if (name in imports) return imports[name];
     // Pure channel helpers of the choose screen load as-is.
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickSavedToast') return load('lib/items/pickSavedToast.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     assert.fail(`Unexpected dependency: ${name}`);

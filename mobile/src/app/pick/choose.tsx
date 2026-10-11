@@ -11,6 +11,7 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import { useChoosePick } from '@/hooks/useChoosePick';
 import { useItemDetail } from '@/hooks/useItemDetail';
 import { channelLabel } from '@/lib/home/homeChannels';
+import { armPickSavedToast } from '@/lib/items/pickSavedToast';
 import { parseChannelParam } from '@/lib/items/pickChannel';
 import type { Item } from '@/types/domain/item';
 import type { Pick } from '@/types/domain/pick';
@@ -122,6 +123,12 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
           : { purchaseTip: showTipInput ? trimmedTip : '' }),
       });
       submitPhase.current = 'saved';
+      if (pickStatus?.type === 'selected_other') {
+        // Figma 61-3: a change goes straight back to the item with a toast.
+        armPickSavedToast(result.id, '원픽을 바꿨어요.');
+        router.replace({ pathname: '/item/[itemId]', params: { itemId: result.itemId, pickId: result.id } });
+        return;
+      }
       setSavedChoice({ pick: result, item });
     } catch { /* Mutation state renders the error; no success route is exposed. */ }
     finally { if (submitPhase.current === 'saving') submitPhase.current = 'idle'; }
@@ -213,10 +220,10 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
               <Text style={styles.itemState}>{pickStatus?.type === 'selected_other' ? '현재 원픽을 변경해요.' : pickStatus?.type === 'selected_this' ? '현재 원픽의 한줄평을 수정해요.' : '이걸 새 원픽으로 선택해요.'}</Text>
             </View>
           </View>
-          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{pickChannel ? `저장하면 이 메뉴의 ${channelLabel(pickChannel)} 원픽이 바뀌어요.` : '저장하면 이 카테고리의 원픽이 바뀌어요.'}</Text></View> : null}
+          {pickStatus?.type === 'selected_other' ? <View style={styles.notice}><Text style={styles.noticeText}>{`저장하면 ${itemQuery.data?.category?.name?.trim() || (pickChannel ? '이 메뉴' : '이 카테고리')}의 원픽이 바뀌어요.`}</Text></View> : null}
           {needsPhotoStep && user && item ? <PickPhotoStep userId={user.id} itemId={item.id} disabled={saving}
             onAttached={(saved) => { setPhotoItem(saved); void itemQuery.refetch().catch(() => {}); }} /> : null}
-          <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한 줄 이유 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
+          <View style={styles.inputHeader}><Text style={styles.inputLabel}>{photoItem || needsPhotoStep ? '2. ' : ''}한줄평 <Text style={styles.required}>필수</Text></Text><Text style={styles.counter}>{review.length}/100</Text></View>
           <TextInput ref={reviewInput} accessibilityLabel="원픽 한줄평" maxLength={100} multiline editable={!saving}
             onChangeText={(value) => { if (submitPhase.current !== 'saving') setReview(value); }}
             placeholder="예: 결국 기본으로 돌아오게 되는 맛" placeholderTextColor={OnePick.textSecondary} style={[styles.reviewInput, hasReviewError && styles.reviewInputError]} value={review} />

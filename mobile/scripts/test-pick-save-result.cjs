@@ -15,6 +15,7 @@ function load(file, imports = {}) {
     if (name in imports) return imports[name];
     // Pure channel helpers of the choose screen load as-is.
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickSavedToast') return load('lib/items/pickSavedToast.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
@@ -131,7 +132,13 @@ async function main() {
   ]) {
     arrange(status); noSuccess(render()); submit(label); await flush();
     assert.equal(attempts.length, 1); assert.equal(attempts[0].oneLineReview, '직접 작성한 나의 이유');
-    checkSavedNavigation();
+    if (status.type === 'selected_other') {
+      // Figma 61-3: a change replaces straight to the item, which shows "원픽을 바꿨어요.".
+      noSuccess(render());
+      assert.equal(destinations.at(-1).action, 'replace');
+      assert.equal(destinations.at(-1).route.pathname, '/item/[itemId]');
+      assert.equal(destinations.at(-1).route.params.pickId, result.id);
+    } else checkSavedNavigation();
   }
 
   arrange(); mode = 'pending'; submit('내 원픽으로 고르기'); noSuccess(render());

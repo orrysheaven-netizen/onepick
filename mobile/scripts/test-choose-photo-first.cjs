@@ -18,6 +18,7 @@ function load(file, imports = {}) {
     if (name in imports) return imports[name];
     // Pure channel helpers of the choose screen load as-is.
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
+    if (name === '@/lib/items/pickSavedToast') return load('lib/items/pickSavedToast.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
@@ -92,7 +93,7 @@ async function main() {
   assert.ok(photoStep, 'An item without a photo starts with the photo step');
   assert.equal(photoStep.itemId, itemId);
   assert.equal(photoStep.userId, 'owner');
-  assert.ok(page.indexOf('PHOTO-STEP') < page.indexOf('2. 한 줄 이유'), 'The photo step comes before the review');
+  assert.ok(page.indexOf('PHOTO-STEP') < page.indexOf('2. 한줄평'), 'The photo step comes before the review');
   assert.ok(photoCards.length > 0 && photoCards.every((props) => props.itemId === undefined),
     'The card has no "사진 등록하기" shortcut that would leave this screen');
 
@@ -113,7 +114,7 @@ async function main() {
   page = render();
   assert.equal(review().value, '평양냉면은 여기', 'Uploading the photo keeps the typed review');
   assert.equal(photoStep, undefined, 'The photo step closes once the item has a photo');
-  assert.match(page, /2\. 한 줄 이유/, 'Step numbering stays after the photo is added');
+  assert.match(page, /2. 한줄평/, 'Step numbering stays after the photo is added');
   assert.ok(photoCards.some((props) => props.uri === 'https://img.example/p.jpg'), 'The new photo shows on the card at once');
   assert.equal(refetches, 1, 'The item detail is refreshed after the photo is saved');
   assert.equal(destinations.length, 0, 'Adding a photo never navigates away');
@@ -128,8 +129,8 @@ async function main() {
   arrange({ imagePath: 'x/y.jpg', imageUrl: 'https://img.example/y.jpg' });
   page = render();
   assert.equal(photoStep, undefined);
-  assert.match(page, /한 줄 이유/);
-  assert.doesNotMatch(page, /2\. 한 줄 이유/);
+  assert.match(page, /한줄평/);
+  assert.doesNotMatch(page, /2. 한줄평/);
 
   // 5. Switching another pick to a photo-less item is held to the same rule.
   arrange({}, { type: 'selected_other', pickId: 'p0', oneLineReview: '다른 이유' });

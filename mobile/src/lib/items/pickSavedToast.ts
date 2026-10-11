@@ -1,14 +1,16 @@
-// One-shot handoff from /pick/new to the item detail it replaces itself with.
-// In-memory only: a reload, a back-navigation or a shared link must not replay
-// the completion toast.
-let pendingPickId: string | null = null;
+// One-shot handoff from /pick/new and /pick/choose to the item detail they replace
+// themselves with. In-memory only: a reload, a back-navigation or a shared link must
+// not replay the completion toast.
+let pending: { pickId: string; message: string } | null = null;
 
-export function armPickSavedToast(pickId: string) {
-  pendingPickId = pickId;
+export function armPickSavedToast(pickId: string, message = '원픽을 정했어요.') {
+  pending = { pickId, message };
 }
 
-export function consumePickSavedToast(pickId: string | undefined) {
-  if (!pickId || pendingPickId !== pickId) return false;
-  pendingPickId = null;
-  return true;
+/** The toast message for this Pick, once; null otherwise. */
+export function consumePickSavedToast(pickId: string | undefined): string | null {
+  if (!pickId || pending?.pickId !== pickId) return null;
+  const { message } = pending;
+  pending = null;
+  return message;
 }
