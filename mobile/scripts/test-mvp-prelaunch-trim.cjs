@@ -164,8 +164,8 @@ async function main() {
   await test('MVP hides Home category chips even above the Pick threshold', () => {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
     const { view } = home(20); assert.equal(categoryChips(view).length, 0);
-    assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home shows the newest ten');
-    assert.equal(view.find('FlatList').onEndReached, undefined, 'Home never loads more on scroll');
+    assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home starts with the newest ten');
+    assert.equal(typeof view.find('FlatList').onEndReached, 'function', 'Home loads ten more near the list end');
   });
   await test('MVP Explore: no chips, search open, food menus are clickable entry points', () => {
     const { view, calls } = explore({ chips: false });
@@ -204,8 +204,10 @@ async function main() {
     q.isFetching = true; view.render(); const retry = view.find('Button', (p) => p.accessibilityLabel === '홈 원픽 새로고침'); assert.equal(retry.disabled, true); retry.onPress(); assert.equal(q.refetches, 2);
     q.isFetching = false; q.data = undefined; view.render(); view.find('StateCard', (p) => p.tone === 'danger').action.onPress(); assert.equal(q.refetches, 3);
     q.data = { picks: picks(2), currentPicks: [] }; q.isFetchNextPageError = true; view.render();
-    assert.equal(view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기'), undefined, 'Home has no next page to retry');
-    assert.equal(q.nextPages, 0);
+    // 이웃 제안 (2026-10-11) pages like the full feed: a failed next page offers the explicit retry.
+    const nextRetry = view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기');
+    assert.ok(nextRetry, 'Home offers the existing next-page retry');
+    nextRetry.action.onPress(); assert.equal(q.nextPages, 1);
   });
   await test('Explore hides tied counts, emphasis and accessible rank; keeps detail routes', () => {
     const { view, calls } = explore(); assert.equal(calls.categoryId, 'ramen');

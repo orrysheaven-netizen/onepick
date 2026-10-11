@@ -29,7 +29,9 @@ import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 
-const HOME_FEED_LIMIT = 10;
+// 이웃 제안 (2026-10-11): the newest 10 first, then 10 more each time the list end is reached,
+// over the existing keyset-cursor pages (20 per server page) — never the whole feed at once.
+const HOME_FEED_PAGE = 10;
 const HOME_MENU_LIMIT = 6;
 // Same candidate size as /popular's first rows, so both screens share one ordering.
 const HOME_RANKING_CANDIDATES = 20;
@@ -99,11 +101,15 @@ export default function HomeScreen() {
   const selectedCategoryGroup = showCategoryFilters
     ? categoryFilters.find((group) => group.id === selectedCategoryGroupId) ?? null
     : null;
-  // Home shows only the newest ten Picks and never loads more; 더보기 opens the full feed.
-  const visiblePicks = useMemo(
-    () => filterHomeFeedByCategory(data?.picks ?? [], selectedCategoryGroup).slice(0, HOME_FEED_LIMIT),
+  // Newest first, ten at a time. Rows already loaded are revealed before the next server page
+  // is requested; the shared infinite query keeps every page and shows each Pick once.
+  const [visibleCount, setVisibleCount] = useState(HOME_FEED_PAGE);
+  const filteredPicks = useMemo(
+    () => filterHomeFeedByCategory(data?.picks ?? [], selectedCategoryGroup),
     [data?.picks, selectedCategoryGroup],
   );
+  const visiblePicks = useMemo(() => filteredPicks.slice(0, visibleCount), [filteredPicks, visibleCount]);
+  useEffect(() => { setVisibleCount(HOME_FEED_PAGE); }, [selectedCategoryGroupId, user?.id]);
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const ready = !isLoading && !sessionError && Boolean(data);
   const showRanking = homeEnabled && !followDefaultPending && discovery === 'popular';
@@ -215,8 +221,25 @@ export default function HomeScreen() {
       setSelectedCategoryGroupId(null);
     }
   }, [categoryFilters, selectedCategoryGroupId, showCategoryFilters]);
+  const loadMorePublic = () => {
+    if (!ready || !data) return;
+    if (filteredPicks.length > visibleCount) {
+      setVisibleCount((count) => Math.min(count + HOME_FEED_PAGE, filteredPicks.length));
+      return;
+    }
+    if (homeQuery.hasNextPage && !homeQuery.isFetching && !homeQuery.isFetchNextPageError) {
+      setVisibleCount((count) => count + HOME_FEED_PAGE);
+      void homeQuery.fetchNextPage({ cancelRefetch: false });
+    }
+  };
+  const retryNextPublicPage = () => {
+    if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false });
+  };
+  const publicFeedEnd = ready && Boolean(data) && filteredPicks.length > 0 &&
+    !homeQuery.hasNextPage && !homeQuery.isFetching && visiblePicks.length >= filteredPicks.length;
   const refresh = () => {
     if (isSessionLoading || sessionError) return;
+    setVisibleCount(HOME_FEED_PAGE);
     if (discovery === 'popular' && !itemRankingQuery.isFetching) void itemRankingQuery.refetch({ cancelRefetch: false });
     if (!menuCountsQuery.isFetching) void menuCountsQuery.refetch({ cancelRefetch: false });
     if (!questionQuery.isFetching) void questionQuery.refetch({ cancelRefetch: false });
@@ -239,12 +262,13 @@ export default function HomeScreen() {
   };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username, returnTo: '/' } });
   // Both feed scopes render the same current-Pick row (Figma 30-1D): no comments/share on Home.
-  const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id}
+  const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id} authorAbove
     onOpenItem={() => openItem(pick.itemId)}
     onOpenProfile={() => openProfile(pick.username)}
     onOpenMenu={menuOpener(pick.categoryId)}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;
-  const feedGap = () => <View style={styles.feedGap} />;
+  // Existing 1px border/default divider between cards, 24 above and below (Figma 1217:8655).
+  const feedGap = () => <View style={styles.feedDivider} />;
 
   const listHeader = <>
     {OnePickFeatures.followingFeed && user && !followDefaultPending ? <View style={styles.scopeRow}>
@@ -310,6 +334,8 @@ export default function HomeScreen() {
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => renderFeedCard(pick)}
         ItemSeparatorComponent={feedGap}
+        onEndReached={loadMorePublic}
+        onEndReachedThreshold={0.6}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -364,8 +390,8 @@ export default function HomeScreen() {
 
         {showRanking ? <View style={styles.sectionDivider} /> : null}
         <View style={styles.feedHeader}>
-          <Text accessibilityRole="header" style={styles.feedTitle}>모두의 원픽</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="모두의 원픽 더보기" onPress={() => router.push('/feed')}
+          <Text accessibilityRole="header" style={styles.feedTitle}>이웃 제안</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="이웃 제안 더보기" onPress={() => router.push('/feed')}
             hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
             <Text style={styles.moreText}>더보기</Text>
@@ -406,12 +432,20 @@ export default function HomeScreen() {
           action={homeQuery.hasNextPage
             ? { label: '다음 원픽 더 불러오기', accessibilityLabel: selectedCategoryGroup.name + ' 다음 원픽 더 불러오기', disabled: homeQuery.isFetching, onPress: () => { if (!homeQuery.isFetching) void homeQuery.fetchNextPage({ cancelRefetch: false }); } }
             : { label: '전체 보기', accessibilityLabel: '전체 카테고리 보기', onPress: () => setSelectedCategoryGroupId(null) }} /> : null}
-        ListFooterComponent={contextReady ? <>
+        ListFooterComponent={<>
+          {ready && data ? <>
+            {homeQuery.isFetchingNextPage ? <ActivityIndicator style={styles.pageLoading} accessibilityLabel="다음 원픽 불러오는 중" color={OnePick.accent} /> : null}
+            {homeQuery.isFetchNextPageError ? <StateCard compact text="다음 원픽을 불러오지 못했어요."
+              action={{ label: '다음 원픽 다시 불러오기', disabled: homeQuery.isFetching, onPress: retryNextPublicPage }} /> : null}
+            {publicFeedEnd ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
+          </> : null}
+          {contextReady ? <>
           {showPeople ? <View style={styles.inviteFooter}><HomePeopleRow people={people} onOpenProfile={openProfile} /></View> : null}
           {/* 30E 834:4889: invite reuses the profile share path; 의견 보내기 opens the admin-configured mailbox (#831). */}
           {user ? <View style={styles.inviteFooter}><HomeInviteRow onInvite={() => router.push('/profile')} feedback={<HomeFeedbackButton style={styles.inviteAction} />} /></View>
             : <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>}
-        </> : null}
+          </> : null}
+        </>}
       />}
     </SafeAreaView>
   );
@@ -458,7 +492,7 @@ const styles = StyleSheet.create({
   // 28-high header row; hitSlop keeps the 44 touch target.
   moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
   moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
-  feedGap: { height: OnePickSpace.xxl },
+  feedDivider: { height: 1, backgroundColor: OnePick.borderDefault, marginVertical: OnePickSpace.xxl },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },

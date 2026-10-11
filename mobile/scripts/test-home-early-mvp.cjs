@@ -579,7 +579,7 @@ test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
   const three = home({ participants: people(3) });
   assert.match(three.text(), /함께하는 사람들/);
   assert.match(three.text(), /3명/);
-  assert.ok(three.text().indexOf('모두의 원픽') < three.text().indexOf('함께하는 사람들'), 'People follow the feed');
+  assert.ok(three.text().indexOf('이웃 제안') < three.text().indexOf('함께하는 사람들'), 'People follow the feed');
   deepEq(three.press('user2 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'user2', returnTo: '/' } });
   assert.doesNotMatch(home({ participants: people(3), participantsComplete: false }).text(), /함께하는 사람들/,
     'Partial reads never show undercounted people');
@@ -697,9 +697,10 @@ test('#831 · 의견 보내기 sits beside the invite: stored address opens mail
   assert.doesNotMatch(home({ feedbackEmail: 'hello@onepick.test', feed: null }).text(), /sent|자동/, 'Nothing is auto-sent');
 });
 
-test('Hidden early-MVP entries stay hidden; feed is the single 모두의 원픽', () => {
+test('Hidden early-MVP entries stay hidden; feed is the single 이웃 제안', () => {
   const { text, view } = home();
-  assert.match(text(), /모두의 원픽/);
+  assert.match(text(), /이웃 제안/);
+  assert.doesNotMatch(text(), /모두의 원픽/);
   assert.equal(view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined, 'No following scope');
   assert.equal(view.find('Chip', (p) => / 카테고리 보기$/.test(p.accessibilityLabel ?? '')), undefined, 'No category filter');
   assert.doesNotMatch(text(), /랭킹|단골|AI/, 'No ranking/단골모임/AI entry on early Home');
@@ -738,6 +739,17 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
   assert.equal(hit.marginVertical, -hit.paddingVertical, 'Visual layout unchanged');
   assert.equal(linked.find((p) => p.accessibilityLabel === '가게 매장 보기').onPress(), 'provider', 'Store link unchanged');
   assert.equal(linked.find((p) => p.accessibilityLabel === 'u 프로필 보기').onPress(), 'profile', 'Profile link unchanged');
+  // 2026-10-11 Home: avatar + nickname move above the photo, shown once; same profile target and 44px.
+  const top = pressables({ ...base, channels: ['offline'] }, { onOpenMenu: () => 'menu', authorAbove: true });
+  const profileLinks = top.filter((p) => p.accessibilityLabel === 'u 프로필 보기');
+  assert.equal(profileLinks.length, 1, 'Author row appears once (not duplicated below)');
+  assert.equal(top.indexOf(profileLinks[0]), 0, 'Author row sits above the photo');
+  assert.equal(top[1].accessibilityLabel, '가게 상세 보기', 'Photo follows the author row');
+  assert.equal(profileLinks[0].onPress(), 'profile');
+  const authorHit = flat(profileLinks[0].style);
+  assert.ok(authorHit.minHeight >= 44 && authorHit.minWidth >= 44, 'Author row keeps a 44px target');
+  assert.ok(JSON.stringify(profileLinks[0].children).includes('Avatar'), 'Shared Avatar default precedes the nickname');
+  assert.ok(top.filter((p) => p.accessibilityLabel?.endsWith('상세 보기')).every((p) => p.onPress() === 'item'), 'Photo/review keep detail');
   assert.ok(linked.filter((p) => p.accessibilityLabel?.endsWith('상세 보기')).every((p) => p.onPress() === 'item'), 'Photo/review keep detail');
   const legacy = pressables({ ...base, channels: [] }, { onOpenMenu: () => 'menu' });
   assert.equal(legacy.some((p) => p.accessibilityLabel === '미역국 원픽 목록 보기'), false, 'Legacy row title is the item name, not a menu');

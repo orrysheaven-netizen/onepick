@@ -5,7 +5,6 @@ import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepo
 import { homeService } from '@/services/homeServiceInstance';
 
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
-const HOME_MAX_PAGES = 3;
 const HOME_MENU_RANKING_CANDIDATE_LIMIT = 20;
 
 export function useHomeMenuRanking(groupCategoryId: string | null = null, channel: PickChannel | null = null, enabled = true) {
@@ -109,7 +108,8 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
     queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel, rootSlug),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     getPreviousPageParam: () => undefined,
-    maxPages: HOME_MAX_PAGES,
+    // No maxPages: Home now reveals more rows as the user scrolls (#762, 2026-10-11), and a
+    // dropped first page would make rows already on screen disappear.
     // Switching tabs keeps Home's header mounted; the screen hides the previous
     // tab's rows while isPlaceholderData is true.
     placeholderData: keepPreviousData,

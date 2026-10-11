@@ -1,19 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
+import { Avatar } from '@/components/ui';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickFeedType, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
 /**
- * One current Pick in the Home feed (Figma Feed Card v3, 993:7228):
- * photo → store/branch → menu → nickname → one-line review.
+ * One current Pick in the Home feed (Figma Feed Card v3, 993:7228; author row moved above the
+ * photo on 2026-10-11, Figma 1203:8496 / 1212:9543): author (avatar + nickname) → photo →
+ * store/branch → menu → one-line review. The author row appears once, above the photo only.
  *
  * The read model does not expose branch as a separate field yet, so the current
  * provider/item name stays on the Store Branch role without guessing a split.
  */
-export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, onOpenMenu }: {
+export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, onOpenMenu, authorAbove = false }: {
   pick: HomeFeedPick;
+  /**
+   * Home feed only (2026-10-11): avatar + nickname above the photo. Other screens that share
+   * this card (/feed) keep the nickname-only row below the menu until they are decided separately.
+   */
+  authorAbove?: boolean;
   /** Kept for caller compatibility; v3 no longer draws the legacy current-Pick flag. */
   mine?: boolean;
   onOpenItem: () => void;
@@ -37,6 +44,16 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
   const openMenu = hasProviderContext ? onOpenMenu : undefined;
 
   return <View style={styles.card}>
+    {/* Shared Avatar default (initial) — profile photos are not stored yet (profile_image_url is
+        constrained to null), so no photo is fetched. Same profile destination as before. */}
+    {authorAbove ? <View style={styles.authorRow}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
+        style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
+        <Avatar name={pick.username} size={24} tone="subtle" />
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.username, styles.authorName]}>{pick.username}</Text>
+      </Pressable>
+    </View> : null}
+
     <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
       style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
       <PickPhoto feedCard uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
@@ -60,19 +77,21 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
         </Pressable>
       </View>
 
-      <View style={styles.personGroup}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
-          style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
+      {!authorAbove || pick.oneLineReview ? <View style={styles.personGroup}>
+        {authorAbove ? null : <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
+          style={({ pressed }) => [styles.legacyProfileAction, pressed && styles.pressed]}>
           <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>{pick.username}</Text>
-        </Pressable>
+        </Pressable>}
         {pick.oneLineReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
           style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
           <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{pick.oneLineReview}</Text>
         </Pressable> : null}
-      </View>
+      </View> : null}
     </View>
   </View>;
 }
+
+const AUTHOR_ROW_HEIGHT = 24;
 
 const styles = StyleSheet.create({
   card: { width: '100%', alignItems: 'stretch' },
@@ -90,7 +109,20 @@ const styles = StyleSheet.create({
     marginVertical: -(MIN_TOUCH_TARGET - OnePickFeedType.storeBranch.lineHeight) / 2,
     justifyContent: 'center',
   },
+  // 24px visual row (Avatar 24 + nickname, gap 6), 8 above the photo; the 44px target
+  // overlaps the row's own margins without moving the layout box.
+  authorRow: { width: '100%', height: AUTHOR_ROW_HEIGHT, marginBottom: OnePickSpace.sm, justifyContent: 'center' },
   profileAction: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    marginVertical: -(MIN_TOUCH_TARGET - AUTHOR_ROW_HEIGHT) / 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legacyProfileAction: {
     alignSelf: 'flex-start',
     maxWidth: '100%',
     minWidth: MIN_TOUCH_TARGET,
@@ -108,6 +140,7 @@ const styles = StyleSheet.create({
   storeBranch: { ...OnePickFeedType.storeBranch, color: OnePick.textPrimary },
   menu: { ...OnePickType.title, color: OnePick.textPrimary },
   username: { ...OnePickFeedType.nickname, color: OnePick.textSecondary },
+  authorName: { flexShrink: 1 },
   review: { ...OnePickFeedType.review, color: OnePick.textPrimary },
   pressed: { opacity: 0.9 },
 });

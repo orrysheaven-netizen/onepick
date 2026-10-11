@@ -219,7 +219,8 @@ for (width of [390, 800, 1200]) {
   const storePos = page.indexOf('>진라면</span>');
   const menuPos = page.indexOf('>라면</span>');
   const nicknamePos = page.indexOf('>friend</span>');
-  assert.ok(storePos >= 0 && menuPos > storePos && nicknamePos > menuPos, 'Feed v3 orders store, menu and nickname as separate text blocks');
+  assert.ok(nicknamePos >= 0 && storePos > nicknamePos && menuPos > storePos, 'Home feed (2026-10-11): author row first, then store and menu as separate text blocks');
+  assert.equal(page.split('>friend</span>').length - 1, 1, 'The author row is shown once, not duplicated below');
   assert.doesNotMatch(page, />매장<\//, 'Feed Card v3 has no legacy channel badge');
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
@@ -235,8 +236,9 @@ for (width of [390, 800, 1200]) {
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
-  press('모두의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
-  assert.match(page, /모두의 원픽/, 'Figma 30E names the single newest-first feed 모두의 원픽');
+  press('이웃 제안 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
+  assert.match(page, /이웃 제안/, '2026-10-11: the newest-first Home feed is titled 이웃 제안');
+  assert.doesNotMatch(page, /모두의 원픽/, 'The old section title is gone');
   assert.doesNotMatch(page, /아직 아무도 안 골랐어요/, 'At 30+ total Picks the unpicked chips give way to 많이 고른 메뉴');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면집 라면 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
   homeHeaderProps.onOpenItem('jin');
@@ -258,14 +260,26 @@ render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 �
 assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
 query.data.picks = smallFeed;
 
-// Home (10-04): the newest ten only, no automatic or manual next page; the full feed pages.
+// Home 이웃 제안 (2026-10-11): the newest ten first, then more near the list end over the
+// existing keyset pages (reveal loaded rows before asking the server for the next page).
 query.data.picks = Array.from({ length: 20 }, (_, i) => ({ ...smallFeed[0], pickId: `ten-${i}`, itemId: `ten-item-${i}`, username: `user${i}` }));
 const capped = render();
-assert.match(capped, />user9</); assert.doesNotMatch(capped, />user10</, 'Home shows at most ten Picks');
-assert.equal(endReached, undefined, 'Home never loads more on scroll');
+assert.match(capped, />user9</); assert.doesNotMatch(capped, />user10</, 'Home starts with ten Picks');
+assert.equal(typeof endReached, 'function', 'Home loads more near the list end (existing feed pattern)');
+endReached(); assert.equal(pageCalls, 0, 'Already loaded rows are revealed before another server page');
+query.data.picks = query.data.picks.slice(0, 10);
+render(); endReached(); assert.equal(pageCalls, 1, 'Once loaded rows are all shown, the next keyset page is requested');
+query.isFetching = true; render(); endReached(); assert.equal(pageCalls, 1, 'No duplicate request while one is in flight');
+query.isFetching = false;
 query.isFetchNextPageError = true;
-assert.doesNotMatch(render(), /다음 원픽을 불러오지 못했어요|모두 확인했어요/);
-assert.equal(pageCalls, 0);
+const pageFailed = render();
+assert.match(pageFailed, /다음 원픽을 불러오지 못했어요/, 'A failed next page shows the existing retry card');
+endReached(); assert.equal(pageCalls, 1, 'A failed page waits for the explicit retry');
+press('다음 원픽 다시 불러오기'); assert.equal(pageCalls, 2, 'Retry asks for the same next page');
+query.isFetchNextPageError = false; query.hasNextPage = false;
+assert.match(render(), /지금 볼 수 있는 원픽을 모두 확인했어요/, 'The end of the feed is stated once everything is shown');
+endReached(); assert.equal(pageCalls, 2, 'Stops when the server has no more');
+pageCalls = 0;
 query.isFetchNextPageError = false; query.hasNextPage = false;
 query.data.picks = smallFeed;
 auth.user = null;

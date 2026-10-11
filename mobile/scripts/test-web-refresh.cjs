@@ -125,9 +125,9 @@ async function main() {
     assert.equal(view.all('Button').filter((p) => p.accessibilityLabel === homeLabel).length, 1);
     button(view, homeLabel).onPress(); assert.equal(home.refetches, 1);
     home.isFetchNextPageError = true; view.render(); assert.equal(button(view, homeLabel).label, '새로고침');
-    // Home shows ten Picks and never pages (10-04); the full feed owns pagination.
-    assert.equal(view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기'), undefined);
-    assert.equal(home.nextPages, 0); assert.equal(home.refetches, 1);
+    // 이웃 제안 (2026-10-11) pages ten at a time; its next-page retry is independent of refresh.
+    view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기').action.onPress();
+    assert.equal(home.nextPages, 1); assert.equal(home.refetches, 1);
     home.isFetching = true; view.render(); button(view, homeLabel).onPress(); assert.equal(home.refetches, 1);
     home.isFetching = false; home.isError = false; home.isFetchNextPageError = false; view.render();
     assert.ok(button(view, homeLabel)); assert.doesNotMatch(view.text(), /마지막으로 불러온 내용/);

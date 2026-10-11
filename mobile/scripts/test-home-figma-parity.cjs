@@ -17,10 +17,13 @@ assert.match(tokens, /review: \{ fontFamily: BodyFont, fontSize: 15, lineHeight:
 assert.match(tokens, /meta: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 20, fontWeight: '400' \}/);
 
 const row = src('components/home-pick-row.tsx');
-assert.doesNotMatch(row, /<Avatar|<CurrentPickFlag|<StoreBadge|import \{ Avatar|import \{ CurrentPickFlag|import \{ StoreBadge/, 'Home Feed v3 intentionally omits legacy avatar, current-Pick flag and channel badge');
+assert.doesNotMatch(row, /<CurrentPickFlag|<StoreBadge|import \{ CurrentPickFlag|import \{ StoreBadge/, 'Home Feed v3 intentionally omits the legacy current-Pick flag and channel badge');
+// 2026-10-11 (Figma 1212:8609): Home's author row is the shared Avatar 24 (subtle) + nickname, above the photo.
+assert.match(row, /authorAbove \? <View style=\{styles\.authorRow\}>[\s\S]*?<Avatar name=\{pick\.username\} size=\{24\} tone="subtle" \/>/, 'Author row: shared Avatar 24 subtle before the nickname');
 assert.match(row, /import \{ MIN_TOUCH_TARGET \} from '@\/components\/ui\/touch';/, 'Interactive Home text uses the shared 44px target contract');
 assert.match(row, /storeAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.storeBranch\.lineHeight/, 'Store/provider action keeps a real 44×44 target without changing visual line height');
-assert.match(row, /profileAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.nickname\.lineHeight/, 'Nickname profile action keeps a real 44×44 target without changing visual line height');
+assert.match(row, /  profileAction: \{\n[^}]*minWidth: MIN_TOUCH_TARGET,\n[^}]*minHeight: MIN_TOUCH_TARGET,\n[^}]*AUTHOR_ROW_HEIGHT/, 'Author row profile action keeps a real 44×44 target without changing the 24px row');
+assert.match(row, /legacyProfileAction: \{\n[^}]*minWidth: MIN_TOUCH_TARGET,\n[^}]*minHeight: MIN_TOUCH_TARGET,\n[^}]*OnePickFeedType\.nickname\.lineHeight/, 'Other screens keep the nickname-only 44×44 action');
 assert.match(row, /hasProviderContext = channel === 'offline' \|\| channel === 'online'/, 'Only provider-backed rows get the store/provider line');
 assert.match(row, /menuName = hasProviderContext \? pick\.categoryName : pick\.name/, 'Legacy no-channel rows keep item name as the menu/title');
 assert.match(row, /<PickPhoto feedCard/, 'Feed Card v3 uses the full-width photo variant');
@@ -56,7 +59,7 @@ assert.match(home, /sectionDivider: \{ height: 1, backgroundColor: '#E5E5EB', ma
 assert.match(home, /feedTitle: \{ \.\.\.OnePickType\.headline, color/, 'Section Header 303:422: Headline 16');
 assert.match(home, /moreText: \{ \.\.\.OnePickType\.caption, color: OnePick\.textSecondary \}/, 'Section Header: 더보기 Caption 12');
 assert.match(home, /content: \{[^}]*paddingHorizontal: OnePickLayout\.homeFeedGutter/, 'Home feed surface uses the dedicated 20px gutter');
-assert.match(home, /feedGap: \{ height: OnePickSpace\.xxl \}/, 'Home feed cards keep the Figma 24px vertical gap');
+assert.match(home, /feedDivider: \{ height: 1, backgroundColor: OnePick\.borderDefault, marginVertical: OnePickSpace\.xxl \}/, 'Home feed cards: existing 1px border/default divider with the Figma 24px gap on each side (1217:8655)');
 assert.match(home, /fixedHeader: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, 'Header\/overlay surface keeps the global 16px gutter');
 const fullFeed = src('app/feed.tsx');
 assert.match(fullFeed, /content: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, '/feed keeps the global 16px gutter; Home-only 20px must not leak here');
