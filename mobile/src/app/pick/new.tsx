@@ -153,6 +153,8 @@ export default function NewPickScreen() {
   // the store the person was already viewing instead of asking for its link again.
   const [linkEntry, setLinkEntry] = useState(!entryProviderId);
   const [entryLink, setEntryLink] = useState('');
+  const [entryRaw, setEntryRaw] = useState('');
+  const [entryName, setEntryName] = useState('');
   // The link could not give a name: only the name is asked, the pasted link is kept.
   const [nameOnlyFromLink, setNameOnlyFromLink] = useState(false);
   const [store, setStore] = useState<Store | null>(null);
@@ -201,7 +203,7 @@ export default function NewPickScreen() {
     linkRequestRef.current += 1;
     setConfirmReplacement(false);
     setStep(1); setQuery(''); setRequesting(false); setRequestPart('name'); setNewName(''); setStore(null);
-    setLinkEntry(!entryProviderId); setEntryLink(''); setNameOnlyFromLink(false);
+    setLinkEntry(!entryProviderId); setEntryLink(''); setEntryRaw(''); setEntryName(''); setNameOnlyFromLink(false);
     setMenuQuery(''); setAiMenuName(''); setMenu(null);
     setItemId(null); setItemHadPhoto(false); setItemPending(false); setPreflight(null); setPickScope(null);
     setMapLink(''); setPhoto(null); setReview(''); setShowReviewError(false); setDone(null); setSaveError(null);
@@ -215,10 +217,11 @@ export default function NewPickScreen() {
     entryMenuPrefillConsumedRef.current = true;
     setPrefillDismissed(true);
     setMenuPrefilled(false);
+    setEntryRaw(draft.entryRaw ?? ''); setEntryName(draft.entryName ?? draft.query); setEntryLink(draft.entryUrl ?? '');
     setQuery(draft.query); setRequesting(draft.requesting); setRequestPart(draft.requestPart ?? 'name'); setNewName(draft.newName);
     // A saved name-search path must remain the previous in-flow screen when a
     // restored menu/photo/review step goes back to 1/4.
-    setLinkEntry(!(draft.query || draft.requesting));
+    setLinkEntry(!entryProviderId);
     setMapLink(draft.mapLink); setStore(draft.store as Store | null); setMenuQuery(draft.menuQuery);
     // Legacy drafts may contain a user-selected category. Reclassify the menu.
     setMenu(null);
@@ -270,12 +273,8 @@ export default function NewPickScreen() {
   const linkResult = linkLookup.data?.kind === 'place' ? linkLookup.data : null;
   const linkName = linkResult?.resolvedName?.trim().replace(/\s+/g, ' ').slice(0, 100) ?? '';
   const linkMatches = (linkResult?.places ?? []).map(linkCandidate);
-  const linkExact = linkName
-    ? linkMatches.filter((candidate) => placeKey(candidate.name + (candidate.branchName ?? '')) === placeKey(linkName)
-        || placeKey(candidate.name) === placeKey(linkName))
-    : [];
-  // A store is chosen for the person only when exactly one catalog row has the link's name.
-  const linkSelected = linkExact.length === 1 ? linkExact[0] : null;
+  // A matching name is only a candidate, never proof of the same branch.
+  const linkSelected = null;
   const suggestionStore = useMemo(() => store ? {
     name: store.name,
     branchName: store.kind === 'place' ? store.branchName : null,
@@ -347,10 +346,10 @@ export default function NewPickScreen() {
   useEffect(() => {
     if (!draftOwner || done) return;
     drafts.save(draftOwner, {
-      step: resumeStep ?? (step === 6 ? 5 : step), query, requesting, requestPart, newName, mapLink, store,
+      step: resumeStep ?? (step === 6 ? 5 : step), query, entryRaw, entryName, entryUrl: entryLink, requesting, requestPart, newName, mapLink, store,
       menuQuery, manualCategory: false, categoryQuery: '', menu, pickScope, review,
     });
-  }, [draftOwner, done, resumeStep, step, query, requesting, requestPart, newName, mapLink, store, menuQuery,
+  }, [draftOwner, done, resumeStep, step, query, entryRaw, entryName, entryLink, requesting, requestPart, newName, mapLink, store, menuQuery,
     menu, pickScope, review]);
   useEffect(() => {
     // Keep a 'lost' marker until a new photo is chosen, so a second round trip still asks.
@@ -421,17 +420,34 @@ export default function NewPickScreen() {
     applyEntryMenuPrefill();
     setStep(2);
   };
+  const updateEntry = (value: string) => {
+    linkRequestRef.current += 1;
+    linkLookup.reset();
+    setEntryRaw(value);
+    const url = extractNaverMapUrl(value);
+    if (url) {
+      setEntryLink(url);
+      const name = value.split(/\r?\n/).map((part) => part.trim())
+        .filter((part) => part && !/^\[네이버\s*지도\]$/i.test(part) && !part.includes('https://'))[0] ?? '';
+      setEntryName(name.slice(0, 100));
+      setQuery(name.slice(0, 100));
+    } else if (/https?:\/\/|naver\.me\//i.test(value)) {
+      setEntryLink(''); setEntryName(''); setQuery('');
+    } else {
+      setEntryLink(''); setEntryName(value.slice(0, 100)); setQuery(value.slice(0, 100));
+    }
+  };
   const findByLink = () => {
     if (!validEntryLink || linkLookup.isPending) return;
     const url = entryLink.trim();
     const request = ++linkRequestRef.current;
     linkLookup.mutate({ url }, { onSuccess: (result) => {
       if (request !== linkRequestRef.current || result.kind !== 'place') return;
-      const name = result.resolvedName?.trim().replace(/\s+/g, ' ') ?? '';
+      const name = result.resolvedName?.trim().replace(/\s+/g, ' ') ?? entryName.trim();
       // Missing from the catalog is a new store, not a registration dead end.
       // Prepare it once for this lookup; the existing final save writes newPlace.
       // Keep candidate confirmation when a catalog match might already exist.
-      if (name && name.length <= 100 && !result.needsName && result.places.length === 0) {
+      if (result.resolvedName && name && name.length <= 100 && !result.needsName && result.places.length === 0) {
         pickStore({ kind: 'new', name, channel: 'offline', mapUrl: url });
       }
     } });
@@ -647,101 +663,56 @@ export default function NewPickScreen() {
           <View style={styles.body}>
             <Text style={styles.stepMeta}>1 / 4 · {requesting && requestPart === 'link' ? newStoreName : '오프라인 매장'}</Text>
             <Text style={styles.title}>
-              {linkEntry ? '네이버 지도 링크를 입력해주세요.'
-                : !requesting ? '상호명을 검색해주세요.' : requestPart === 'name' ? '매장명을 입력해주세요.' : '네이버 지도 링크를 입력해주세요.'}
+              {!requesting ? '가게명 또는 네이버 지도 링크를 입력해주세요.' : requestPart === 'name' ? '매장명을 입력해주세요.' : '네이버 지도 링크를 입력해주세요.'}
             </Text>
-            {linkEntry ? <>
+            {!requesting ? <>
               <View style={styles.fieldBlock}>
-                <TextInput accessibilityLabel="매장 찾기 네이버 지도 링크" autoFocus autoCapitalize="none" keyboardType="url" maxLength={2048}
-                  value={entryLink} onChangeText={(value) => { linkRequestRef.current += 1; setEntryLink(extractNaverMapUrl(value) ?? value); linkLookup.reset(); }}
-                  onSubmitEditing={findByLink} returnKeyType="search" style={styles.input}
-                  placeholder="https://naver.me/…" placeholderTextColor={OnePick.textSecondary} />
-                {entryLink.trim() && !validEntryLink
-                  ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text>
-                  : <Text style={styles.helper}>네이버 지도에서 매장을 열고 공유 → 링크 복사를 눌러주세요.{'\n'}링크의 매장 이름으로 같은 매장을 찾아드려요.</Text>}
-              </View>
-              {linkLookup.isPending ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
-              {linkLookup.isError ? <Text accessibilityRole="alert" style={styles.error}>{linkLookup.error instanceof AppError && linkLookup.error.code === 'RATE_LIMITED'
-                ? errorMessage(linkLookup.error) : '링크로 매장을 찾지 못했어요. 링크를 확인하거나 상호명으로 검색해주세요.'}</Text> : null}
-              {linkLookup.isSuccess && !linkResult
-                ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도의 매장 링크인지 확인해주세요.</Text> : null}
-              {linkResult ? <View style={styles.results}>
-                <Text style={styles.helper}>{linkSelected
-                  ? '링크와 같은 매장을 찾았어요. 지점과 주소를 확인해주세요.'
-                  : linkMatches.length > 0
-                    ? `${linkName || '링크의 매장'}과(와) 비슷한 매장이에요. 맞는 매장을 골라주세요.`
-                    : linkName ? `${linkName}의 메뉴를 등록할 수 있어요.` : '링크에서 매장 이름을 읽지 못했어요.'}</Text>
-                {(linkSelected ? [linkSelected] : linkMatches).map((candidate) => <Pressable key={candidate.catalogId}
-                  accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
-                  style={({ pressed }) => [styles.resultCard, candidate === linkSelected && styles.resultCardSelected, pressed && styles.flowPressed]}>
-                  <View style={styles.resultCardRow}>
-                    <View style={styles.resultCopy}>
-                      <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
-                      <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}</Text>
-                    </View>
-                    {candidate === linkSelected ? <Icon name="check" size="sm" color={OnePick.textPrimary} /> : null}
-                  </View>
-                </Pressable>)}
-              </View> : null}
-            </> : !requesting ? <>
-              <View style={styles.fieldBlock}>
-                <FieldLabel label="상호명" />
-                <View style={styles.inputWrap}>
-                  <TextInput accessibilityLabel="매장명 검색" autoFocus autoCapitalize="none" maxLength={100}
-                    onChangeText={(value) => {
-                      if (providerPrefillStore) setPrefillDismissed(true);
-                      setQuery(value);
-                    }}
-                    value={storeSearchValue} returnKeyType="search" style={[styles.input, styles.inputWithClear]}
-                    placeholderTextColor={OnePick.textSecondary} placeholder="상호명을 입력해주세요." />
-                  {storeSearchValue ? <Pressable accessibilityRole="button" accessibilityLabel="매장명 지우기"
-                    onPress={() => { setPrefillDismissed(true); setStore(null); setQuery(''); }}
-                    style={({ pressed }) => [styles.clearButton, pressed && styles.flowPressed]}>
-                    <Icon name="clear" size="sm" color={OnePick.textTertiary} />
-                  </Pressable> : null}
+                <View style={styles.singleEntryRow}>
+                  <TextInput accessibilityLabel="가게명 또는 링크" autoCapitalize="none" autoCorrect={false}
+                    value={entryRaw || query} onChangeText={updateEntry} onSubmitEditing={() => {
+                      if (entryLink) findByLink(); else setLinkEntry(false);
+                    }} returnKeyType="search" style={styles.singleEntryInput}
+                    placeholder="가게명 또는 링크" placeholderTextColor={OnePick.textSecondary} />
+                  <Pressable accessibilityRole="button" accessibilityLabel="매장 검색" style={styles.entrySearchButton}
+                    onPress={() => { if (entryLink) findByLink(); else setLinkEntry(false); }}>
+                    <Text style={styles.entrySearchLabel}>검색</Text>
+                  </Pressable>
                 </View>
-                {providerPrefillStore
-                  ? <Text style={styles.helper}>보고 있던 매장을 선택해 뒀어요. 다른 매장이면 다시 검색해주세요.</Text>
-                  : providerPrefill.isLoading
-                    ? <Text style={styles.helper}>보고 있던 매장을 확인하고 있어요.</Text>
-                    : storeSearchReady && (search.data ?? []).length > 0
-                      ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개 · 지점과 주소를 확인해주세요.</Text>
-                      : <Text style={styles.helper}>{PLACE_COVERAGE_NOTICE}</Text>}
+                {entryLink ? <View style={styles.attachedLink}>
+                  <Text style={styles.attachedLinkText} numberOfLines={2}>{entryLink}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="첨부 링크 지우기" style={styles.clearButtonInline}
+                    onPress={() => { linkRequestRef.current += 1; linkLookup.reset(); setEntryLink(''); setEntryRaw(entryName); setQuery(entryName); }}>
+                    <Icon name="clear" size="sm" color={OnePick.textTertiary} />
+                  </Pressable>
+                </View> : null}
+                {entryLink && entryName ? <Text style={styles.helper}>공유한 내용에서 가게명과 링크를 찾았어요.</Text> : null}
+                {entryLink && !entryName ? <Text style={styles.helper}>링크에서 가게명을 찾지 못했어요. 가게명을 입력해주세요.</Text> : null}
+                {entryRaw && /https?:\/\//i.test(entryRaw) && !entryLink
+                  ? <Text accessibilityRole="alert" style={styles.error}>네이버 지도 링크를 확인해주세요.</Text> : null}
+                {providerPrefillStore ? <Text style={styles.helper}>보고 있던 매장을 확인하고 직접 골라주세요.</Text> : null}
+                {linkResult && linkMatches.length > 0 ? <Text style={styles.helper}>링크와 같은 매장인지 확인하고 직접 골라주세요.</Text> : null}
+                {!entryLink && storeSearchReady && (search.data ?? []).length > 0
+                  ? <Text style={styles.helper}>검색 결과 {(search.data ?? []).length}개</Text> : null}
               </View>
-              {search.valid && (search.isWaiting || (search.isFetching && !search.isFetchingNextPage)) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
-              {storeSearchReady && search.isError && !search.isFetchNextPageError ? <StateCard compact tone="danger" title="검색하지 못했어요." action={{ label: '다시 검색해요', onPress: () => { void search.refetch(); } }} /> : null}
+              {linkLookup.isPending || (search.valid && search.isWaiting) ? <View style={styles.loading}><ActivityIndicator color={OnePick.textPrimary} /></View> : null}
+              {linkLookup.isError ? <Text style={styles.error}>링크로 매장을 찾지 못했어요. 가게명으로 검색해주세요.</Text> : null}
+              {storeSearchReady && search.isError ? <StateCard compact tone="danger" title="검색하지 못했어요." action={{ label: '다시 검색하기', onPress: () => { void search.refetch(); } }} /> : null}
               <View style={styles.results}>
-                {providerPrefillStore ? <View accessibilityLabel={`${providerPrefillStore.name} 선택됨`}
-                  style={[styles.resultCard, styles.resultCardSelected]}>
-                  <View style={styles.resultCardRow}>
-                    <View style={styles.resultCopy}>
-                      <Text style={styles.resultTitle}>{providerPrefillStore.name}{providerPrefillStore.branchName ? ` · ${providerPrefillStore.branchName}` : ''}</Text>
-                      <Text style={styles.resultMeta} numberOfLines={1}>
-                        {[providerPrefillStore.region, providerPrefillStore.address ? '상세 주소 표시 ›' : providerPrefillStore.providerCategory].filter(Boolean).join(' · ')}
-                      </Text>
-                    </View>
-                    <Icon name="check" size="sm" color={OnePick.textPrimary} />
-                  </View>
-                </View> : (search.data ?? []).filter((candidate) => candidate.kind === 'place').map((candidate) => <Pressable key={candidate.catalogId}
-                  accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`} onPress={() => pickStore(candidate)}
-                  style={({ pressed }) => [styles.resultCard, pressed && styles.flowPressed]}>
-                  <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` · ${candidate.branchName}` : ''}</Text>
-                  <Text style={styles.resultMeta} numberOfLines={1}>
-                    {[candidate.region, candidate.address ? '상세 주소 표시 ›' : candidate.providerCategory].filter(Boolean).join(' · ')}
-                  </Text>
-                </Pressable>)}
+                {providerPrefillStore ? <Pressable accessibilityRole="button" accessibilityLabel={`${providerPrefillStore.name} 선택`}
+                  onPress={() => pickStore(providerPrefillStore)} style={styles.resultCard}>
+                  <Text style={styles.resultTitle}>{providerPrefillStore.name}{providerPrefillStore.branchName ? ` ${providerPrefillStore.branchName}` : ''}</Text>
+                </Pressable> : null}
+                {(linkResult ? linkMatches : (search.data ?? []).filter((candidate) => candidate.kind === 'place')).map((candidate) =>
+                  <Pressable key={candidate.catalogId} accessibilityRole="button" accessibilityLabel={`${candidate.name} 선택`}
+                    onPress={() => pickStore(candidate)} style={({ pressed }) => [styles.resultCard, pressed && styles.flowPressed]}>
+                    <Text style={styles.resultTitle}>{candidate.name}{candidate.branchName ? ` ${candidate.branchName}` : ''}</Text>
+                    <Text style={styles.resultMeta} numberOfLines={1}>{[candidate.region, candidate.address].filter(Boolean).join(' ')}</Text>
+                  </Pressable>)}
               </View>
-              {storeSearchReady && search.isFetchingNextPage ? <View style={styles.loading}>
-                <ActivityIndicator color={OnePick.textPrimary} />
-                <Text style={styles.helper}>매장을 더 불러오는 중이에요.</Text>
-              </View> : null}
-              {storeSearchReady && search.isFetchNextPageError && !search.isFetching ? <StateCard compact tone="danger"
-                title="다음 매장을 불러오지 못했어요." action={{ label: '다시 불러와요', onPress: fetchNextStores }} /> : null}
-              {storeSearchReady && search.isSuccess && !search.isFetching && !search.hasNextPage && (search.data ?? []).length > 0
-                ? <Text style={styles.helper}>검색 결과를 모두 확인했어요.</Text> : null}
-              {search.valid && !search.isWaiting && !search.isFetching && !search.isError && (search.data ?? []).length === 0
+              {storeSearchReady && search.hasNextPage ? <FlowButton variant="secondary" label="매장 더 보기" onPress={fetchNextStores} /> : null}
+              {storeSearchReady && search.isSuccess && !search.isFetching && !search.hasNextPage && (search.data ?? []).length === 0 && !entryLink
                 ? <Text style={styles.helper}>검색한 이름의 매장을 찾지 못했어요.</Text> : null}
-            </> : requestPart === 'name' ? <View style={styles.fieldBlock}>
+            </>            </> : requestPart === 'name' ? <View style={styles.fieldBlock}>
               {/* One input per screen (#593): the store name here, its Naver map link next. */}
               <FieldLabel label="상호명" />
               <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
@@ -757,24 +728,9 @@ export default function NewPickScreen() {
             </View>}
           </View>
           <View style={styles.footer}>
-            {linkEntry
-              ? !linkResult
-                ? <>
-                  <FlowButton label="매장명 가져오기" disabled={!validEntryLink} loading={linkLookup.isPending} onPress={findByLink} />
-                  {!linkLookup.isPending ? <FlowButton variant="text" label="URL 없음"
-                    onPress={() => { linkRequestRef.current += 1; setLinkEntry(false); linkLookup.reset(); }} /> : null}
-                </>
-                : <>
-                  {linkSelected ? <FlowButton label="다음" onPress={() => pickStore(linkSelected)} /> : null}
-                  <FlowButton variant={linkSelected || linkMatches.length > 0 ? 'secondary' : 'primary'}
-                    label={linkSelected || linkMatches.length > 0 ? '찾는 매장이 없어요.' : linkName ? '다음' : '매장 이름 입력하기'}
-                    onPress={registerFromLink} />
-                </>
-              : !requesting && providerPrefillStore
-              ? <FlowButton label="다음" onPress={() => pickStore(providerPrefillStore)} />
-              : !requesting
-                ? <FlowButton variant="secondary" label="찾는 매장이 없어요."
-                    onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(query); setMapLink(''); setNameOnlyFromLink(false); }} />
+            {!requesting
+              ? <FlowButton variant="secondary" label="새 매장 등록하기"
+                  onPress={() => { setRequesting(true); setRequestPart('name'); setNewName(entryName || query); setMapLink(entryLink); setNameOnlyFromLink(Boolean(entryLink)); }} />
               : requestPart === 'name'
                 ? <FlowButton label="다음" disabled={!validNewName} onPress={() => {
                     if (nameOnlyFromLink && validMapLink) pickStore({ kind: 'new', name: newStoreName, channel: 'offline', mapUrl: mapLink.trim() });
@@ -966,6 +922,13 @@ const styles = StyleSheet.create({
     ...OnePickType.body,
   },
   inputWithClear: { paddingRight: 52 },
+  singleEntryRow: { height: 52, flexDirection: 'row', alignItems: 'center', backgroundColor: OnePick.bgSubtle, borderRadius: OnePickRadius.md, paddingRight: 8 },
+  singleEntryInput: { flex: 1, minWidth: 0, height: 52, paddingHorizontal: 16, color: OnePick.textPrimary, fontSize: 16 },
+  entrySearchButton: { width: 56, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: OnePick.bgMuted },
+  entrySearchLabel: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  attachedLink: { flexDirection: 'row', alignItems: 'center', backgroundColor: OnePick.bgSubtle, borderRadius: 8, paddingLeft: 12, minHeight: 57 },
+  attachedLinkText: { ...OnePickType.body, color: OnePick.textSecondary, flex: 1 },
+  clearButtonInline: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   clearButton: {
     position: 'absolute',
     right: OnePickSpace.xs,
