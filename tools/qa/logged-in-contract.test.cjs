@@ -22,6 +22,45 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
   const timeout = 400;
   const set = async (html) => { await page.goto('https://fixture.invalid/profile'); await page.setContent(html); };
   try {
+    await t.test('isolated mock copies login state but never copies or overwrites session-only registration draft', async () => {
+      const draftKey = 'onepick:pick-draft:v1';
+      const localKey = 'qa-fixture-auth';
+      const originalDraft = 'original-qa-draft';
+      await set('<div>Original QA page</div>');
+      await page.evaluate(({ localKey, draftKey, originalDraft }) => {
+        localStorage.setItem(localKey, 'fake-qa-session');
+        sessionStorage.setItem(draftKey, originalDraft);
+      }, { localKey, draftKey, originalDraft });
+
+      const isolated = await browser.newContext({
+        ...api.qaContextOptions({}, true),
+        storageState: await context.storageState(),
+      });
+      await isolated.route('**/*', async (route) => {
+        if (new URL(route.request().url()).hostname === 'fixture.invalid') {
+          await route.fulfill({ contentType: 'text/html', body: '<body>Isolated QA page</body>' });
+        } else {
+          unexpectedRequests += 1;
+          await route.abort();
+        }
+      });
+      try {
+        const isolatedPage = await isolated.newPage();
+        await isolatedPage.goto('https://fixture.invalid/profile');
+        assert.equal(await isolatedPage.evaluate((key) => localStorage.getItem(key), localKey), 'fake-qa-session');
+        assert.equal(await isolatedPage.evaluate((key) => sessionStorage.getItem(key), draftKey), null,
+          'storageState must not copy the original registration sessionStorage');
+        await isolatedPage.evaluate((key) => sessionStorage.setItem(key, 'synthetic-unclassified-menu'), draftKey);
+        assert.equal(await page.evaluate((key) => sessionStorage.getItem(key), draftKey), originalDraft,
+          'the original registration draft must remain unchanged after isolated mock input');
+      } finally {
+        await isolated.close();
+        await page.evaluate(({ localKey, draftKey }) => {
+          localStorage.removeItem(localKey);
+          sessionStorage.removeItem(draftKey);
+        }, { localKey, draftKey });
+      }
+    });
     await t.test('regular QA retains SW policy and explicit interception blocks only the isolated context', () => {
       assert.equal(api.qaContextOptions({}).serviceWorkers, 'allow');
       assert.equal(api.qaContextOptions({}).locale, 'ko-KR');
