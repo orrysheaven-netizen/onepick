@@ -12,6 +12,11 @@ on:
         description: 'Site to test (default: tester site)'
         required: false
         default: 'https://onepick-5cl.pages.dev'
+      block_menu_ai:
+        description: 'Block the paid menu-AI request (QA_BLOCK_MENU_AI=1); that check is reported as WARN/unverified, never PASS'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -93,6 +98,8 @@ jobs:
           QA_OUT_DIR: ${{ github.workspace }}/qa-output
           ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
           ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+          # Opt-in safety mode for manual runs only; schedule runs leave it empty (unchanged).
+          QA_BLOCK_MENU_AI: ${{ inputs.block_menu_ai && '1' || '' }}
         run: node logged-in-qa.mjs
 
       - name: Upload report and screenshots
