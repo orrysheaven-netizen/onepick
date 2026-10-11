@@ -301,7 +301,7 @@ function home(options = {}) {
     groups = [], countsQuery, questionQuery, participantsComplete = true, replyQuery, badge,
     // Feed pages and the viewer's context are separate reads (useHomeData); each can be pending/failed alone.
     feed = { picks: [] }, feedError = false, contextPending = false, contextError = false,
-    profile = { nickname: null }, feedbackEmail = null, feedbackError = false,
+    profile = { nickname: null }, feedbackEmail = null, feedbackError = false, autoScrollPeople = true,
   } = options;
   const calls = { routes: [], shares: [], opened: [] };
   const contextData = contextPending || contextError ? undefined : { currentPicks };
@@ -322,7 +322,10 @@ function home(options = {}) {
       },
       useHomeFoodMenuPickCounts: () => countsQuery ?? query(counts),
       useDailyQuestionCategory: () => questionQuery ?? query(question),
-      useHomeParticipantPicks: () => query({ rows: participants, complete: participantsComplete }),
+      useHomeParticipantPicks: (_userId, enabled) => {
+        calls.participantsEnabled = enabled;
+        return enabled ? query({ rows: participants, complete: participantsComplete }) : query(undefined);
+      },
     },
     '@/hooks/useFollow': { useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }), useFollowingFeed: () => query({ items: [], nextCursor: null }) },
     '@/hooks/useExploreData': { useExploreCategories: (enabled) => { calls.categoriesEnabled = enabled; return query(catalog); }, useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
@@ -355,6 +358,15 @@ function home(options = {}) {
     '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'),
   });
   view.render();
+  // Existing people-row cases intentionally visit the footer. Cold-load tests opt out.
+  if (autoScrollPeople && participants.length > 0) {
+    const list = view.find('FlatList', (props) => typeof props.onScroll === 'function');
+    assert.ok(list, 'public Home feed has a scroll handler');
+    list.onScroll({ nativeEvent: {
+      contentOffset: { y: 700 }, layoutMeasurement: { height: 600 }, contentSize: { height: 1000 },
+    } });
+    view.render();
+  }
   const press = (label) => {
     const target = view.find('Pressable', (p) => p.accessibilityLabel === label) ?? view.find('Button', (p) => p.accessibilityLabel === label || p.label === label)
       ?? view.find('Chip', (p) => p.accessibilityLabel === label);
@@ -528,6 +540,37 @@ test('R1 · replacing the only Pick (1→1) or an unknown pre-save state never s
   notice.armFirstPickNotice('me', 'replacement', undefined);
   const unknown = home({ currentPicks: replacement }); unknown.view.flushEffects(); unknown.view.render();
   assert.doesNotMatch(unknown.text(), /원픽 완료/, 'Unknown pre-save state');
+});
+
+test('People are deferred on cold load; footer scroll or short content starts the RLS read', () => {
+  const participants = ['amy', 'ben', 'cat'].map((id) => row(id, 'ramen', '2026-10-05T00:00:00Z'));
+  const initial = home({ participants, autoScrollPeople: false });
+  assert.equal(initial.calls.participantsEnabled, false, 'cold Home leaves the expensive people query disabled');
+  assert.doesNotMatch(initial.text(), /함께하는 사람들/, 'not visible before its data is requested');
+  const scroll = initial.view.find('FlatList', (props) => typeof props.onScroll === 'function');
+  assert.ok(scroll, 'only public Home attaches the footer scroll gate');
+  scroll.onScroll({ nativeEvent: { contentOffset: { y: 0 }, layoutMeasurement: { height: 600 }, contentSize: { height: 1600 } } });
+  initial.view.render();
+  assert.equal(initial.calls.participantsEnabled, false, 'initial scroll-at-top event never fetches');
+  scroll.onScroll({ nativeEvent: { contentOffset: { y: 830 }, layoutMeasurement: { height: 600 }, contentSize: { height: 1600 } } });
+  initial.view.render();
+  assert.equal(initial.calls.participantsEnabled, true, 'near-footer scroll enables the same RLS query');
+  assert.match(initial.text(), /함께하는 사람들/, 'the original row and people remain visible');
+
+  const short = home({ participants, autoScrollPeople: false });
+  const shortList = short.view.find('FlatList', (props) => typeof props.onContentSizeChange === 'function');
+  shortList.onLayout({ nativeEvent: { layout: { height: 800 } } });
+  shortList.onContentSizeChange(390, 700);
+  short.view.render();
+  assert.equal(short.calls.participantsEnabled, true, 'short Home automatically loads visible footer');
+
+  const feedPending = home({ participants, feed: null, autoScrollPeople: false });
+  feedPending.view.find('FlatList', (props) => typeof props.onScroll === 'function').onScroll({
+    nativeEvent: { contentOffset: { y: 700 }, layoutMeasurement: { height: 600 }, contentSize: { height: 1000 } },
+  });
+  feedPending.view.render();
+  assert.equal(feedPending.calls.participantsEnabled, true, 'user scroll works while the feed query is pending');
+  assert.match(feedPending.text(), /함께하는 사람들/, 'footer people still do not depend on feed success');
 });
 
 test('People row: 2 hidden, 3 shown, opens the existing profile', () => {

@@ -1,7 +1,8 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 import { HomeInviteRow, HomePeopleRow, HomeQuestionCard, HomeReplyBanner, HomeUnpickedMenus } from '@/components/home-early-sections';
 import { HomeFeedbackButton } from '@/components/home-feedback-button';
@@ -78,7 +79,13 @@ export default function HomeScreen() {
   const menuCountsQuery = useHomeFoodMenuPickCounts(mvpChannel, homeEnabled);
   const discovery = earlyHomeDiscovery(totalPickCount(menuCountsQuery.data));
   const questionQuery = useDailyQuestionCategory(homeEnabled);
-  const participantsQuery = useHomeParticipantPicks(user?.id, homeEnabled);
+  // This row is below the feed; avoid loading up to 1,000 RLS-scoped Picks and their
+  // channel/provider lookups in the first viewport. A short list fetches automatically;
+  // a longer list fetches when its footer approaches, even if the feed query failed.
+  const [peopleRequested, setPeopleRequested] = useState(false);
+  const publicListViewport = useRef(0);
+  const publicListHeight = useRef(0);
+  const participantsQuery = useHomeParticipantPicks(user?.id, homeEnabled && !showFollowing && peopleRequested);
   // Search shares the cached tree. Load it here only when a visible Home feature needs it.
   const needsCategoryCatalog = Boolean(OnePickFeatures.categoryChips || questionQuery.data ||
     discovery === 'unpicked' || (participantsQuery.data?.complete && participantsQuery.data.rows.length >= 3));
@@ -100,6 +107,27 @@ export default function HomeScreen() {
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
   const ready = !isLoading && !sessionError && Boolean(data);
   const showRanking = homeEnabled && !followDefaultPending && discovery === 'popular';
+  // Only request the footer people query once its section can enter the viewport.
+  // An unresolved feed cannot block a user who scrolls toward the footer (#762).
+  const maybeRequestPeopleForShortList = () => {
+    if (peopleRequested || !contextReady || (!ready && !homeQuery.isError)) return;
+    if (publicListViewport.current > 0 && publicListHeight.current > 0 &&
+        publicListHeight.current <= publicListViewport.current + 240) setPeopleRequested(true);
+  };
+  const onPublicListLayout = (event: LayoutChangeEvent) => {
+    publicListViewport.current = event.nativeEvent.layout.height;
+    maybeRequestPeopleForShortList();
+  };
+  const onPublicListContentSizeChange = (_width: number, height: number) => {
+    publicListHeight.current = height;
+    maybeRequestPeopleForShortList();
+  };
+  const onPublicListScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (peopleRequested || !contextReady) return;
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    if (contentOffset.y > 0 &&
+        contentOffset.y + layoutMeasurement.height >= contentSize.height - 240) setPeopleRequested(true);
+  };
 
   // ---- Current Home integration (#762) --------------------------------------------
   // The food menu list Explore browses, in catalog order.
@@ -275,6 +303,10 @@ export default function HomeScreen() {
         </> : null}
       /> : <FlatList
         data={ready ? visiblePicks : []}
+        onLayout={onPublicListLayout}
+        onContentSizeChange={onPublicListContentSizeChange}
+        onScroll={onPublicListScroll}
+        scrollEventThrottle={16}
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => renderFeedCard(pick)}
         ItemSeparatorComponent={feedGap}
