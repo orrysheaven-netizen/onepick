@@ -101,7 +101,7 @@ export function HomePeopleRow({ people, onOpenProfile }: { people: HomeParticipa
  */
 export function HomeUnpickedMenus({ categories, onPick }: { categories: Category[]; onPick: (category: Category) => void }) {
   return (
-    <View style={styles.section}>
+    <View testID="home-unpicked-card" style={[styles.section, styles.unpickedCard]}>
       <Text accessibilityRole="header" style={styles.sectionTitle} numberOfLines={1}>아직 정하지 않은 원픽</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
         {categories.map((category) => <Chip key={category.id} label={category.name}
@@ -151,6 +151,9 @@ const styles = StyleSheet.create({
   personName: { ...OnePickType.captionMedium, maxWidth: 64, color: OnePick.textPrimary },
   // Figma 30E uses text/tertiary here; Foundations reserves tertiary for non-copy (test-tertiary-usage), so secondary.
   personCount: { ...OnePickType.caption, color: OnePick.textSecondary },
+  // 1203:8588: white card, 1px border/default, padding 20, radius lg. Scoped to the unpicked
+  // area only; the shared `section` style stays borderless for the other modules.
+  unpickedCard: { padding: OnePickSpace.xl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   // 1203:8592: one row, 6 between chips (Figma), no wrap.
   chipRow: { flexDirection: 'row', gap: 6, paddingRight: OnePickSpace.xs },
   inviteRow: { flexDirection: 'row', gap: 10 },

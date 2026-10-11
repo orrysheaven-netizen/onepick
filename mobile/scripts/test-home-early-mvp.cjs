@@ -295,6 +295,22 @@ const sections = load('components/home-early-sections.tsx', {
   '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': profileName,
 });
 
+test('Unpicked menus area is the 1203:8588 card; the shared section style stays borderless', () => {
+  const flat = (style) => Object.assign({}, ...[].concat(style).flat(Infinity).filter(Boolean));
+  const tree = sections.HomeUnpickedMenus({ categories: [{ id: 'ramen', name: '라면' }], onPick: () => {} });
+  assert.equal(tree.props.testID, 'home-unpicked-card');
+  const card = flat(tree.props.style);
+  assert.equal(card.borderWidth, 1, '1px border');
+  assert.equal(card.borderColor, constants.OnePick.borderDefault, 'border/default');
+  assert.equal(card.padding, 20, 'inner padding 20');
+  assert.equal(card.borderRadius, constants.OnePickRadius.lg, 'radius lg');
+  assert.equal(card.backgroundColor, constants.OnePick.bgDefault, 'white card');
+  assert.equal(card.gap, constants.OnePickSpace.md, 'Title-to-chips gap is unchanged');
+  const people = flat(sections.HomePeopleRow({ people: [], onOpenProfile: () => {} }).props.style);
+  assert.equal(people.borderWidth, undefined, 'People row keeps the borderless section');
+  assert.equal(people.padding, undefined, 'People row padding unchanged');
+});
+
 function home(options = {}) {
   const {
     user = { id: 'me' }, counts = countsOf({ ramen: 3 }), question = 'naengmyeon', currentPicks = [], participants = [],
