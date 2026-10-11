@@ -230,7 +230,7 @@ export class SupabaseReadRepository implements ReadRepository {
       items: rows.map((row) => ({
         pickId: row.pick_id, userId: row.user_id, username: row.username,
         // #804: servers before 20261011053000 (and the following feed) omit nickname → username shows.
-        nickname: typeof (row as { nickname?: unknown }).nickname === 'string' ? (row as { nickname: string }).nickname : null,
+        nickname: feedRowNickname(row),
         profileImageUrl: row.profile_image_url,
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
@@ -764,3 +764,8 @@ export class SupabaseReadRepository implements ReadRepository {
   }
 }
 
+/** #804: home_pick_feed_page returns nickname from 20261011053000; older servers and the following feed omit it. */
+function feedRowNickname(row: object): string | null {
+  const value: unknown = (row as Record<string, unknown>).nickname;
+  return typeof value === 'string' ? value : null;
+}
