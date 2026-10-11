@@ -24,6 +24,7 @@ function load(relative, imports = {}) {
     process,
     require: (name) => {
       if (name in imports) return imports[name];
+      if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
       assert.fail(`Unexpected import: ${name}`);
     },
   });

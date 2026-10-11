@@ -18,6 +18,7 @@ function load(file, imports = {}) {
     if (name === '@/components/profile-ai-comment') return { ProfileAiComment: () => null };
     if (name === '@/components/profile-taste-composition') return { ProfileTasteComposition: () => null };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.fail(`Unexpected import ${name}`);
   } });
   return exports;

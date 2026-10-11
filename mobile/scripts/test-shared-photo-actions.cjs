@@ -16,6 +16,7 @@ function load(file, imports = {}) {
     if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.fail(`Unexpected dependency ${name}`);
   } });
   return exports;
