@@ -20,6 +20,10 @@ export type PickDraftStep = 1 | 2 | 4 | 5;
 export type PickDraftFields = {
   step: PickDraftStep;
   query: string;
+  // Single-field entry: preserve the original share text separately from search and URL.
+  entryRaw?: string;
+  entryName?: string;
+  entryUrl?: string;
   requesting: boolean;
   // Catalog-missing store: name first, then its Naver map link (#593). Older drafts omit it.
   requestPart?: 'name' | 'link';
@@ -92,6 +96,9 @@ function validFields(fields: unknown): fields is PickDraftFields {
   const f = fields as PickDraftFields;
   return STEPS.has(f.step) && typeof f.query === 'string' && typeof f.requesting === 'boolean'
     && (f.requestPart === undefined || f.requestPart === 'name' || f.requestPart === 'link')
+    && (f.entryRaw === undefined || typeof f.entryRaw === 'string')
+    && (f.entryName === undefined || typeof f.entryName === 'string')
+    && (f.entryUrl === undefined || typeof f.entryUrl === 'string')
     && typeof f.newName === 'string' && typeof f.mapLink === 'string'
     && typeof f.menuQuery === 'string' && typeof f.manualCategory === 'boolean'
     && typeof f.categoryQuery === 'string' && typeof f.review === 'string'
