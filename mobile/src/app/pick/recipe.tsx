@@ -261,7 +261,7 @@ function RecipePickContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               {video.channelTitle ? <Text style={styles.itemMeta} numberOfLines={1}>{video.channelTitle}</Text> : null}
             </View>
           </View>
-          <ExternalLink href={video.videoUrl} style={styles.externalLink}>YouTube에서 영상 보기 ›</ExternalLink>
+          <ExternalLink href={youtubeVideoUrl(video.externalId)} style={styles.externalLink}>YouTube에서 영상 보기 ›</ExternalLink>
 
           {video.existingItemId && video.existingCategoryId ? <>
             <Text style={styles.dishText}>{existingDish ? `이미 ${existingDish.name} 레시피로 등록된 영상이에요.` : '이미 등록된 레시피 영상이에요.'}</Text>

@@ -191,7 +191,7 @@ function ChoosePickForm({ auth, params }: { auth: ReturnType<typeof useAuthSessi
             title={isOwnRequest ? '관리자 확인 중이에요.' : '지금은 선택할 수 없어요.'}
             text={isOwnRequest ? '승인돼도 원픽으로 자동 등록되지 않아요. 확인이 끝난 뒤 직접 원픽으로 선택할 수 있고, 수정이 필요할 때만 알려드려요.' : '지금은 여기서 새 원픽을 선택할 수 없어요.'}
             action={isOwnRequest
-              ? { label: '내 등록 요청 보기', variant: 'secondary', onPress: () => router.replace('/(tabs)/profile') }
+              ? { label: '내 등록 요청 보기', variant: 'secondary', onPress: () => router.replace('/(tabs)/(profile)/profile') }
               : { label: pickStatus?.type === 'selected_this' ? '내 원픽 보기/수정' : '상세 보기', variant: 'secondary',
                   onPress: () => router.replace(pickStatus?.type === 'selected_this'
                     ? { pathname: '/pick/[pickId]', params: { pickId: pickStatus.pickId } } : { pathname: '/item/[itemId]', params: { itemId: item.id } }) }} />

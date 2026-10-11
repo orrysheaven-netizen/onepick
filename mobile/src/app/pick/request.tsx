@@ -244,7 +244,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
             <StateCard title="등록 요청을 보냈어요." text={`${submittedItem.name}\n관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요. 진행 상태는 내 프로필에서 볼 수 있어요.`}
-              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
+              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/(profile)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
         </SafeAreaView>
@@ -256,7 +256,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
             <StateCard title="카테고리를 적용했어요." text={`${submittedItem.name} · ${appliedCategoryLabel}\n최종 선택을 직접 적용했어요. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
-              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
+              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/(profile)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
         </SafeAreaView>
@@ -268,7 +268,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.center}>
             <StateCard title="카테고리 힌트를 남겼어요." text={`${submittedItem.name} · ${savedHint}\n관리자가 힌트를 참고해 카테고리를 정하고 승인해요. 관리자가 확인해요. 승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요. 수정이 필요할 때만 알려드려요.`}
-              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/profile') }} />
+              action={{ label: '내 등록 요청 보기', variant: 'primary', onPress: () => router.replace('/(tabs)/(profile)/profile') }} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} style={styles.centered} />
           </View>
         </SafeAreaView>
@@ -361,7 +361,7 @@ function RequestItemForm({ auth, params }: { auth: ReturnType<typeof useAuthSess
           </View>
 
           <View style={styles.laterRow}>
-            <Button variant="ghost" label="카테고리는 나중에 정하기" onPress={() => router.replace('/(tabs)/profile')} />
+            <Button variant="ghost" label="카테고리는 나중에 정하기" onPress={() => router.replace('/(tabs)/(profile)/profile')} />
             <Button variant="ghost" label="홈으로 돌아가기" onPress={() => router.replace('/')} />
           </View>
         </ScrollView>

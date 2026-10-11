@@ -34,6 +34,6 @@ export function parseYouTubeVideoUrl(value: string): string | null {
   return null;
 }
 
-export function youtubeVideoUrl(id: string) {
+export function youtubeVideoUrl(id: string): `https://www.youtube.com/watch?v=${string}` {
   return `https://www.youtube.com/watch?v=${id}`;
 }
