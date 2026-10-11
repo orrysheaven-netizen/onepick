@@ -4,10 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'tools/qa/check-deployment-consistency.mjs'
       - 'tools/qa/check-deployment-consistency.test.mjs'
       - '.github/workflows/deployment-consistency.yml'
+      - 'tools/qa/detect-edge-function-changes.py'
+      - 'tools/qa/test_detect_edge_function_changes.py'
   workflow_dispatch:
 
 permissions:
@@ -20,13 +23,15 @@ concurrency:
 
 jobs:
   unit:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Test Edge change detection
+        run: python3 -m unittest discover -s tools/qa -p test_detect_edge_function_changes.py
       - name: Test deployment evaluator
         run: node tools/qa/check-deployment-consistency.test.mjs
 
@@ -42,7 +47,7 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Detect Edge Function changes
@@ -50,28 +55,7 @@ jobs:
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          set -euo pipefail
-
-          before="$BEFORE_SHA"
-          if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
-            before="$(git rev-parse HEAD^ 2>/dev/null || true)"
-          fi
-
-          if [ -z "$before" ]; then
-            changed_files="$(git ls-files 'supabase/functions/**')"
-          else
-            changed_files="$(git diff --name-only "$before" "$GITHUB_SHA" -- supabase/functions supabase/config.toml)"
-          fi
-
-          if grep -qx 'supabase/config.toml' <<<"$changed_files" || grep -q '^supabase/functions/_shared/' <<<"$changed_files"; then
-            slugs="$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' -printf '%f\n' | sort -u | paste -sd, -)"
-          else
-            slugs="$(awk -F/ '/^supabase\/functions\/[^_][^/]*\// {print $3}' <<<"$changed_files" | sort -u | paste -sd, -)"
-          fi
-
-          echo "slugs=$slugs" >> "$GITHUB_OUTPUT"
-          echo "Changed Edge Functions: ${slugs:-none}"
+        run: python3 tools/qa/detect-edge-function-changes.py
 
       - name: Compute main commit timestamp
         id: commit
@@ -139,3 +123,4 @@ jobs:
       - name: Fail on mismatch
         if: steps.verify.outcome == 'failure'
         run: exit 1
+
