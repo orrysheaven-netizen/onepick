@@ -22,6 +22,7 @@ function loadSource(relativePath, imports = {}) {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+      if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
       assert.ok(name in imports, 'Unexpected runtime dependency: ' + name);
       return imports[name];
     },

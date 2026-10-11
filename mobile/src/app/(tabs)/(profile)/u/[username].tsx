@@ -32,6 +32,7 @@ import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
+import { HOME_SCOPE_QUERY } from '@/lib/home/publicFoodScope';
 
 const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
   offline: '매장',
@@ -40,11 +41,15 @@ const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
 };
 
 const SAFE_PROFILE_RETURN_PATH = /^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/;
-function profileReturnHref(value: string | string[] | undefined): Href | null {
-  if (typeof value !== 'string' || value.length > 512 || !SAFE_PROFILE_RETURN_PATH.test(value)) return null;
+function profileReturnHref(raw: string | string[] | undefined): Href | null {
+  if (typeof raw !== 'string') return null;
+  // Only Home's exact scope query may ride along (#762: an online Pick opened from Home stays
+  // readable on return). The path before it is validated as before; any other query is rejected.
+  const value = raw.endsWith(HOME_SCOPE_QUERY) ? raw.slice(0, -HOME_SCOPE_QUERY.length) : raw;
+  if (value.length > 512 || !SAFE_PROFILE_RETURN_PATH.test(value)) return null;
   if (value === '/auth' || value.startsWith('/auth/') || value === '/admin' || value.startsWith('/admin/')
     || value === '/u' || value.startsWith('/u/')) return null;
-  return value as Href;
+  return raw as Href;
 }
 
 function PublicProfilePickRow({

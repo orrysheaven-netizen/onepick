@@ -10,15 +10,18 @@ import { useAuthSession } from '@/hooks/useAuthSession';
 import type { Pick } from '@/types/domain/pick';
 import type { Profile } from '@/types/domain/profile';
 import { OnePick } from '@/constants/onepick';
+import { homeScopeParams, homeScopeQuery } from '@/lib/home/publicFoodScope';
 
 
 /**
  * One review row on an item. The list stays compact: review body and comment
  * count open the dedicated conversation route instead of expanding replies here.
  */
-export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, highlighted, onRemoved }: {
+export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, highlighted, onRemoved, routeScope }: {
   pick: Pick; profile: Profile | null; categoryName: string; itemName: string; itemId: string;
   highlighted: boolean; onRemoved: () => void;
+  /** The item screen's route scope (`home` keeps Home's online Picks readable on return). */
+  routeScope?: string;
 }) {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
@@ -28,7 +31,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
   const canManage = !isLoading && (pick.canManage ?? (isMine && isCurrent)) && !isDeleted;
   const commentCount = pick.commentCount ?? 0;
   const [manageMode, setManageMode] = useState<PickManagementMode>('idle');
-  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId } });
+  const openConversation = () => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.id, itemId, ...homeScopeParams(routeScope) } });
 
   return (
     <View style={[styles.card, isMine && isCurrent && styles.mine, highlighted && styles.highlight]}>
@@ -40,7 +43,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
           <View style={styles.author}>
             {profile ? (
               <Pressable accessibilityRole="button" accessibilityLabel={`@${profile.username} 공개 프로필 보기`}
-                onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: `/item/${itemId}` } })} style={styles.profileLink}>
+                onPress={() => router.push({ pathname: '/u/[username]', params: { username: profile.username, returnTo: `/item/${itemId}` + homeScopeQuery(routeScope) } })} style={styles.profileLink}>
                 <Text numberOfLines={1} style={styles.username}>@{profile.username}</Text>
               </Pressable>
             ) : <Text style={styles.username}>사용자</Text>}

@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
-import type { PickChannel } from '@/lib/items/pickChannel';
+import { channelScopeKey, type PickChannelScope } from '@/lib/home/channelFeedMerge';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import { homeService } from '@/services/homeServiceInstance';
@@ -8,10 +8,11 @@ import { homeService } from '@/services/homeServiceInstance';
 const DISH_PICKS_STALE_TIME = 60_000;
 
 /** Everyone's current Pick for one dish (미역국), newest first, same rules as the Home feed. */
-export function useDishPicks(categoryId: string | undefined, channel: PickChannel | null, userId?: string) {
+/** `channel` may name several channels (Home's 오프라인 + 온라인); the repository merges them. */
+export function useDishPicks(categoryId: string | undefined, channel: PickChannelScope, userId?: string) {
   return useInfiniteQuery({
     enabled: Boolean(categoryId),
-    queryKey: queryKeys.home.dishPicks(userId, categoryId ?? '', channel),
+    queryKey: queryKeys.home.dishPicks(userId, categoryId ?? '', channelScopeKey(channel)),
     initialPageParam: null as ReadCursor | null,
     queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel, null, categoryId),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

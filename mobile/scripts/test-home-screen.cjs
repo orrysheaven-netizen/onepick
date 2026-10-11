@@ -12,6 +12,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
+    if (name === '@/lib/home/publicFoodScope') return require('./public-food-scope.cjs');
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
   } });

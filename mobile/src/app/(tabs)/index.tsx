@@ -26,6 +26,7 @@ import { consumeFirstPickNotice, peekFirstPickNotice } from '@/lib/home/firstPic
 import { profileMentionName } from '@/lib/profile/profileName';
 import { sharePick } from '@/lib/share/sharePick';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
+import { HOME_ROUTE_SCOPE } from '@/lib/home/publicFoodScope';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 
@@ -114,6 +115,8 @@ export default function HomeScreen() {
   const visiblePicks = useMemo(() => filteredPicks.slice(0, visibleCount), [filteredPicks, visibleCount]);
   useEffect(() => { setVisibleCount(HOME_FEED_PAGE); }, [selectedCategoryGroupId, user?.id]);
   const openItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId } });
+  // Feed rows may be 온라인 Picks (#762): their detail opens in Home's channel scope.
+  const openFeedItem = (itemId: string) => router.push({ pathname: '/item/[itemId]', params: { itemId, scope: HOME_ROUTE_SCOPE } });
   const ready = !isLoading && !sessionError && Boolean(data);
   const showRanking = homeEnabled && !followDefaultPending && discovery === 'popular';
   // Only request the footer people query once its section can enter the viewport.
@@ -275,7 +278,7 @@ export default function HomeScreen() {
   // A menu's list of everyone's Picks (the existing /menu/[slug] destination). Only public
   // Home food menus resolve; anything else returns undefined so callers keep their old target.
   const menuSlugById = useMemo(() => new Map(menuCategories.map((category) => [category.id, category.slug])), [menuCategories]);
-  const openMenu = (slug: string) => router.push({ pathname: '/menu/[slug]', params: { slug } });
+  const openMenu = (slug: string) => router.push({ pathname: '/menu/[slug]', params: { slug, scope: HOME_ROUTE_SCOPE } });
   const menuOpener = (categoryId: string) => {
     const slug = menuSlugById.get(categoryId);
     return slug ? () => openMenu(slug) : undefined;
@@ -283,7 +286,7 @@ export default function HomeScreen() {
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username, returnTo: '/' } });
   // Both feed scopes render the same current-Pick row (Figma 30-1D): no comments/share on Home.
   const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id} authorAbove
-    onOpenItem={() => openItem(pick.itemId)}
+    onOpenItem={() => openFeedItem(pick.itemId)}
     onOpenProfile={() => openProfile(pick.username)}
     onOpenMenu={menuOpener(pick.categoryId)}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;

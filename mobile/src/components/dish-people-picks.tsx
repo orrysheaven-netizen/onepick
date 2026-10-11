@@ -8,6 +8,7 @@ import { Button, Chip, SectionHeader, StateCard } from '@/components/ui';
 import { OnePick, OnePickType } from '@/constants/onepick';
 import { useDishPicks, useMyDishPicks } from '@/hooks/useDishPicks';
 import { HOME_CHANNEL_TABS } from '@/lib/home/homeChannels';
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 
@@ -19,8 +20,10 @@ type Props = {
   menuContext?: boolean;
   /** Internal path restored when a public profile opened from this list closes. */
   returnTo?: string;
-  /** When set, query only this channel and hide the channel switcher. */
-  fixedChannel?: PickChannel;
+  /** When set, query only this channel (or these channels) and hide the channel switcher. */
+  fixedChannel?: PickChannelScope;
+  /** Route scope forwarded to item/pick detail (`home` keeps Home's online Picks visible there). */
+  openScope?: string;
   /** Figma 16A menu-detail layout. Default keeps the reusable browse/ranking presentation. */
   variant?: 'default' | 'menuDetail';
 };
@@ -30,14 +33,16 @@ type Props = {
  * first, with the Home channel tabs. The feed leaves the viewer out, so their own
  * Pick for the dish is read separately and shown first as "내 원픽".
  */
-export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true, returnTo = '/explore', fixedChannel, variant = 'default' }: Props) {
+export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext = true, returnTo = '/explore', fixedChannel, openScope, variant = 'default' }: Props) {
   const router = useRouter();
   const [channel, setChannel] = useState<PickChannel | null>(null);
   const activeChannel = fixedChannel ?? channel;
+  const activeChannels = activeChannel === null ? null : typeof activeChannel === 'string' ? [activeChannel] : activeChannel;
   const query = useDishPicks(categoryId, activeChannel, userId);
   const picks = query.data ?? [];
   const mine = (useMyDishPicks(categoryId, userId).data ?? [])
-    .filter((pick) => !activeChannel || pick.channels.includes(activeChannel));
+    .filter((pick) => !activeChannels || pick.channels.some((one) => activeChannels.includes(one)));
+  const scopeParam = openScope ? { scope: openScope } : {};
   const loadedPicks = [...mine, ...picks];
   const itemCounts = loadedPicks.reduce((counts, pick) => {
     counts.set(pick.itemId, (counts.get(pick.itemId) ?? 0) + 1);
@@ -48,20 +53,20 @@ export function DishPeoplePicks({ categoryId, categoryName, userId, menuContext 
 
   const renderDefaultCard = (pick: HomeFeedPick, isMine: boolean) => <View key={pick.pickId} style={styles.cell}>
     <HomeFeedCard pick={pick} mine={isMine} menuContext={menuContext}
-      onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
+      onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, ...scopeParam } })}
       onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username, returnTo } })}
       onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
-      onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId } })} />
+      onOpenComments={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, pickId: pick.pickId, ...scopeParam } })} />
   </View>;
 
   const renderMenuDetailCard = (pick: HomeFeedPick) => <MenuDetailPickCard
     key={pick.pickId}
     pick={pick}
     itemPickCountLabel={`${itemCounts.get(pick.itemId) ?? 1}${countSuffix}`}
-    onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
+    onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, ...scopeParam } })}
     onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username, returnTo } })}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined}
-    onOpenComments={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId } })}
+    onOpenComments={() => router.push({ pathname: '/pick/[pickId]', params: { pickId: pick.pickId, ...scopeParam } })}
   />;
   const loadMore = () => {
     if (query.hasNextPage && !query.isFetching) void query.fetchNextPage({ cancelRefetch: false });

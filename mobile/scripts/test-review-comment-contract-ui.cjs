@@ -97,7 +97,7 @@ async function main() {
   assert.match(replies, /삭제된 댓글이에요\./);
 
   const reviewCard = source('components/item-review-card.tsx');
-  assert.match(reviewCard, /params: \{ pickId: pick\.id, itemId \}/,
+  assert.match(reviewCard, /params: \{ pickId: pick\.id, itemId, \.\.\.homeScopeParams\(routeScope\) \}/,
     'Review conversation links carry item id');
 
   const itemDetail = source('app/item/[itemId].tsx');

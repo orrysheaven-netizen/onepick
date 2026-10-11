@@ -12,6 +12,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { itemTitle } from '@/lib/items/itemTitle';
+import { homeScopeParams, isPublicFoodChannel, publicFoodChannels } from '@/lib/home/publicFoodScope';
 import { observabilityService } from '@/services';
 import { Icon } from '@/components/ui';
 
@@ -25,6 +26,8 @@ type Params = {
   rootCommentId?: string;
   commentAfterTime?: string;
   commentAfterId?: string;
+  /** `home` when opened from a Home surface (offline + online); see publicFoodScope. */
+  scope?: string;
 };
 
 
@@ -50,7 +53,7 @@ export default function PickDetailScreen() {
   const hiddenFutureChannel = needsPickLookup && Boolean(
     pickQuery.data?.pick.channel
     && !OnePickFeatures.foodChannelPicker
-    && pickQuery.data.pick.channel !== OnePickMvp.publicPickChannel
+    && !isPublicFoodChannel(pickQuery.data.pick.channel, publicFoodChannels(params.scope))
   );
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
   const itemQuery = useItemDetail(itemId, user?.id, pickId, false, Boolean(itemId) && !hiddenFutureChannel, publicFoodChannel);
@@ -107,7 +110,8 @@ export default function PickDetailScreen() {
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else if (itemId) router.replace({ pathname: '/item/[itemId]', params: { itemId } });
+    // No history: the item fallback keeps Home's scope, or an online Pick read here is closed there.
+    else if (itemId) router.replace({ pathname: '/item/[itemId]', params: { itemId, ...homeScopeParams(params.scope) } });
     else router.replace('/');
   };
 
@@ -157,6 +161,7 @@ export default function PickDetailScreen() {
           </View>
           <PickReplies
             pickId={focused.pick.id}
+            routeScope={params.scope}
             canWrite={Boolean(focused.pick.canComment)}
             focusCommentId={notificationKind === 'reply' ? rootCommentId : routeFocusCommentId}
             initialCursor={notificationKind === 'reply' ? commentInitialCursor : null}

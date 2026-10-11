@@ -8,9 +8,10 @@ import { Button, Icon, StateCard } from '@/components/ui';
 import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCategoryBySlug } from '@/hooks/useExploreData';
+import { HOME_ROUTE_SCOPE, homeScopeQuery } from '@/lib/home/publicFoodScope';
 
 const SLUG = /^[a-z0-9-]{1,64}$/;
-type Params = { slug?: string | string[] };
+type Params = { slug?: string | string[]; scope?: string | string[] };
 const scalar = (value: string | string[] | undefined) => typeof value === 'string' ? value : undefined;
 
 export default function MenuPeoplePicksScreen() {
@@ -24,6 +25,8 @@ export default function MenuPeoplePicksScreen() {
   const categoryId = categoryOpen ? category.data?.id : undefined;
   const name = category.data?.name;
   const notFound = !slug || (category.isSuccess && (!category.data || !categoryOpen));
+  // Opened from Home (오늘의 질문, feed rows): show the same 오프라인 + 온라인 Picks Home counted (#762).
+  const fromHome = scalar(params.scope) === HOME_ROUTE_SCOPE;
 
   const goBack = () => router.canGoBack() ? router.back() : router.replace('/explore');
 
@@ -50,7 +53,9 @@ export default function MenuPeoplePicksScreen() {
 
         {categoryId && name ? (
           <DishPeoplePicks categoryId={categoryId} categoryName={name} userId={user?.id}
-            returnTo={`/menu/${slug}`} fixedChannel={OnePickMvp.publicPickChannel} variant="menuDetail" />
+            returnTo={`/menu/${slug}` + homeScopeQuery(params.scope)}
+            fixedChannel={fromHome ? OnePickMvp.homeFeedChannels : OnePickMvp.publicPickChannel} openScope={fromHome ? HOME_ROUTE_SCOPE : undefined}
+            variant="menuDetail" />
         ) : null}
       </ScrollView>
       {categoryId && name ? <View style={styles.registerFooter}>

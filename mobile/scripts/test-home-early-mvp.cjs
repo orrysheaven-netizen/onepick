@@ -446,7 +446,7 @@ test('Today’s question: DB daily menu only, answer count, 등록 / 다른 원�
   deepEq(open.press('냉면 원픽 답하기'), { pathname: '/pick/new', params: { categoryId: 'naengmyeon', menuName: '냉면' } });
   const answered = home({ currentPicks: [row('me', 'naengmyeon', '2026-10-05T00:00:00Z', { id: 'n1' }), row('me', 'ramen', '2026-10-04T00:00:00Z', { id: 'r1' })] });
   assert.doesNotMatch(answered.text(), /다른 원픽을 남겨요/, '1+ Picks');
-  deepEq(answered.press('다른 냉면 원픽도 구경해요'), { pathname: '/menu/[slug]', params: { slug: 'naengmyeon' } }, 'Answered → same-menu people Picks, not own detail');
+  deepEq(answered.press('다른 냉면 원픽도 구경해요'), { pathname: '/menu/[slug]', params: { slug: 'naengmyeon', scope: 'home' } }, 'Answered → same-menu people Picks, not own detail');
   const zeroAnswers = home({ counts: countsOf({ ramen: 1 }) });
   assert.match(zeroAnswers.text(), /0명이 냉면 원픽을 남겼어요\./, 'A menu nobody answered shows 0, not a made-up number');
 });
@@ -468,7 +468,7 @@ test('Question photo opens the same menu list before and after answering; regist
   const gopchang = catalog.find((c) => c.id === 'gopchang');
   gopchang.imageUrl = 'https://example.test/gopchang.jpg';
   try {
-    const target = { pathname: '/menu/[slug]', params: { slug: 'gopchang' } };
+    const target = { pathname: '/menu/[slug]', params: { slug: 'gopchang', scope: 'home' } };
     const before = home({ question: 'gopchang' });
     const photo = before.view.find('Pressable', (p) => p.accessibilityLabel === '곱창 원픽 목록 보기');
     assert.ok(photo, 'Photo is a labelled button');
@@ -493,11 +493,11 @@ test('Feed card menu name links to its public menu; others keep the old target',
   const rows = view.view.all('HomePickRow');
   assert.equal(rows.length, 3);
   rows[0].onOpenMenu();
-  deepEq(view.calls.routes.at(-1), { pathname: '/menu/[slug]', params: { slug: 'ramen' } }, 'Real menu → its own list, no other menu');
+  deepEq(view.calls.routes.at(-1), { pathname: '/menu/[slug]', params: { slug: 'ramen', scope: 'home' } }, 'Real menu → its own list, no other menu');
   assert.equal(rows[1].onOpenMenu, undefined, 'A category outside the public food menus never links');
   assert.equal(rows[2].onOpenMenu, undefined, 'Unknown category never links');
   rows[0].onOpenItem();
-  deepEq(view.calls.routes.at(-1), { pathname: '/item/[itemId]', params: { itemId: 'item-a' } }, 'Photo/review keep item detail');
+  deepEq(view.calls.routes.at(-1), { pathname: '/item/[itemId]', params: { itemId: 'item-a', scope: 'home' } }, 'Photo/review keep item detail');
   rows[0].onOpenProfile();
   assert.equal(view.calls.routes.at(-1).pathname, '/u/[username]', 'Profile target unchanged');
 });

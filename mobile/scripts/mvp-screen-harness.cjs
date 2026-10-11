@@ -14,6 +14,7 @@ function load(relative, imports = {}) {
   });
   assert.equal((compiled.diagnostics ?? []).filter((d) => d.category === ts.DiagnosticCategory.Error).length, 0, relative);
   vm.runInNewContext(compiled.outputText, { exports, require: (name) => {
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.ok(name in imports, `Unexpected import: ${name}`);
     return imports[name];
   } });

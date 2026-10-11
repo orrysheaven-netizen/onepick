@@ -8,6 +8,7 @@ import { OnePick, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onep
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useFullPickFeed } from '@/hooks/useHomeData';
 import { HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
+import { HOME_ROUTE_SCOPE } from '@/lib/home/publicFoodScope';
 
 /**
  * 사람들의 원픽 전체 (Home feed 더보기): first 20, the next 20 near the bottom, stop when
@@ -31,7 +32,7 @@ export default function FullFeedScreen() {
         data={picks}
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => <HomePickRow pick={pick} mine={pick.userId === user?.id}
-          onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId } })}
+          onOpenItem={() => router.push({ pathname: '/item/[itemId]', params: { itemId: pick.itemId, scope: HOME_ROUTE_SCOPE } })}
           onOpenProfile={() => router.push({ pathname: '/u/[username]', params: { username: pick.username, returnTo: '/feed' } })}
           onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />}
         ItemSeparatorComponent={() => <View style={styles.gap} />}

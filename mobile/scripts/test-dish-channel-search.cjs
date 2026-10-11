@@ -128,7 +128,9 @@ async function main() {
   assert.match(people, /!fixedChannel \? <ScrollView/, 'fixed channel hides the future channel switcher');
 
   const menuRoute = fs.readFileSync(path.join(__dirname, '../src/app/menu/[slug].tsx'), 'utf8');
-  assert.match(menuRoute, /fixedChannel=\{OnePickMvp\.publicPickChannel\}/, 'Dedicated menu view stays offline-only');
+  // Offline by default; only the exact Home scope (#762) adds Home's online Picks.
+  assert.match(menuRoute, /fixedChannel=\{fromHome \? OnePickMvp\.homeFeedChannels : OnePickMvp\.publicPickChannel\}/, 'Dedicated menu view stays offline-only outside Home');
+  assert.match(menuRoute, /fromHome = scalar\(params\.scope\) === HOME_ROUTE_SCOPE/, 'Only the exact home scope widens the menu');
   const rankingRoute = fs.readFileSync(path.join(__dirname, '../src/app/ranking/[slug].tsx'), 'utf8');
   assert.match(rankingRoute, /fixedChannel=\{OnePickMvp\.publicPickChannel\}/, 'Ranking people feed stays offline-only');
 

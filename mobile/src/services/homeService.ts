@@ -36,8 +36,11 @@ export class HomeService {
   }
 
   /**
-   * Current Pick count per food menu across a channel scope. Each channel is a separate
-   * public aggregate; a Pick has one channel there, so the sums never double count.
+   * Current Pick count per food menu across a channel scope, summed from one public aggregate
+   * per channel. Each aggregate counts distinct people *within* its channel, so a person with
+   * both an offline and an online Pick on the same menu is counted once per channel.
+   * KNOWN DEFECT #762 M1 (scripts/test-home-menu-count-union.cjs): the exact union needs a
+   * server aggregate over several channels; it is not fixed client-side.
    */
   async getFoodMenuPickCounts(channel: PickChannelScope = null) {
     const maps = await Promise.all(channelScopeList(channel).map((one) => this.readRepository.getFoodMenuPickCounts(one)));
