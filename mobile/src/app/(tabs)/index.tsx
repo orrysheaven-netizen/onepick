@@ -29,7 +29,7 @@ import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 
-// 이웃 제안 (2026-10-11): the newest 10 first, then 함께하는 사람들 + 초대 right below them.
+// 새로 올라온 원픽 (2026-10-11, formerly 이웃 제안): the newest 10 first, then 함께하는 사람들 + 초대 right below them.
 // More cards load only when the viewer, already at the bottom, swipes up again (user decision
 // 2026-10-11 13:28 KST), over the existing keyset-cursor pages (20 per server page).
 const HOME_FEED_PAGE = 10;
@@ -422,8 +422,8 @@ export default function HomeScreen() {
 
         {showRanking ? <View style={styles.sectionDivider} /> : null}
         <View style={styles.feedHeader}>
-          <Text accessibilityRole="header" style={styles.feedTitle}>이웃 제안</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="이웃 제안 더보기" onPress={() => router.push('/feed')}
+          <Text accessibilityRole="header" style={styles.feedTitle}>새로 올라온 원픽</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="새로 올라온 원픽 더보기" onPress={() => router.push('/feed')}
             hitSlop={{ top: 8, bottom: 8, left: 12, right: 8 }}
             style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}>
             <Text style={styles.moreText}>더보기</Text>
@@ -475,7 +475,7 @@ export default function HomeScreen() {
           {peopleAnchor < 0 ? peopleBlock : null}
           {publicHasMore && peopleAnchor >= 0 ? <View style={styles.moreHint}>
             <Text style={styles.moreHintText}>위로 밀면 다음 원픽이 나와요.</Text>
-            <Button variant="ghost" size="sm" label="다음 원픽 불러오기" accessibilityLabel="이웃 제안 다음 원픽 불러오기" onPress={loadMorePublic} />
+            <Button variant="ghost" size="sm" label="다음 원픽 불러오기" accessibilityLabel="새로 올라온 원픽 다음 원픽 불러오기" onPress={loadMorePublic} />
           </View> : null}
         </>}
       />}

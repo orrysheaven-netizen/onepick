@@ -579,7 +579,7 @@ test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
   const three = home({ participants: people(3) });
   assert.match(three.text(), /함께하는 사람들/);
   assert.match(three.text(), /3명/);
-  assert.ok(three.text().indexOf('이웃 제안') < three.text().indexOf('함께하는 사람들'), 'People follow the feed');
+  assert.ok(three.text().indexOf('새로 올라온 원픽') < three.text().indexOf('함께하는 사람들'), 'People follow the feed');
   deepEq(three.press('user2 프로필 보기, 원픽 1개'), { pathname: '/u/[username]', params: { username: 'user2', returnTo: '/' } });
   assert.doesNotMatch(home({ participants: people(3), participantsComplete: false }).text(), /함께하는 사람들/,
     'Partial reads never show undercounted people');
@@ -720,9 +720,9 @@ test('#831 · 의견 보내기 sits beside the invite: stored address opens mail
   assert.doesNotMatch(home({ feedbackEmail: 'hello@onepick.test', feed: null }).text(), /sent|자동/, 'Nothing is auto-sent');
 });
 
-test('Hidden early-MVP entries stay hidden; feed is the single 이웃 제안', () => {
+test('Hidden early-MVP entries stay hidden; feed is the single 새로 올라온 원픽', () => {
   const { text, view } = home();
-  assert.match(text(), /이웃 제안/);
+  assert.match(text(), /새로 올라온 원픽/);
   assert.doesNotMatch(text(), /모두의 원픽/);
   assert.equal(view.find('Pressable', (p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined, 'No following scope');
   assert.equal(view.find('Chip', (p) => / 카테고리 보기$/.test(p.accessibilityLabel ?? '')), undefined, 'No category filter');
