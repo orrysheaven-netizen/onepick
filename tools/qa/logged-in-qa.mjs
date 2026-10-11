@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, devices } from 'playwright';
 import {
-  SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, checkMenuSelection, assertNotifications,
+  SUGGESTION_ROUTE, ownProfileUsername, assertOwnProfile, assertPublicProfile, assertProfilePickList, checkMenuSelection, assertNotifications,
   openHomeSearch, submitHomeSearch, openOwnComments, openNotificationsTab,
   assertFollowScopeHidden, assertFollowCtaVisible, assertFollowSettingHidden,
   pickIdSource, pickIdsFromResponse, assertPickConversation,
@@ -547,14 +547,21 @@ async function main() {
     });
     await check(flow, '핵심 요소 표시', async () => {
       // No "현재 원픽" here: #308 drops that summary card from the signed-in own profile (#317).
-      await actionable(page.getByRole('button', { name: '음식 원픽 보기', exact: true }));
+      // #757 early MVP (#879) drops the 음식 / 기타 chips: the 원픽 list or its empty card stands in.
+      let pickList = '';
+      if (profileLayout === '757') {
+        const rows = await assertProfilePickList(page, STEP_TIMEOUT_MS, 'own');
+        pickList = rows ? `원픽 행 ${rows}개` : '원픽 빈 상태';
+      } else {
+        await actionable(page.getByRole('button', { name: '음식 원픽 보기', exact: true }));
+      }
       await actionable(page.getByRole('button', { name: '설정 열기', exact: true }));
       if (profileLayout === '757') {
         await actionable(page.getByRole('button', { name: '프로필 편집', exact: true }));
         await actionable(page.getByRole('button', { name: '내 프로필 공유하기', exact: true }));
       }
       await noErrorCopy(page);
-      return profileLayout === '757' ? '설정 · 음식 칩 · 프로필 편집 · 프로필 공유 표시' : '설정 · 음식 칩 표시';
+      return profileLayout === '757' ? `설정 · ${pickList} · 프로필 편집 · 프로필 공유 표시` : '설정 · 음식 칩 표시';
     });
     if (profileLayout === '757') {
       await check(flow, '390×844 배치: 경계·겹침', async () => {
@@ -580,7 +587,7 @@ async function main() {
     await check(flow, '내 원픽 목록 표시', async () => {
       // Read-only: the own picks list is only looked at; the row is trial-clicked, never opened.
       const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ });
-      // Empty copy per scope tab (profile.tsx): "첫 원픽을 골라보세요" / "다른 취향 원픽도 골라보세요".
+      // Empty copy (profile.tsx): "첫 원픽을 골라보세요"; the legacy layout also had "다른 취향 원픽도 골라보세요".
       const empty = page.getByText(/첫 원픽을 골라보세요|다른 취향 원픽도 골라보세요/);
       await rows.first().or(empty).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }).catch(() => {});
       const count = await rows.count();

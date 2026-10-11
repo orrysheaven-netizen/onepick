@@ -154,21 +154,49 @@ assert.doesNotMatch(component, /creatorName \?\? item\.item\?\.name/, 'recipe ti
 
 assert.equal(grouping.remainingProfileCategories, undefined, 'the remaining-category helper is gone');
 
-assert.doesNotMatch(owner, /<ProfilePickGroups/, 'Figma 03 owner profile intentionally renders direct compact rows');
-assert.match(owner, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'owner profile switches between 음식 and 기타 without dropping Picks');
-assert.match(owner, /음식 원픽 보기/);
-assert.match(owner, /다른 취향 원픽 보기/);
-assert.match(owner, /pathname: '\/provider\/\[providerId\]'/, 'owner profile routes provider context to the provider profile');
+assert.doesNotMatch(owner, /<ProfilePickGroups/, 'Owner profile intentionally renders direct #757 rows');
+assert.match(owner, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'owner profile lists the early-MVP food scope with the shared row');
+assert.doesNotMatch(owner, /음식 원픽 보기|기타 원픽 보기/, 'no 음식 / 기타 chips in the early MVP');
+assert.doesNotMatch(owner, /pathname: '\/provider\/\[providerId\]'/, '#757: the whole row is one button to the Pick detail, which carries the provider link');
 assert.match(owner, /useExploreCategories\(Boolean\(user && profileQuery\.data\)\)/);
-assert.doesNotMatch(publicProfile, /<ProfilePickGroups/, 'Figma 40 public profile intentionally renders direct compact rows');
-assert.match(publicProfile, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickRow/, 'public profile uses the same in-place taste tabs with direct rows');
-assert.match(publicProfile, /음식 원픽 보기/);
-assert.match(publicProfile, /다른 취향 원픽 보기/);
-assert.match(publicProfile, /pathname: '\/provider\/\[providerId\]'/, 'public profile routes provider context to the provider profile');
+assert.doesNotMatch(publicProfile, /<ProfilePickGroups/, 'Public profile intentionally renders direct #757 rows');
+assert.match(publicProfile, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'public profile lists the same scope with the shared row');
+assert.doesNotMatch(publicProfile, /음식 원픽 보기|기타 원픽 보기/, 'no 음식 / 기타 chips in the early MVP');
+assert.doesNotMatch(publicProfile, /pathname: '\/provider\/\[providerId\]'/, '#757: public rows are single buttons to the Pick detail');
 assert.match(publicProfile, /useExploreCategories\(Boolean\(query\.data\)\)/);
 
 assert.match(queryKeys, /browse: \['categories', 'browse'\] as const/);
 assert.match(exploreHook, /queryKey: queryKeys\.categories\.browse/);
 assert.match(exploreHook, /enabled,[\s\S]*staleTime: CATEGORY_BROWSE_STALE_TIME/);
+
+// #826 GPT review + #757 PM 6098494493: the share counts only what visitors see — active,
+// with a reviewed photo, in a visible category. Awaiting review, photo-less, a pending
+// candidate photo or a hidden category does not count.
+{
+  const visible = { id: 'leaf', parentId: 'food', name: '냉면', slug: 'leaf', isVisible: true };
+  const hiddenLeaf = { id: 'hidden', parentId: 'food', name: '숨은 메뉴', slug: 'hidden', isVisible: false };
+  const catalog = [{ id: 'food', parentId: null, name: '음식', slug: 'food', isVisible: true }, visible];
+  const shown = (status, item, categoryId = 'leaf', category = visible) => ({ pick: { id: 'p', status, categoryId, channel: 'offline' }, item, category });
+  const photo = { imagePath: null, imageUrl: null, thumbnailUrl: null, imageSourceUrl: 'https://onepick.test/a.jpg' };
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo), catalog), true, 'active with a photo is public');
+  assert.equal(grouping.isPublicProfilePick(shown('needs_review', photo), catalog), false, 'awaiting review is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: '  ' }), catalog), false, 'blank photo fields are not a photo');
+  assert.equal(grouping.isPublicProfilePick(shown('active', null), catalog), false, 'no item is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', { ...photo, imageSourceUrl: null, imageUrl: 'https://onepick.test/c.jpg', photoPendingReview: true }), catalog), false,
+    'my own candidate photo overlay does not make a Pick public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'hidden', hiddenLeaf), catalog), false, 'a hidden own category is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'hidden', null), catalog), false, 'an unknown own category is not public');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'leaf', null), catalog), true, 'a catalog (visible-only) category is public without an embedded row');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'leaf', visible), []), true, 'an embedded visible row counts before the catalog has it');
+  assert.equal(grouping.isPublicProfilePick(shown('active', photo, 'leaf', { ...visible, id: 'other' }), []), false, 'an embedded row for another category does not vouch for this one');
+
+  // Public list / N / share count = MVP food scope ∩ public; the owner's management list keeps the hidden one.
+  const picks = [shown('active', photo), shown('active', photo, 'hidden', hiddenLeaf), shown('needs_review', photo)];
+  assert.equal(grouping.filterMvpProfilePicks(picks, catalog, 'food', ['offline', 'online']).length, 3, 'owner list keeps hidden-category and pending Picks to manage');
+  assert.equal(grouping.filterPublicMvpProfilePicks(picks, catalog, 'food', ['offline', 'online']).length, 1, 'public scope drops hidden-category and pending Picks');
+  assert.equal(grouping.publicProfileShareCount(picks, catalog, 'food', ['offline', 'online']), 1, 'share count is the public scope');
+  assert.equal(grouping.publicProfileShareCount(picks, undefined, 'food', ['offline', 'online']), null, 'an unverified catalog shares no count instead of 0');
+  assert.equal(grouping.publicProfileShareCount([], catalog, 'food', ['offline', 'online']), 0, 'a verified empty scope may share 0');
+}
 
 console.log('Profile Pick groups checks passed: grouping helpers remain for library use while Figma 03 owner and Figma 40 public profiles use direct compact rows.');

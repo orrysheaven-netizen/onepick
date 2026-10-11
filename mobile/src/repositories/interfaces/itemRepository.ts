@@ -15,6 +15,11 @@ export interface PendingItemPhoto {
   thumbnailUrl: string;
 }
 
+export interface ItemReadOptions {
+  /** #757 pick detail store link. Off by default so write paths keep one round trip. */
+  includeProvider?: boolean;
+}
+
 export interface ItemRepository {
   /** Saves the photo as my candidate; the item keeps no photo until an admin approves it. */
   attachPhoto(input: AttachItemPhotoInput): Promise<Item>;
@@ -28,7 +33,9 @@ export interface ItemRepository {
   /** Writes or clears the requester's free-text category hint on their own pending request. */
   setPendingCategoryHint(itemId: string, label: string | null): Promise<Item>;
   getSubmissionsByUser(userId: string, limit?: number): Promise<Item[]>;
-  getById(itemId: string): Promise<Item | null>;
+  /** Plain item read. `includeProvider` adds the item_providers lookup (providerId,
+   * null when the item has no store); without it providerId is left unset. */
+  getById(itemId: string, options?: ItemReadOptions): Promise<Item | null>;
   getByCategory(categoryId: string): Promise<Item[]>;
   /** Public active/discontinued items in currently selectable leaf categories.
    * The data source enforces category/parent visibility BEFORE ranking/limit.

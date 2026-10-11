@@ -172,16 +172,22 @@ async function main() {
   );
   assert.match(
     profileSource,
-    /shareProfile\({ username: profile\.username, pickCount: publicMainPicks\.length }\)/,
-    'the owner profile must share the food-scope count used by the public profile',
+    /const pickCount = publicProfileShareCount\(currentPicks, catalog, OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\);\s*await shareProfile\({ username: profile\.username, pickCount, pickCountComplete: currentPicksComplete }\)/,
+    'the owner profile must share the early-MVP food count visitors see on the public profile',
   );
+  assert.match(profileSource, /const catalog = categoriesQuery\.data \?\? \(await categoriesQuery\.refetch\({ cancelRefetch: false }\)\)\.data;/,
+    'the owner share retries an unverified catalog once before counting');
   assert.match(profileSource, /label=\{isSharingProfile \? '공유 중…' : '프로필 공유'\}/, 'the owner profile exposes its direct share CTA');
   assert.match(
     publicProfileSource,
-    /shareProfile\({ username: profile\.username, pickCount: currentPicks\.length }\)/,
+    /shareProfile\({ username: profile\.username, pickCount, pickCountComplete: query\.data\.currentPicksComplete }\)/,
     'the public profile fallback must share the loaded username and current Pick count',
   );
-  assert.match(publicProfileSource, /프로필 공유하기/, 'the public profile must expose a share CTA');
+  assert.match(publicProfileSource, /const pickCount = publicProfileShareCount\(query\.data\.currentPicks, catalog,/,
+    'the public share counts the public scope from a verified catalog');
+  assert.match(publicProfileSource, /let needsLink = pickCount === null;\s*if \(!needsLink\) {/,
+    'with no verified catalog the public share skips the (empty) card and sends the link without a count');
+  assert.match(publicProfileSource, /accessibilityLabel="프로필 공유"/, 'the public profile must expose a share CTA (header icon, #757)');
 
   const oldShareBase = process.env.EXPO_PUBLIC_SHARE_BASE_URL;
   process.env.EXPO_PUBLIC_SHARE_BASE_URL = 'https://onepick.example';
@@ -206,7 +212,14 @@ async function main() {
 
     await shareProfile({ username: 'First_User', pickCount: 5 });
     assert.equal(sharePayload.url, 'https://onepick.example/u/first_user');
-    assert.match(sharePayload.message, /음식 원픽 5개/);
+    assert.match(sharePayload.message, /음식 원픽 5개\n/);
+    await shareProfile({ username: 'First_User', pickCount: 2000, pickCountComplete: false });
+    assert.match(sharePayload.message, /음식 원픽 2000개 이상/, 'a capped count is shared as a lower bound, like the header N+');
+    await shareProfile({ username: 'First_User', pickCount: 2000, pickCountComplete: true });
+    assert.match(sharePayload.message, /음식 원픽 2000개\n/);
+    await shareProfile({ username: 'First_User', pickCount: null });
+    assert.doesNotMatch(sharePayload.message, /원픽 \d/, 'an unverified count is left out, never shared as 0');
+    assert.match(sharePayload.message, /^@First_User의 OnePick\n\nhttps:/);
     assert.match(sharePayload.message, /https:\/\/onepick\.example\/u\/first_user/);
   } finally {
     if (oldShareBase === undefined) delete process.env.EXPO_PUBLIC_SHARE_BASE_URL;

@@ -168,24 +168,28 @@ async function main() {
 
   // Public profile: follow sits in the header for other people's profiles only.
   const publicProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/u/[username].tsx'), 'utf8');
-  assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <View style=\{styles\.followActions\}>/);
+  assert.match(publicProfile, /\{OnePickFeatures\.profileFollow && !query\.data\.isMine \? <FollowButton/);
   assert.match(publicProfile, /onRequireLogin=\{\(\) => openFollowLogin\(query\.data\.profile\.username\)\}[\s\S]*?fullWidth \/>/,
     'Figma 40 keeps the Follow relationship in the primary action');
-  assert.match(publicProfile, /<Button[\s\S]*?variant="secondary"[\s\S]*?label="공유"[\s\S]*?accessibilityLabel="프로필 공유"/,
-    'Figma 40 exposes Share beside Follow/Following');
+  assert.match(publicProfile, /accessibilityLabel="프로필 공유" disabled=\{isSharing\}[\s\S]*?<Icon name="share" \/>/,
+    '#757: Share moved to the header so Follow/Following is the single primary CTA');
   const featureSource = fs.readFileSync(path.join(root, 'src/constants/onepick.ts'), 'utf8');
   assert.match(featureSource, /profileFollow: true/, 'MVP exposes the public-profile follow relationship');
   assert.match(featureSource, /followingFeed: false/, 'MVP keeps the following feed hidden behind its own gate');
   assert.match(featureSource, /followNotifications: false/, 'MVP keeps follow-change notifications hidden behind their own gate');
-  assert.match(featureSource, /followCounts: false/, 'Legacy own-profile count component remains separately hidden');
+  assert.doesNotMatch(featureSource, /^\s*followCounts:/m, '#757 removed the legacy own-profile count gate; counts come from profileFollowConnections');
   const settings = fs.readFileSync(path.join(root, 'src/app/settings.tsx'), 'utf8');
   assert.match(settings, /useNotificationPreferences\(OnePickFeatures\.followNotifications \? user\?\.id : undefined\)/,
     'Hidden follow mode does not start the follow-notification preference query');
   assert.match(settings, /\{OnePickFeatures\.followNotifications \? <>[\s\S]*?팔로우한 사람의 원픽 변경/,
     'Follow notification settings remain implemented but hidden behind the same gate');
   const ownProfile = fs.readFileSync(path.join(root, 'src/app/(tabs)/(profile)/profile.tsx'), 'utf8');
-  assert.match(ownProfile, /OnePickFeatures\.followCounts \? <ProfileFollowCounts userId=\{user\.id\} \/> : null/,
-    'Own profile only renders follower/following numbers behind the dedicated count gate');
+  // #757: the own profile shows the same sanitized public counts as the public profile
+  // (원픽 팔로워 팔로잉) behind profileFollowConnections; the legacy count card is removed.
+  assert.match(ownProfile, /usePublicFollowCounts\(\s*OnePickFeatures\.profileFollowConnections && listUserId \? profileQuery\.data\?\.profile\.id : undefined,/,
+    'Own profile reads follower/following numbers only through the approved public-count gate');
+  assert.doesNotMatch(ownProfile, /ProfileFollowCounts/, 'The legacy own-profile count card is removed from the own profile');
+  assert.ok(!fs.existsSync(path.join(root, 'src/components/profile-follow-counts.tsx')), 'The legacy ProfileFollowCounts component is deleted (#757)');
   assert.match(publicProfile, /action: 'follow_profile'/);
   assert.match(publicProfile, /consumeFollowProfileIntent\(username\)/);
   assert.match(publicProfile, /autoFollow=\{autoFollow && Boolean\(user\)\}/);

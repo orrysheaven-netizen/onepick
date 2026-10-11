@@ -7,12 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlockUserButton } from '@/components/block-user-button';
 import { FollowButton } from '@/components/follow-button';
 import { FollowConnectionsView } from '@/components/follow-connections-view';
-import { PickPhoto } from '@/components/pick-photo';
+import { ProfileCurrentPickRow } from '@/components/profile-current-pick-row';
+import { ProfileIdentity, type ProfileStat } from '@/components/profile-identity';
 import { ProfileSocialLinks } from '@/components/profile-social-links';
 import { ProfileAiComment } from '@/components/profile-ai-comment';
 import { ProfileTasteComposition } from '@/components/profile-taste-composition';
 import { ReportAction } from '@/components/report-action';
-import { Avatar, Button, Chip, Icon, StateCard } from '@/components/ui';
+import { Button, Icon, StateCard } from '@/components/ui';
 import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useExploreCategories } from '@/hooks/useExploreData';
@@ -22,20 +23,14 @@ import { useSocialSignIn } from '@/hooks/useSocialSignIn';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { shareProfile } from '@/lib/share/shareProfile';
 import { shareProfileCardImage } from '@/lib/share/shareProfileCard';
-import { filterMainProfileByChannel, splitLabPicks } from '@/lib/profile/profilePickGroups';
+import { filterPublicMvpProfilePicks, publicProfileShareCount } from '@/lib/profile/profilePickGroups';
+import { profileDisplayName, profileHandle, profileMentionName } from '@/lib/profile/profileName';
 import { getPostAuthRoute, type AuthIntent } from '@/lib/auth/authIntent';
 import { armFollowProfileIntent, clearFollowProfileIntent, consumeFollowProfileIntent } from '@/lib/auth/followProfileIntent';
 import { isSeedProfileId } from '@/lib/seedProfiles';
 import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
-import type { PickReadItem } from '@/repositories/interfaces/readRepository';
-
-const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
-  offline: '매장',
-  online: '온라인',
-  recipe: '레시피',
-};
 
 const SAFE_PROFILE_RETURN_PATH = /^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/;
 function profileReturnHref(value: string | string[] | undefined): Href | null {
@@ -43,84 +38,6 @@ function profileReturnHref(value: string | string[] | undefined): Href | null {
   if (value === '/auth' || value.startsWith('/auth/') || value === '/admin' || value.startsWith('/admin/')
     || value === '/u' || value.startsWith('/u/')) return null;
   return value as Href;
-}
-
-function PublicProfilePickRow({
-  item,
-  isFood,
-  onOpenPick,
-  onOpenItem,
-  onOpenProvider,
-}: {
-  item: PickReadItem;
-  isFood: boolean;
-  onOpenPick: (pickId: string) => void;
-  onOpenItem: (itemId: string) => void;
-  onOpenProvider: (providerId: string) => void;
-}) {
-  const channel = item.pick.channel ?? item.item?.channels?.[0];
-  const channelLabel = channel ? PUBLIC_CHANNEL_LABELS[channel] : null;
-  const title = isFood
-    ? item.category?.name ?? item.item?.name ?? '원픽'
-    : item.item?.name ?? item.category?.name ?? '원픽';
-  const providerName = isFood
-    ? (channel === 'recipe' ? item.item?.creatorName ?? null : item.item?.name ?? null)
-    : item.category?.name ?? null;
-  const imageUri = item.item?.thumbnailUrl ?? item.item?.imageUrl ?? item.item?.imageSourceUrl;
-  const badgeStyle = channel === 'offline'
-    ? styles.publicPickBadgeOffline
-    : channel === 'online'
-      ? styles.publicPickBadgeOnline
-      : styles.publicPickBadgeRecipe;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${title} 원픽 상세 보기`}
-      onPress={() => onOpenPick(item.pick.id)}
-      style={({ pressed }) => [styles.publicPickRow, pressed && styles.pressed]}>
-      <PickPhoto
-        size={62}
-        uri={imageUri}
-        label={title}
-        itemId={item.item?.id}
-        itemStatus={item.item?.status}
-        hasPhoto={Boolean(item.item?.imagePath)}
-      />
-      <View style={styles.publicPickCopy}>
-        <View style={styles.publicPickTitleRow}>
-          {item.item ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${title} 상세 보기`}
-              onPress={(event) => {
-                event.stopPropagation();
-                onOpenItem(item.item!.id);
-              }}
-              style={({ pressed }) => [styles.publicPickTitleAction, pressed && styles.pressed]}>
-              <Text numberOfLines={1} style={styles.publicPickTitle}>{title}</Text>
-            </Pressable>
-          ) : <Text numberOfLines={1} style={styles.publicPickTitle}>{title}</Text>}
-          {channelLabel ? <View style={[styles.publicPickBadge, badgeStyle]}>
-            <Text style={styles.publicPickBadgeText}>{channelLabel}</Text>
-          </View> : null}
-        </View>
-        {providerName ? item.item?.providerId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${providerName} 제공처 프로필 보기`}
-            onPress={(event) => {
-              event.stopPropagation();
-              onOpenProvider(item.item!.providerId!);
-            }}
-            style={({ pressed }) => pressed && styles.pressed}>
-            <Text numberOfLines={1} style={styles.publicPickProvider}>{providerName}</Text>
-          </Pressable>
-        ) : <Text numberOfLines={1} style={styles.publicPickProvider}>{providerName}</Text> : null}
-        {item.pick.oneLineReview ? <Text numberOfLines={1} style={styles.publicPickReview}>“{item.pick.oneLineReview}”</Text> : null}
-      </View>
-    </Pressable>
-  );
 }
 
 export default function PublicProfileScreen() {
@@ -140,21 +57,21 @@ export default function PublicProfileScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState(false);
   const [cardNotice, setCardNotice] = useState<string | null>(null);
-  const [profileScope, setProfileScope] = useState<'food' | 'other'>('food');
   const [loginSheetOpen, setLoginSheetOpen] = useState(false);
   const [loginTargetUsername, setLoginTargetUsername] = useState<string | null>(null);
   const [followToast, setFollowToast] = useState(false);
   const [autoFollow] = useState(() => typeof username === 'string' && consumeFollowProfileIntent(username));
   const socialSignIn = useSocialSignIn();
-  // 실험실 themes stay off the main profile and its share card while the lab is on.
-  const profileCategories = categoriesQuery.data ?? [];
-  const { main: mainPicks, lab: labPicks } = useMemo(
-    () => splitLabPicks(query.data?.currentPicks ?? [], profileCategories, OnePickMvp.mainThemeCode, OnePickFeatures.lab),
+  // Early MVP (#757/#879): the list, 원픽 N and the share card use one scope — food Picks
+  // from a store or an online order, in a visible category (#757 PM 6098494493). Recipes,
+  // other themes and hidden categories stay stored, unlisted.
+  // Without the category catalog nothing can be classified, so the list waits.
+  const categoriesReady = Boolean(categoriesQuery.data);
+  const profilePicks = useMemo(
+    () => filterPublicMvpProfilePicks(query.data?.currentPicks ?? [], categoriesQuery.data ?? [], OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels),
     [query.data?.currentPicks, categoriesQuery.data],
   );
-  const publicMainPicks = filterMainProfileByChannel(mainPicks, profileCategories, OnePickMvp.mainThemeCode, OnePickMvp.publicPickChannel);
-  const publicPickCount = publicMainPicks.length + labPicks.length;
-  const visibleProfilePicks = profileScope === 'food' ? publicMainPicks : labPicks;
+  const pickCountLabel = categoriesReady ? `${profilePicks.length}${query.data?.currentPicksComplete === false ? '+' : ''}` : '—';
   const isSeed = Boolean(query.data && isSeedProfileId(query.data.profile.id));
   const isProfileNotFound = Boolean(query.error && typeof query.error === 'object' && 'code' in query.error
     && (query.error as { code?: string }).code === 'PROFILE_NOT_FOUND');
@@ -195,6 +112,12 @@ export default function PublicProfileScreen() {
     });
   };
   const closeConnections = () => {
+    // Opened from the own profile's 팔로워/팔로잉 stats: go back to that screen.
+    if (returnHref) {
+      if (router.canGoBack()) { router.back(); return; }
+      router.replace(returnHref);
+      return;
+    }
     if (query.data) {
       const state = navigation.getState();
       if (!state) {
@@ -225,7 +148,7 @@ export default function PublicProfileScreen() {
   useSwipeBackHandler(swipeBack, { confirmUnsaved: false });
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !connectionDirection || typeof username !== 'string') return;
+    if (Platform.OS === 'web' || !connectionDirection || returnHref || typeof username !== 'string') return;
 
     const state = navigation.getState();
     if (!state) return;
@@ -248,7 +171,7 @@ export default function PublicProfileScreen() {
         routes,
       },
     });
-  }, [connectionDirection, navigation, username]);
+  }, [connectionDirection, navigation, returnHref, username]);
 
   useEffect(() => {
     if (!followToast) return;
@@ -256,6 +179,21 @@ export default function PublicProfileScreen() {
     return () => clearTimeout(timer);
   }, [followToast]);
 
+  const publicStats: ProfileStat[] = [
+    { key: 'picks', label: '원픽', value: pickCountLabel },
+    ...(OnePickFeatures.profileFollowConnections ? [
+      {
+        key: 'followers', label: '팔로워', value: publicFollowCounts.data ? String(publicFollowCounts.data.followerCount) : '—',
+        accessibilityLabel: `팔로워 ${publicFollowCounts.data?.followerCount ?? '불러오는 중'}명 보기`,
+        disabled: !publicFollowCounts.data, onPress: () => openConnections('followers'),
+      },
+      {
+        key: 'following', label: '팔로잉', value: publicFollowCounts.data ? String(publicFollowCounts.data.followingCount) : '—',
+        accessibilityLabel: `팔로잉 ${publicFollowCounts.data?.followingCount ?? '불러오는 중'}명 보기`,
+        disabled: !publicFollowCounts.data, onPress: () => openConnections('following'),
+      },
+    ] : []),
+  ];
   const continueProfileLogin = async (provider: SocialAuthProvider) => {
     if (!query.data || socialSignIn.isPending) return;
     const targetUsername = loginTargetUsername ?? query.data.profile.username;
@@ -281,31 +219,39 @@ export default function PublicProfileScreen() {
   const handleShare = async () => {
     if (!query.data || isSharing) return;
     const { profile } = query.data;
-    const currentPicks = publicMainPicks;
     setIsSharing(true);
     setShareError(false);
     setCardNotice(null);
     try {
-      let needsLink = false;
-      try {
-        const result = await shareProfileCardImage({
-          username: profile.username,
-          picks: currentPicks.map((entry) => ({
-            categoryName: entry.category?.name ?? '',
-            itemName: entry.item?.name ?? '',
-          })),
-          aiComment: OnePickFeatures.profileAi ? (aiCommentQuery.data ?? null) : null,
-        });
-        if (result === 'downloaded-with-link') {
-          setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
+      // No verified catalog: retry once. If it still is not there, skip the card (it would
+      // list no Picks) and share the link without a count rather than as 0.
+      const catalog = categoriesQuery.data ?? (await categoriesQuery.refetch({ cancelRefetch: false })).data;
+      const pickCount = publicProfileShareCount(query.data.currentPicks, catalog, OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels);
+      const currentPicks = catalog
+        ? filterPublicMvpProfilePicks(query.data.currentPicks, catalog, OnePickMvp.browseGroupSlug, OnePickMvp.profileFoodChannels)
+        : [];
+      let needsLink = pickCount === null;
+      if (!needsLink) {
+        try {
+          const result = await shareProfileCardImage({
+            username: profile.username,
+            picks: currentPicks.map((entry) => ({
+              categoryName: entry.category?.name ?? '',
+              itemName: entry.item?.name ?? '',
+            })),
+            aiComment: OnePickFeatures.profileAi ? (aiCommentQuery.data ?? null) : null,
+          });
+          if (result === 'downloaded-with-link') {
+            setCardNotice('카드 이미지를 저장하고 프로필 링크를 복사했어요.');
+          }
+          needsLink = result === 'downloaded';
+        } catch (error) {
+          if (error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError') return;
+          needsLink = true;
         }
-        needsLink = result === 'downloaded';
-      } catch (error) {
-        if (error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError') return;
-        needsLink = true;
       }
       if (!needsLink) return;
-      await shareProfile({ username: profile.username, pickCount: currentPicks.length });
+      await shareProfile({ username: profile.username, pickCount, pickCountComplete: query.data.currentPicksComplete });
     } catch {
       setShareError(true);
     } finally {
@@ -354,86 +300,48 @@ export default function PublicProfileScreen() {
         {query.data ? <>
           <View style={styles.publicHeader}>
             <Pressable accessibilityRole="button" accessibilityLabel="뒤로 가기" onPress={goBack}
-              style={({ pressed }) => [styles.publicHeaderBack, pressed && styles.pressed]}>
-              <Text numberOfLines={1} style={styles.publicHeaderTitle}>{query.data.profile.username}</Text>
+              style={({ pressed }) => [styles.publicHeaderIconButton, pressed && styles.pressed]}>
+              <Icon name="back" />
             </Pressable>
+            <Text accessibilityRole="header" numberOfLines={1} style={styles.publicHeaderTitle}>{profileDisplayName(query.data.profile)}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="프로필 공유" disabled={isSharing}
-              onPress={() => void handleShare()} style={({ pressed }) => [styles.publicHeaderMenuButton, pressed && styles.pressed]}>
-              <Text style={styles.publicHeaderMenu}>공유</Text>
+              onPress={() => void handleShare()} style={({ pressed }) => [styles.publicHeaderIconButton, pressed && styles.pressed]}>
+              <Icon name="share" />
             </Pressable>
           </View>
 
           <View style={styles.publicBody}>
-            <View style={styles.publicIdentity}>
-              <Avatar name={query.data.profile.username} size={68} tone="subtle" />
-              <View style={styles.publicIdentityCopy}>
-                <Text numberOfLines={1} style={styles.publicDisplayName}>{query.data.profile.username}</Text>
-                <Text numberOfLines={1} style={styles.publicHandle}>@{query.data.profile.username}</Text>
-                {query.data.profile.bio ? <Text numberOfLines={2} style={styles.publicBio}>{query.data.profile.bio}</Text> : null}
-              </View>
-            </View>
+            <ProfileIdentity
+              name={profileDisplayName(query.data.profile)}
+              handle={profileHandle(query.data.profile)}
+              bio={query.data.profile.bio}
+              stats={publicStats}
+            />
 
-            {OnePickFeatures.profileFollowConnections ? <View style={styles.publicStats}>
-              <View style={styles.publicStat}>
-                <Text style={styles.publicStatText}>원픽 {publicPickCount}</Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`팔로워 ${publicFollowCounts.data?.followerCount ?? '불러오는 중'}명 보기`}
-                disabled={!publicFollowCounts.data}
-                onPress={() => openConnections('followers')}
-                style={({ pressed }) => [styles.publicStat, pressed && publicFollowCounts.data && styles.pressed]}>
-                <Text style={styles.publicStatText}>팔로워 {publicFollowCounts.data?.followerCount ?? '—'}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`팔로잉 ${publicFollowCounts.data?.followingCount ?? '불러오는 중'}명 보기`}
-                disabled={!publicFollowCounts.data}
-                onPress={() => openConnections('following')}
-                style={({ pressed }) => [styles.publicStat, pressed && publicFollowCounts.data && styles.pressed]}>
-                <Text style={styles.publicStatText}>팔로잉 {publicFollowCounts.data?.followingCount ?? '—'}</Text>
-              </Pressable>
-            </View> : null}
+            {OnePickFeatures.profileFollow && !query.data.isMine ? <FollowButton
+              viewerUserId={user?.id}
+              profileUserId={query.data.profile.id}
+              username={query.data.profile.username}
+              autoFollow={autoFollow && Boolean(user)}
+              onFollowed={() => setFollowToast(true)}
+              onRequireLogin={() => openFollowLogin(query.data.profile.username)}
+              fullWidth /> : null}
+            {query.data.isMine ? <Button variant="secondary" fullWidth label="내 프로필로 이동" onPress={() => router.replace('/profile')} /> : null}
+            {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
+            {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
 
-            {OnePickFeatures.profileFollow && !query.data.isMine ? <View style={styles.followActions}>
-              <View style={styles.followPrimary}>
-                <FollowButton
-                  viewerUserId={user?.id}
-                  profileUserId={query.data.profile.id}
-                  username={query.data.profile.username}
-                  autoFollow={autoFollow && Boolean(user)}
-                  onFollowed={() => setFollowToast(true)}
-                  onRequireLogin={() => openFollowLogin(query.data.profile.username)}
-                  fullWidth />
-              </View>
-              <Button
-                variant="secondary"
-                label="공유"
-                accessibilityLabel="프로필 공유"
-                loading={isSharing}
-                onPress={() => void handleShare()}
-                style={styles.followShareButton}
-              />
-            </View> : null}
-
-            {OnePickFeatures.lab ? <View accessibilityRole="tablist" style={styles.profileScopeTabs}>
-              <Chip label="음식" accessibilityLabel="음식 원픽 보기" selected={profileScope === 'food'}
-                onPress={() => setProfileScope('food')} visualStyle={styles.profileScopeChip} />
-              <Chip label="다른 취향" accessibilityLabel="다른 취향 원픽 보기" selected={profileScope === 'other'}
-                onPress={() => setProfileScope('other')} visualStyle={styles.profileScopeChip} />
-            </View> : null}
-
-            {visibleProfilePicks.length > 0 ? <View style={styles.publicPickList}>
-              {visibleProfilePicks.map((item) => <PublicProfilePickRow
+            {!categoriesReady ? (categoriesQuery.isError
+              ? <StateCard tone="danger" title="원픽을 불러오지 못했어요."
+                action={{ label: '다시 불러오기', variant: 'secondary', onPress: () => void categoriesQuery.refetch() }} />
+              : <StateCard loading title="원픽을 불러오고 있어요." />)
+            : profilePicks.length > 0 ? <View style={styles.publicPickList}>
+              {profilePicks.map((item) => <ProfileCurrentPickRow
                 key={item.pick.id}
                 item={item}
-                isFood={profileScope === 'food'}
+                isFood
                 onOpenPick={(pickId) => router.push({ pathname: '/pick/[pickId]', params: { pickId } })}
-                onOpenItem={(itemId) => router.push({ pathname: '/item/[itemId]', params: { itemId } })}
-                onOpenProvider={(providerId) => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
               />)}
-            </View> : <StateCard title={profileScope === 'food' ? '아직 고른 원픽이 없어요.' : '아직 고른 다른 취향 원픽이 없어요.'}
-              text={profileScope === 'food' ? '이 사용자가 원픽을 고르면 여기에 보여요.' : '이 사용자가 다른 취향을 고르면 여기에 보여요.'} />}
+            </View> : <StateCard title="아직 고른 원픽이 없어요." text="이 사용자가 원픽을 고르면 여기에 보여요." />}
           </View>
 
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={query.data.profile.id} editable={query.data.isMine} /> : null}
@@ -447,8 +355,8 @@ export default function PublicProfileScreen() {
 
           {!user ? <View style={styles.joinCard}>
             <Text style={styles.joinTitle}>나도 카테고리마다 하나씩 골라볼까요?</Text>
-            <Text style={styles.joinText}>@{query.data.profile.username}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
-            <Button fullWidth style={styles.joinButton} label="내 원픽 만들기"
+            <Text style={styles.joinText}>{profileMentionName(query.data.profile)}님처럼 내 원픽을 모아 공개 프로필을 만들 수 있어요.{OnePickFeatures.profileAi ? ' 원픽이 충분히 쌓이면 AI 취향평가도 받을 수 있어요.' : ''}</Text>
+            <Button variant="secondary" fullWidth style={styles.joinButton} label="내 원픽 만들기"
               accessibilityLabel="로그인하고 내 원픽 만들기"
               onPress={() => router.push({ pathname: '/auth/login', params: { action: 'join_from_profile' } })} />
           </View> : null}
@@ -460,17 +368,9 @@ export default function PublicProfileScreen() {
               <BlockUserButton blockerUserId={user.id} blockedUserId={query.data.profile.id} username={query.data.profile.username} onBlocked={goBack} />
             </View>
           </View> : null}
-          <View style={styles.shareCard}>
-            <Text style={styles.shareTitle}>이 취향 컬렉션을 공유해보세요.</Text>
-            <Text style={styles.shareText}>원픽이 담긴 카드 이미지와 프로필 링크를 함께 보낼 수 있어요.</Text>
-            {cardNotice ? <Text style={styles.shareNotice}>{cardNotice}</Text> : null}
-            {shareError ? <Text accessibilityRole="alert" style={styles.shareError}>공유 창을 열지 못했어요. 다시 시도해주세요.</Text> : null}
-            <Button variant="secondary" fullWidth style={styles.shareButton} label="프로필 공유하기" loading={isSharing} onPress={() => void handleShare()} />
-          </View>
-          {query.data.isMine ? <View style={styles.mineRow}><Button variant="ghost" size="sm" label="내 프로필 관리로 이동" onPress={() => router.replace('/profile')} /></View> : null}
         </> : null}
       </ScrollView>}
-      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>@{query.data.profile.username}님을 팔로우했어요.</Text></View> : null}
+      {followToast && query.data && !connectionDirection ? <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>{profileMentionName(query.data.profile)}님을 팔로우했어요.</Text></View> : null}
       <Modal visible={loginSheetOpen} transparent animationType="slide" onRequestClose={closeFollowLogin}>
         <View style={styles.modalBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="로그인 안내 닫기" onPress={closeFollowLogin} style={StyleSheet.absoluteFill} />
@@ -523,56 +423,18 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: OnePickSpace.xs,
+    marginHorizontal: -OnePickSpace.sm,
   },
-  publicHeaderBack: { flexShrink: 1, minWidth: 0, minHeight: 44, justifyContent: 'center' },
-  publicHeaderTitle: { ...OnePickType.title, color: OnePick.textPrimary },
-  publicHeaderMenuButton: { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  publicHeaderMenu: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  publicBody: { minHeight: 675, paddingTop: 10, gap: OnePickSpace.md },
-  publicIdentity: { height: 78, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.lg },
-  publicIdentityCopy: { flex: 1, minWidth: 0, gap: 2 },
-  publicDisplayName: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  publicHandle: { ...OnePickType.caption, color: OnePick.textSecondary },
-  publicBio: { ...OnePickType.body, color: OnePick.textSecondary },
-  publicStats: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.md },
-  publicStat: { minHeight: 44, justifyContent: 'center' },
-  publicStatText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
-  followActions: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: OnePickSpace.sm },
-  followPrimary: { flex: 1, minWidth: 0 },
-  followShareButton: { width: 67 },
-  profileScopeTabs: { flexDirection: 'row', gap: OnePickSpace.sm },
-  profileScopeChip: { paddingHorizontal: 13 },
+  publicHeaderIconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  publicHeaderTitle: { ...OnePickType.headline, flex: 1, minWidth: 0, textAlign: 'center', color: OnePick.textPrimary },
+  publicBody: { paddingTop: OnePickSpace.sm, gap: OnePickSpace.lg },
   publicPickList: { borderTopWidth: 1, borderTopColor: OnePick.borderDefault },
-  publicPickRow: {
-    height: 94,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: OnePickSpace.md,
-    borderBottomWidth: 1,
-    borderBottomColor: OnePick.borderDefault,
-  },
-  publicPickCopy: { flex: 1, minWidth: 0, height: 82, gap: 3 },
-  publicPickTitleRow: { height: 28, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  publicPickTitleAction: { flexShrink: 1, maxWidth: '72%' },
-  publicPickTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  publicPickBadge: {
-    height: 28,
-    justifyContent: 'center',
-    paddingHorizontal: 9,
-    borderRadius: OnePickRadius.full,
-  },
-  publicPickBadgeOffline: { backgroundColor: OnePick.bgPlaceholder },
-  publicPickBadgeOnline: { backgroundColor: OnePick.bgMuted },
-  publicPickBadgeRecipe: { backgroundColor: OnePick.bgAccentSubtle },
-  publicPickBadgeText: { ...OnePickType.captionMedium, color: OnePick.textPrimary },
-  publicPickProvider: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
-  publicPickReview: { ...OnePickType.caption, color: OnePick.textSecondary },
   safetyCard: {
     backgroundColor: OnePick.bgMuted,
     borderRadius: OnePickRadius.lg,
     padding: OnePickSpace.lg,
-    marginBottom: OnePickSpace.xxxl,
+    marginTop: OnePickSpace.xxl,
   },
   safetyTitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   safetyText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.xs },
@@ -627,19 +489,8 @@ const styles = StyleSheet.create({
   joinTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
   joinText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
   joinButton: { marginTop: OnePickSpace.md },
-  shareCard: {
-    borderWidth: 1,
-    borderColor: OnePick.borderDefault,
-    borderRadius: OnePickRadius.lg,
-    padding: OnePickSpace.lg,
-    marginTop: OnePickSpace.xxl,
-  },
-  shareTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
-  shareText: { ...OnePickType.caption, color: OnePick.textSecondary, marginTop: OnePickSpace.sm },
-  shareNotice: { ...OnePickType.caption, color: OnePick.textAccent, marginTop: OnePickSpace.sm },
-  shareError: { ...OnePickType.caption, color: OnePick.textDanger, marginTop: OnePickSpace.sm },
-  shareButton: { marginTop: OnePickSpace.md },
-  mineRow: { alignItems: 'center', marginTop: OnePickSpace.sm },
+  shareNotice: { ...OnePickType.caption, color: OnePick.textSecondary },
+  shareError: { ...OnePickType.caption, color: OnePick.textDanger },
   stateArea: { marginTop: OnePickSpace.xxxl },
   pressed: { opacity: 0.72 },
 });

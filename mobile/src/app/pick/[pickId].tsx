@@ -52,7 +52,7 @@ export default function PickDetailScreen() {
     && pickQuery.data.pick.channel !== OnePickMvp.publicPickChannel
   );
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
-  const itemQuery = useItemDetail(itemId, user?.id, pickId, false, Boolean(itemId) && !hiddenFutureChannel, publicFoodChannel);
+  const itemQuery = useItemDetail(itemId, user?.id, pickId, false, Boolean(itemId) && !hiddenFutureChannel, publicFoodChannel, true);
   const readNotificationGroup = useReadNotificationGroup(user?.id);
   const trackedPickId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
@@ -143,6 +143,21 @@ export default function PickDetailScreen() {
           </Pressable>
         </View>
         : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {/* #757: profile rows open this screen as one button, so it carries the item and store links. */}
+          {itemQuery.data ? <View style={styles.links}>
+            <Pressable accessibilityRole="link" accessibilityLabel={`${title} 메뉴 상세 보기`}
+              onPress={() => router.push({ pathname: '/item/[itemId]', params: { itemId: itemQuery.data!.item.id } })}
+              style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={styles.linkText}>메뉴 상세 보기</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+            </Pressable>
+            {itemQuery.data.item.providerId ? <Pressable accessibilityRole="link" accessibilityLabel={`${itemQuery.data.item.name} 매장 보기`}
+              onPress={() => router.push({ pathname: '/provider/[providerId]', params: { providerId: itemQuery.data!.item.providerId!, scope: 'provider' } })}
+              style={({ pressed }) => [styles.linkRow, styles.linkRowDivider, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={styles.linkText}>매장 보기</Text>
+              <Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+            </Pressable> : null}
+          </View> : null}
           <View style={styles.review}>
             <View style={styles.reviewMeta}>
               <Text style={styles.author}>
@@ -179,6 +194,11 @@ const styles = StyleSheet.create({
   headerSide: { width: 48, minHeight: 44, justifyContent: 'center' },
   headerTitle: { ...OnePickType.headline, flex: 1, color: OnePick.textPrimary, textAlign: 'center' },
   content: { width: '100%', maxWidth: 390, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
+  links: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
+  linkRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: OnePickSpace.sm },
+  linkRowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: OnePick.borderDefault },
+  linkText: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },
+  pressed: { opacity: 0.7 },
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
   author: { ...OnePickType.bodyMedium, flex: 1, color: OnePick.textPrimary },

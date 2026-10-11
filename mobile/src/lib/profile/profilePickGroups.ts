@@ -1,5 +1,6 @@
 import type { PickChannel, PickReadItem } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
+import type { Item } from '@/types/domain/item';
 
 export interface ProfilePickGroup {
   id: string;
@@ -174,6 +175,131 @@ export function filterMainProfileByChannel(
     // Unmapped/legacy Picks stay visible; only FOOD is narrowed by the MVP channel.
     return theme !== mainThemeCode || resolveFoodLane(item, categories) === publicChannel;
   });
+}
+
+/**
+ * Early-MVP profile eligibility (#879 comment 6097734198, #757): one predicate for the
+ * profile list and its 원픽 N count, mirroring the server contract.
+ *
+ * - Food tree: some ancestor (the category itself, its parent, …) has slug `rootSlug`,
+ *   like `private.category_is_food`. Theme mapping is not used, so an unmapped or
+ *   unknown category, or one whose chain cannot be resolved (catalog not loaded,
+ *   missing parent), is excluded instead of passing by default.
+ * - Recipes wait for a later stage: anything under the `recipe` category or picked
+ *   under the `recipe` channel is excluded.
+ * - Channel: an explicit channel must be in `channels`. A legacy Pick without one uses
+ *   the `private.default_pick_channel` fallback (item channels, else online).
+ */
+export function isMvpProfilePick(
+  item: PickReadItem,
+  categories: Category[],
+  rootSlug: string,
+  channels: readonly PickChannel[],
+  categoryById: ReadonlyMap<string, Category> = indexCategories(categories),
+) {
+  if (item.pick.channel === 'recipe') return false;
+  if (item.pick.channel && !channels.includes(item.pick.channel)) return false;
+  const seen = new Set<string>();
+  // A Pick's own category may be hidden from the browse catalog; its embedded row still counts
+  // here so the owner can manage it. What visitors see also needs `isPublicProfilePick`.
+  let current = categoryById.get(item.pick.categoryId) ?? item.category ?? undefined;
+  let inRoot = false;
+  while (current && !seen.has(current.id)) {
+    if (current.slug === RECIPE_CATEGORY_SLUG) return false;
+    if (current.slug === rootSlug) inRoot = true;
+    seen.add(current.id);
+    current = current.parentId ? categoryById.get(current.parentId) : undefined;
+  }
+  if (!inRoot) return false;
+  return channels.includes(item.pick.channel ?? legacyPickChannel(item));
+}
+
+/** `private.default_pick_channel` order for a Pick stored before channels: offline, online, recipe, else online. */
+function legacyPickChannel(item: PickReadItem): PickChannel {
+  const itemChannels = item.item?.channels ?? [];
+  return (['offline', 'online', 'recipe'] as const).find((channel) => itemChannels.includes(channel)) ?? 'online';
+}
+
+/**
+ * Whether a current Pick is one a visitor sees on the public profile: active, with a
+ * reviewed photo (the same rule as `ProfileService.getProfileByUsername`), in a category
+ * that is itself visible (`categories.is_visible`, like the #881 public eligibility). My
+ * own profile also lists Picks awaiting review, photo-less legacy Picks and Picks in a
+ * hidden category so I can manage them, but what I share counts only these (#826 GPT
+ * review, #757 PM 6098494493). A candidate photo laid over my own Pick while it waits
+ * for review does not count.
+ *
+ * The browse catalog holds visible categories only, so a Pick's own category is visible
+ * when the catalog has it; otherwise its embedded row must say so. Without either the
+ * Pick is not counted as public.
+ */
+export function isPublicProfilePick(
+  item: PickReadItem,
+  categories: Category[],
+  categoryById: ReadonlyMap<string, Category> = indexCategories(categories),
+) {
+  return item.pick.status === 'active'
+    && isVisibleOwnCategory(item, categoryById)
+    && !item.item?.photoPendingReview
+    && itemHasVisiblePhoto(item.item);
+}
+
+/**
+ * The one photo rule for what visitors see. `ProfileService.getProfileByUsername` filters
+ * the public list with it and `isPublicProfilePick` counts with it, so the public list and
+ * the owner's shared 원픽 N cannot drift apart.
+ */
+export function itemHasVisiblePhoto(
+  item: Pick<Item, 'imagePath' | 'imageUrl' | 'thumbnailUrl' | 'imageSourceUrl'> | null | undefined,
+) {
+  if (!item) return false;
+  return [item.imagePath, item.imageUrl, item.thumbnailUrl, item.imageSourceUrl]
+    .some((value) => typeof value === 'string' && value.trim().length > 0);
+}
+
+function indexCategories(categories: Category[]): ReadonlyMap<string, Category> {
+  return new Map(categories.map((category) => [category.id, category]));
+}
+
+function isVisibleOwnCategory(item: PickReadItem, categoryById: ReadonlyMap<string, Category>) {
+  if (categoryById.get(item.pick.categoryId)?.isVisible) return true;
+  return item.category?.id === item.pick.categoryId && item.category?.isVisible === true;
+}
+
+/** The public profile's list, 원픽 N and shared count: the early-MVP scope narrowed to what visitors may see. */
+export function filterPublicMvpProfilePicks(
+  picks: PickReadItem[],
+  categories: Category[],
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  const categoryById = indexCategories(categories);
+  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels, categoryById)
+    && isPublicProfilePick(item, categories, categoryById));
+}
+
+export function filterMvpProfilePicks(
+  picks: PickReadItem[],
+  categories: Category[],
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  const categoryById = indexCategories(categories);
+  return picks.filter((item) => isMvpProfilePick(item, categories, rootSlug, channels, categoryById));
+}
+
+/**
+ * The 원픽 count a profile share may state. `null` while the category catalog is
+ * unverified (never loaded, or its fetch failed with nothing cached): an unclassified
+ * list would read as 0 or a partial number, so the share leaves the count out instead.
+ */
+export function publicProfileShareCount(
+  picks: PickReadItem[],
+  categories: Category[] | undefined,
+  rootSlug: string,
+  channels: readonly PickChannel[],
+) {
+  return categories ? filterPublicMvpProfilePicks(picks, categories, rootSlug, channels).length : null;
 }
 
 /** Whether a category belongs to 실험실 (used to keep lab categories out of onboarding and search). */

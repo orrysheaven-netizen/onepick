@@ -19,6 +19,8 @@ export function useItemDetail(
   includePhotoCredit = false,
   enabled = true,
   channel?: PickChannel,
+  /** #757 pick detail store link; other detail screens skip the provider read. */
+  includeProvider = false,
 ) {
   const queryClient = useQueryClient();
   type PickDetail = Awaited<ReturnType<typeof pickService.getPickDetail>>;
@@ -36,8 +38,8 @@ export function useItemDetail(
     : undefined;
 
   const detail = useQuery({
-    queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null, channel ?? null],
-    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus, channel),
+    queryKey: [...queryKeys.items.detail(itemId ?? 'missing', userId), focusPickId ?? null, channel ?? null, includeProvider],
+    queryFn: () => itemService.getItemDetail(itemId!, userId, focusPickId, prefetchedFocus, channel, includeProvider ? { includeProvider } : undefined),
     enabled: Boolean(itemId) && enabled,
     retry: retryItemDetail,
   });

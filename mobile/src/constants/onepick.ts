@@ -151,9 +151,8 @@ export const OnePickIcon = {
 // hidden until separately approved. Backend follow data remains intact.
 //
 // profileFollowConnections: approved public follower/following counts + list surface.
-// The sanitized RPC is already deployed; keep this separate from legacy own counts.
-//
-// followCounts: legacy own-profile count component remains separately gated.
+// The sanitized RPC is already deployed. #757 replaced the legacy own-profile count
+// card (ProfileFollowCounts / followCounts) with the same public counts in ProfileIdentity.
 //
 // purchaseLinks: schema is ready too, but the feed/profile surfaces that make
 // purchase links useful are not fully rolled out yet.
@@ -164,15 +163,16 @@ export const OnePickFeatures = {
   followNotifications: false,
   // #804: release nickname editing only with the global nickname display rollout.
   nicknameEditing: false,
-  followCounts: false,
   purchaseLinks: false,
   // Keep both profile features implemented, but unmounted during the early MVP.
   tasteComposition: false,
   profileAi: false,
+  // #757 (PM confirmed 2026-10-05): the own profile's private 기록 tab shows past
+  // Picks and pending/rejected registration requests.
+  profilePickHistory: true,
+  profileItemRequests: true,
   // Hidden during the early MVP; the data and components stay in place.
-  profilePickHistory: false,
   profileSocialLinks: false,
-  profileItemRequests: false,
   // Ranking cards stay available; only their detail needs a minimum sample.
   exploreRankingDetail: true,
   // Initial food MVP exposes only the physical-store channel in registration.
@@ -193,6 +193,10 @@ export const OnePickMvp = {
   // Initial MVP exposure: food Picks from physical stores only. Keep the full
   // offline|online|recipe data model so later rollout does not require redesign.
   publicPickChannel: 'offline' as const,
+  // Early-MVP profile scope (#879/#757, 2026-10-10): food Picks bought at a store or
+  // ordered online. Recipes wait for a later stage; non-food themes stay in 실험실.
+  // Unlike publicPickChannel this is a set, so online food is not dropped as "not offline".
+  profileFoodChannels: ['offline', 'online'] as const,
   // taste_dimensions.code shown on the main profile while OnePickFeatures.lab is on.
   mainThemeCode: 'food',
 } as const;

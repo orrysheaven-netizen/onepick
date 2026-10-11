@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Vie
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppError } from '@/errors/appError';
+import { useAdminAccess } from '@/hooks/useAdmin';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useBlockedUsers, useSafetyActions } from '@/hooks/useSafety';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
@@ -23,6 +24,7 @@ function deletionError(error: unknown) {
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
+  const adminAccess = useAdminAccess(user?.id);
   const blocked = useBlockedUsers(user?.id);
   const safety = useSafetyActions();
   const deleteAccount = useDeleteAccount();
@@ -101,6 +103,19 @@ export default function SettingsScreen() {
               ))}
               {safety.unblockUser.isError ? <Text accessibilityRole="alert" style={styles.error}>차단을 해제하지 못했어요. 연결 상태를 확인하고 다시 시도해주세요.</Text> : null}
               <Text style={styles.body}>차단하면 서로의 프로필, 원픽, 댓글이 로그인 상태에서 보이지 않아요.</Text>
+            </View>
+
+            {/* #757: 내가 쓴 댓글 and admin data management moved here from the profile. */}
+            <Text style={styles.sectionLabel}>내 활동</Text>
+            <View style={styles.card}>
+              <Pressable accessibilityRole="link" onPress={() => router.push('/comments')}
+                style={({ pressed }) => [styles.linkRow, adminAccess.data === true && styles.linkRowDivider, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>내가 쓴 댓글</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+              </Pressable>
+              {adminAccess.data === true ? <Pressable accessibilityRole="link" onPress={() => router.push('/admin/dashboard')}
+                style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>관리자 데이터 관리</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+              </Pressable> : null}
             </View>
 
             <Text style={styles.sectionLabel}>안내</Text>

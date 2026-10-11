@@ -22,11 +22,13 @@ assert.match(
 );
 
 // The visitor should read the collection before being asked to sign up.
-const picksIndex = profile.indexOf('visibleProfilePicks.map((item) => <PublicProfilePickRow');
-const shareIndex = profile.indexOf('이 취향 컬렉션을 공유해보세요');
-assert.ok(picksIndex >= 0 && shareIndex >= 0, 'the picks and share sections must stay on the public profile');
+const picksIndex = profile.indexOf('profilePicks.map((item) => <ProfileCurrentPickRow');
+const safetyIndex = profile.indexOf('styles.safetyCard');
+assert.ok(picksIndex >= 0, 'the picks must stay on the public profile');
 assert.ok(joinIndex > picksIndex, 'the join call to action must follow the category picks');
-assert.ok(joinIndex < shareIndex, 'the join call to action must come before the share card');
+assert.ok(joinIndex < safetyIndex, 'the join call to action comes before the member-only safety card');
+assert.match(profile, /<Button variant="secondary" fullWidth style=\{styles\.joinButton\} label="내 원픽 만들기"/,
+  'join stays secondary so the follow CTA is the single primary (#757)');
 
 // A follow is a resumable action: login/username creation returns to the same profile
 // and the app performs the follow without requiring a second tap.

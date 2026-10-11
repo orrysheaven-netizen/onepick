@@ -91,7 +91,7 @@ async function main() {
   const { CommentService } = load('services/commentService.ts', { '@/errors/appError': { AppError } });
   const explore = new ExploreService({ getOpenCategories: async () => [{ id: id(901), name: 'Category' }] }, repo);
   const commentService = new CommentService({}, {}, {}, repo);
-  const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError } });
+  const { ProfileService } = load('services/profileService.ts', { '@/errors/appError': { AppError }, '@/lib/profile/profilePickGroups': load('lib/profile/profilePickGroups.ts') });
   const owner = id(2000);
   const profileService = new ProfileService({ getById: async (userId) => userId === owner ? { id: owner } : null }, repo);
 

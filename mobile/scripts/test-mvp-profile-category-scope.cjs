@@ -14,6 +14,14 @@ class AppError extends Error {
   }
 }
 
+function loadPlain(relative) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(read(relative), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, { exports, require: (name) => { throw new Error('Unexpected import: ' + name); } });
+  return exports;
+}
+
 function loadProfileService() {
   const exports = {};
   const output = ts.transpileModule(read('src/services/profileService.ts'), {
@@ -23,6 +31,7 @@ function loadProfileService() {
     exports,
     require: (name) => {
       if (name === '@/errors/appError') return { AppError };
+      if (name === '@/lib/profile/profilePickGroups') return loadPlain('src/lib/profile/profilePickGroups.ts');
       throw new Error('Unexpected import: ' + name);
     },
   });
@@ -75,21 +84,86 @@ async function main() {
   );
   assert.deepEqual(Array.from(calls[1].statuses), ['active']);
   assert.equal(Object.hasOwn(calls[1], 'categoryId'), false, 'Public Profile must not apply an MVP restaurant category filter');
+  assert.equal(mine.currentPicksComplete, true);
+  assert.equal(publicProfile.currentPicksComplete, true);
+
+  // #757 A: 원픽 N is the full count, so current Picks are read past the first page of 100.
+  const many = Array.from({ length: 230 }, (_, index) => ({
+    pick: { id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`, status: 'active', updatedAt: `2026-10-10T00:00:00.${String(230 - index).padStart(6, '0')}+00:00` },
+    category: { id: `c${index}`, slug: `s${index}`, name: `n${index}` },
+    item: photo(`m${index}`),
+  }));
+  const pageCalls = [];
+  const pagedService = new ProfileService(profileRepository, {
+    getPicks: async (input) => {
+      pageCalls.push(input);
+      const start = input.cursor ? many.findIndex((entry) => entry.pick.id === input.cursor.id) + 1 : 0;
+      return many.slice(start, start + input.limit);
+    },
+  });
+  const pagedPublic = await pagedService.getProfileByUsername('mvp_profile_owner');
+  assert.equal(pagedPublic.currentPicks.length, 230, 'every current Pick is loaded, not just the first page');
+  assert.equal(pagedPublic.currentPicksComplete, true);
+  assert.deepEqual(pageCalls.map((call) => call.limit), [100, 100, 100]);
+  assert.equal(pageCalls[0].cursor, null);
+  assert.deepEqual({ ...pageCalls[1].cursor }, { timestamp: many[99].pick.updatedAt, id: many[99].pick.id }, 'pages continue by (updated_at, id)');
+  assert.ok(pageCalls.every((call) => call.orderBy === 'updated_at'));
+  const capped = new ProfileService(profileRepository, {
+    getPicks: async (input) => Array.from({ length: input.limit }, (_, index) => ({ ...many[index % many.length], pick: { ...many[index % many.length].pick } })),
+  });
+  assert.equal((await capped.getProfileByUsername('mvp_profile_owner')).currentPicksComplete, false, 'past the safety cap the count is marked incomplete');
+
+  // #826 review: the cap is 20 × 100. Exactly 2,000 rows is complete; only a row past the
+  // cap marks the count incomplete (1999 / 2000 / 2001).
+  // #757 cost: under 100 current Picks the profile still makes the single read main made;
+  // reads grow only as ceil((N + 1) / 100) for N < 2,000.
+  for (const [total, expected, calls] of [
+    [0, true, 1], [1, true, 1], [99, true, 1], [100, true, 2], [101, true, 2], [250, true, 3],
+    [1999, true, 20], [2000, true, 21], [2001, false, 21],
+  ]) {
+    const rowsAt = Array.from({ length: total }, (_, index) => ({
+      pick: { id: `b${index}`, status: 'active', updatedAt: `t${String(total - index).padStart(5, '0')}` },
+      category: { id: 'c', slug: 's', name: 'n' },
+      item: photo(`b${index}`),
+    }));
+    const boundaryCalls = [];
+    const boundary = new ProfileService(profileRepository, {
+      getPicks: async (input) => {
+        boundaryCalls.push(input);
+        const start = input.cursor ? rowsAt.findIndex((entry) => entry.pick.id === input.cursor.id) + 1 : 0;
+        return rowsAt.slice(start, start + input.limit);
+      },
+    });
+    const result = await boundary.getProfileByUsername('mvp_profile_owner');
+    assert.equal(result.currentPicks.length, Math.min(total, 2000), `${total} rows: at most the cap is loaded`);
+    assert.equal(result.currentPicksComplete, expected, `${total} rows: complete=${expected}`);
+    assert.equal(boundaryCalls.length, calls, `${total} rows: ${calls} reads`);
+    if (calls === 21) {
+      assert.equal(boundaryCalls[20].limit, 1, 'past the cap only one row is read to decide');
+      assert.equal(boundaryCalls[20].cursor.id, rowsAt[1999].pick.id, 'the probe continues after the last loaded row');
+    }
+  }
+
+  // #826 review Low: the public list (service) and the shared 원픽 N (isPublicProfilePick)
+  // use one photo rule instead of two copies kept in step by a comment.
+  const serviceSource = read('src/services/profileService.ts');
+  assert.match(serviceSource, /import \{ itemHasVisiblePhoto \} from '@\/lib\/profile\/profilePickGroups'/);
+  assert.doesNotMatch(serviceSource, /function itemHasVisiblePhoto/, 'profileService must not keep its own photo rule');
+  const groupingSource = read('src/lib/profile/profilePickGroups.ts');
+  assert.match(groupingSource, /&& itemHasVisiblePhoto\(item\.item\)/, 'isPublicProfilePick counts with the shared photo rule');
 
   const ownerScreen = read('src/app/(tabs)/(profile)/profile.tsx');
   const publicScreen = read('src/app/(tabs)/(profile)/u/[username].tsx');
   const labScreen = read('src/app/lab/[username].tsx');
-  // Profiles split every current Pick: the main theme stays, the rest moves to 실험실 (never dropped).
+  // Early MVP (#757/#879): both profiles list one scope from the complete current collection —
+  // food from a store or an online order. Other themes stay stored and remain reachable via 실험실 routes.
   for (const [screen, name] of [[ownerScreen, 'Owner'], [publicScreen, 'Public']]) {
-    assert.match(screen, /splitLabPicks\((query\.data\?\.)?currentPicks/, `${name} profile splits the complete current Pick collection`);
-    assert.match(screen, /const visibleProfilePicks = profileScope === 'food' \? publicMainPicks : labPicks/, `${name} profile narrows FOOD display without dropping other tastes`);
-    assert.match(screen, /filterMainProfileByChannel\(mainPicks, profileCategories, OnePickMvp\.mainThemeCode, OnePickMvp\.publicPickChannel\)/,
-      `${name} profile applies the shared offline FOOD exposure rule`);
-    assert.match(screen, /음식 원픽 보기/);
-    assert.match(screen, /다른 취향 원픽 보기/);
+    assert.match(screen, /filter(Public)?MvpProfilePicks\((query\.data\?\.)?currentPicks/, `${name} profile filters the complete current Pick collection`);
+    assert.match(screen, /OnePickMvp\.browseGroupSlug, OnePickMvp\.profileFoodChannels\)/, `${name} profile applies the shared MVP food scope (offline + online)`);
+    assert.doesNotMatch(screen, /OnePickMvp\.publicPickChannel/, `${name} profile does not narrow food to offline only`);
+    assert.doesNotMatch(screen, /음식 원픽 보기|기타 원픽 보기/, `${name} profile has no 음식 / 기타 chips in the early MVP`);
+    assert.match(screen, /profilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, `${name} rows render every Pick in the MVP scope`);
   }
-  assert.match(ownerScreen, /visibleProfilePicks\.map\(\(item\) => <ProfileCurrentPickRow/, 'Owner Figma 03 rows render every Pick in the selected scope');
-  assert.match(publicScreen, /visibleProfilePicks\.map\(\(item\) => <PublicProfilePickRow/, 'Public Figma 40 rows render every Pick in the selected scope');
   assert.match(labScreen, /splitLabPicks\(query\.data\?\.currentPicks/, '실험실 reads the same complete collection');
   assert.match(labScreen, /picks=\{labPicks\}/);
 

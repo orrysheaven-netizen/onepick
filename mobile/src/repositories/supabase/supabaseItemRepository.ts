@@ -12,9 +12,11 @@ import type {
   StageUserPlaceItemInput,
   StageBrandItemInput,
   ReviseItemRequestInput,
+  ItemReadOptions,
 } from '@/repositories/interfaces/itemRepository';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
+import { fetchItemProviderIds } from '@/repositories/supabase/itemProviders';
 
 const PUBLIC_ITEM_STATUSES = ['active', 'discontinued'] as const;
 type ItemRow = Database['public']['Tables']['items']['Row'];
@@ -60,7 +62,7 @@ export class SupabaseItemRepository implements ItemRepository {
     return photos;
   }
 
-  async getById(itemId: string) {
+  async getById(itemId: string, options?: ItemReadOptions) {
     const { data, error } = await this.client
       .from('items')
       .select('*')
@@ -69,8 +71,18 @@ export class SupabaseItemRepository implements ItemRepository {
 
     if (error) throw mapSupabaseError(error);
     if (!data) return null;
-    const channels = await fetchItemChannels(this.client, [data.id]);
-    return { ...this.mapRow(data), channels: channels.get(data.id) ?? [] };
+    // #757: only the pick detail needs the store link, so the item_providers
+    // read is opt-in. Registration and pick-save callers (pickService,
+    // registrationService) keep the single items + item_channels round trip.
+    if (!options?.includeProvider) {
+      const channels = await fetchItemChannels(this.client, [data.id]);
+      return { ...this.mapRow(data), channels: channels.get(data.id) ?? [] };
+    }
+    const [channels, providerIds] = await Promise.all([
+      fetchItemChannels(this.client, [data.id]),
+      fetchItemProviderIds(this.client, [data.id]),
+    ]);
+    return { ...this.mapRow(data), channels: channels.get(data.id) ?? [], providerId: providerIds.get(data.id) ?? null };
   }
 
   async submitItem(input: SubmitItemInput) {
