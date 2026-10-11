@@ -142,6 +142,17 @@ test('auth allow-list is exact: refresh grant and LOCAL logout only', () => {
   assert.equal(ok('/auth/v1/logout/extra'), false);
   assert.equal(isAllowedAuthMutation(new URL(`${API}/auth/v1/logout`), 'PUT'), false);
   assert.equal(isAllowedAuthMutation(new URL(`${API}/auth/v1/token?grant_type=refresh_token`), 'PATCH'), false);
+  // #873 L2: grant_type must appear exactly once, for the browser refresh and the Node password grant alike.
+  const pw = (p) => isPasswordGrant(new URL(`${API}${p}`), 'POST');
+  for (const q of ['grant_type=refresh_token&grant_type=password', 'grant_type=password&grant_type=refresh_token',
+    'grant_type=refresh_token&grant_type=refresh_token', 'grant_type=password&grant_type=password', 'grant_type=', 'grant_type=Refresh_Token',
+    'grant_type=refresh_token%20', 'grant_type=id_token', 'grant_type=pkce']) {
+    assert.equal(ok(`/auth/v1/token?${q}`), false, `browser refuses ${q}`);
+    assert.equal(pw(`/auth/v1/token?${q}`), false, `Node refuses ${q}`);
+  }
+  assert.equal(ok('/auth/v1/token?grant_type=refresh_token&other=1'), true, 'one refresh grant with unrelated params is still the refresh');
+  assert.equal(pw('/auth/v1/token?grant_type=password&other=1'), true, 'one password grant with unrelated params is still the login');
+  assert.equal(isPasswordGrant(new URL(`${API}/auth/v1/token?grant_type=password`), 'GET'), false);
 });
 
 // GPT review of #873 (Medium): an outside-origin mutation attempt must be a finding, not a
@@ -158,7 +169,10 @@ test('a non-Supabase origin never receives a write, and an outside mutation atte
     // GPT review L2 (head 085bdc8): the beacon allowance is host + path + method, not the host.
     ['POST', 'https://cloudflareinsights.com/cdn-cgi/other'], ['PUT', 'https://cloudflareinsights.com/cdn-cgi/rum'], ['DELETE', 'https://cloudflareinsights.com/cdn-cgi/rum'],
     ['POST', 'https://static.cloudflareinsights.com/beacon'], ['POST', 'https://static.cloudflareinsights.com/cdn-cgi/rum'], ['POST', 'https://cloudflareinsights.com/'],
-    ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum/extra'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum%2F'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/RUM']];
+    ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum/extra'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/rum%2F'], ['POST', 'https://cloudflareinsights.com/cdn-cgi/RUM'],
+    // #873 L1: the beacon origin is exact — plain HTTP and non-default ports are findings, not drops.
+    ['POST', 'http://cloudflareinsights.com/cdn-cgi/rum'], ['POST', 'https://cloudflareinsights.com:444/cdn-cgi/rum'],
+    ['POST', 'http://cloudflareinsights.com:443/cdn-cgi/rum'], ['POST', 'https://cloudflareinsights.com:8443/cdn-cgi/rum'], ['PUT', 'http://cloudflareinsights.com/cdn-cgi/rum']];
   for (const [method, url] of outsideWrites) {
     const result = decide(guard, method, url);
     assert.equal(result.action, 'abort', url); assert.equal(result.fail, 'UNEXPECTED_ORIGIN', url); assert.equal(result.kind, 'OUTSIDE_ORIGIN', url);
@@ -177,11 +191,14 @@ test('a non-Supabase origin never receives a write, and an outside mutation atte
   }
   assert.equal(silent.counts.externalDropped, 6);
   assert.equal(silent.failed, false);
-  assert.deepEqual(KNOWN_TELEMETRY_BEACONS, [{ host: 'cloudflareinsights.com', path: '/cdn-cgi/rum', method: 'POST' }], 'exactly the Cloudflare Web Analytics report call');
+  assert.deepEqual(KNOWN_TELEMETRY_BEACONS, [{ origin: 'https://cloudflareinsights.com', host: 'cloudflareinsights.com', path: '/cdn-cgi/rum', method: 'POST' }], 'exactly the Cloudflare Web Analytics report call');
   assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com/cdn-cgi/rum'), 'POST'), true);
   assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com/cdn-cgi/rum'), 'PUT'), false);
   assert.equal(isKnownTelemetryBeacon(new URL('https://static.cloudflareinsights.com/cdn-cgi/rum'), 'POST'), false);
   assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com/cdn-cgi/rum2'), 'POST'), false);
+  assert.equal(isKnownTelemetryBeacon(new URL('http://cloudflareinsights.com/cdn-cgi/rum'), 'POST'), false, 'HTTP is not the beacon');
+  assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com:444/cdn-cgi/rum'), 'POST'), false, 'a non-default port is not the beacon');
+  assert.equal(isKnownTelemetryBeacon(new URL('https://cloudflareinsights.com:443/cdn-cgi/rum'), 'POST'), true, 'the explicit default port is the same origin');
   // No request decision ever returns 'continue' for a non-read outside the Supabase origin.
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
     for (const url of [`${SITE}/x`, 'https://cdn.example/x', 'https://ygoipwzakzdnkaaxyrgb.supabase.co.evil.example/rest/v1/picks']) {
@@ -309,6 +326,12 @@ test('Node policy: reads, refresh, local logout and ONE password grant; everythi
     ['GET', 'https://api.example.com/x', 'NODE_CALL_BLOCKED'],
     ['DELETE', `${SITE}/x`, 'UNEXPECTED_WRITE'],
     ['GET', 'not a url', 'NODE_CALL_BLOCKED'],
+    // #873 L2: a repeated or wrong grant_type is neither the login nor the refresh.
+    ['POST', `${API}/auth/v1/token?grant_type=password&grant_type=refresh_token`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/auth/v1/token?grant_type=refresh_token&grant_type=password`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/auth/v1/token?grant_type=password&grant_type=password`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/auth/v1/token?grant_type=refresh_token&grant_type=refresh_token`, 'UNEXPECTED_WRITE'],
+    ['POST', `${API}/auth/v1/token?grant_type=id_token`, 'UNEXPECTED_WRITE'],
   ]) {
     await assert.rejects(nodeFetch(url, { method }), new RegExp(`^Error: ${code}$`), `${method} ${url}`);
   }
@@ -538,6 +561,22 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     const localLogout = await call('POST', `${API}/auth/v1/logout?scope=local`, '{}');
     assert.equal(localLogout.ok, true, 'local sign-out is forwarded');
     assert.equal(forwarded, 4);
+    // #873 L1/L2 in the page: repeated/wrong grant types and a beacon on a non-default port
+    // are aborted before any transmission and counted as findings. (Plain HTTP from this
+    // HTTPS page is stopped by the browser as mixed content, so it is asserted at the policy level.)
+    const blockedBefore = blocked.length;
+    const counterexamples = [];
+    for (const q of ['grant_type=refresh_token&grant_type=password', 'grant_type=password&grant_type=refresh_token',
+      'grant_type=refresh_token&grant_type=refresh_token', 'grant_type=password']) {
+      counterexamples.push(await call('POST', `${API}/auth/v1/token?${q}`, '{}'));
+    }
+    counterexamples.push(await call('POST', 'https://cloudflareinsights.com:444/cdn-cgi/rum', '{}'));
+    for (const result of counterexamples) assert.ok(result.error, 'never transmitted');
+    assert.deepEqual(blocked.slice(blockedBefore).map((b) => b.code), ['UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_WRITE', 'UNEXPECTED_ORIGIN']);
+    assert.equal(forwarded, 4, 'no counterexample was forwarded');
+    assert.equal(guard.counts.blockedWrites, 11);
+    assert.equal(guard.counts.blockedOutside, 3);
+    assert.equal(guard.counts.externalDropped, 1, 'only the real HTTPS beacon was dropped silently');
 
     // Fault switches in the browser: a held classification request stays pending until
     // release(), and the current-Pick lookup fails without becoming a finding.
@@ -557,7 +596,7 @@ test('route handler in a browser: reads answered, fixtures fulfilled, writes abo
     guard.setFault('failPickSlotRead', false);
     assert.equal(guard.counts.held, 1);
     assert.equal(guard.counts.slotReadFailed, 1);
-    assert.equal(guard.counts.blockedWrites, 7, 'faults added no findings');
+    assert.equal(guard.counts.blockedWrites, 11, 'faults added no findings');
     assert.equal(forwarded, 5);
   } finally {
     await context.close();

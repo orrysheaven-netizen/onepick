@@ -46,9 +46,10 @@ const TELEMETRY_PATHS = new Set(['/rest/v1/client_error_events', '/rest/v1/rpc/c
 // any other outside read) and reports with `POST https://cloudflareinsights.com/cdn-cgi/rum`.
 // Only that exact host + path + method is dropped silently; any other mutation aimed at
 // those hosts (or anywhere else outside the two origins) is a finding (GPT review L2).
-export const KNOWN_TELEMETRY_BEACONS = [{ host: 'cloudflareinsights.com', path: '/cdn-cgi/rum', method: 'POST' }];
+// The origin must match exactly (#873 L1): plain HTTP or a non-default port is not the beacon.
+export const KNOWN_TELEMETRY_BEACONS = [{ origin: 'https://cloudflareinsights.com', host: 'cloudflareinsights.com', path: '/cdn-cgi/rum', method: 'POST' }];
 export function isKnownTelemetryBeacon(u, method) {
-  return KNOWN_TELEMETRY_BEACONS.some((b) => u.hostname === b.host && u.pathname === b.path && method === b.method);
+  return KNOWN_TELEMETRY_BEACONS.some((b) => u.origin === b.origin && u.hostname === b.host && u.pathname === b.path && method === b.method);
 }
 // Responses a forwarded request may NOT come back with: a redirect would make the browser
 // (or Node's fetch) issue a second request the guard never judged. 304 is not a redirect.
@@ -105,20 +106,25 @@ export function requestKind(url, api, site) {
 // sign-out would revoke the QA account's other sessions; sign-up, password/identity
 // changes, recovery mails and new password grants are account changes. All fail closed.
 // `scope` must be given exactly once (GPT review L1): a repeated parameter such as
-// `?scope=local&scope=global` is refused whatever the server would pick.
+// `?scope=local&scope=global` is refused whatever the server would pick. The same holds for
+// `grant_type` (#873 L2): exactly one value, equal to the expected grant, or it is refused.
+export function hasSingleGrantType(u, grant) {
+  const grants = u.searchParams.getAll('grant_type');
+  return grants.length === 1 && grants[0] === grant;
+}
 export function isAllowedAuthMutation(u, method) {
   if (method !== 'POST') return false;
   if (u.pathname === '/auth/v1/logout') {
     const scopes = u.searchParams.getAll('scope');
     return scopes.length === 1 && scopes[0] === 'local';
   }
-  return u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'refresh_token';
+  return u.pathname === '/auth/v1/token' && hasSingleGrantType(u, 'refresh_token');
 }
 
 // The harness's own sign-in from Node (the app only offers social login). Allowed to the
 // Node policy exactly once per run and never to the browser.
 export function isPasswordGrant(u, method) {
-  return method === 'POST' && u.pathname === '/auth/v1/token' && u.searchParams.get('grant_type') === 'password';
+  return method === 'POST' && u.pathname === '/auth/v1/token' && hasSingleGrantType(u, 'password');
 }
 
 // Storage reads the screen may issue for already-published images. Anything else on
