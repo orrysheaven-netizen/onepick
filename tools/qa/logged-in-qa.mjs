@@ -29,6 +29,12 @@ import {
   detectOwnProfileLayout, openPublicProfilePreview, assertPreviewReturnsToOwnProfile,
   assertProfileTabs, assertBioDraftPersists, assertProfileLayoutFits, publicShareButton,
 } from './logged-in-contract.mjs';
+import {
+  createRestoreGuard, handleRoute, guardedFetch, forwardWithoutRedirects, createRestoreRuntime, pickFixtureCategory,
+  assertDraftRestoreExecution, assertSessionBudget,
+  inspectDraft, markPhotoLost, reassignDraftOwner, assertReviewDraft, safeRestoreFailureCode,
+  RESTORE_MENU, RESTORE_MENU_EDITED, RESTORE_REVIEW, DRAFT_KEY, DRAFT_PHOTO_KEY,
+} from './draft-restore-contract.mjs';
 
 const BASE_URL = (process.env.QA_BASE_URL || 'https://onepick-5cl.pages.dev').replace(/\/$/, '');
 const OUT_DIR = path.resolve(process.env.QA_OUT_DIR || 'qa-output');
@@ -40,6 +46,11 @@ const STORE_QUERY = process.env.QA_STORE_QUERY || '카페인중독';
 const MENU_QUERY = process.env.QA_MENU_QUERY || '도가니탕';
 // Opt-in registration safety only; not a guarantee that the entire live QA is offline.
 const BLOCK_MENU_AI = process.env.QA_BLOCK_MENU_AI === '1';
+// Opt-in (#858): runs the `/pick/new` draft restore scenario instead of the standard
+// checks, with the whole run — discovery, login, profile check, scenario, Node calls —
+// under a default-deny network guard (draft-restore-contract.mjs). Only the dedicated
+// workflow_dispatch workflow on main may run it. Default off.
+const DRAFT_RESTORE = process.env.QA_DRAFT_RESTORE === '1';
 // A non-Naver link keeps the check deterministic: the Edge Function does not fetch
 // it, so the suggestion comes only from the typed name matching the taxonomy.
 const LINK_URL = process.env.QA_LINK_URL || 'https://example.com/onepick-qa';
@@ -113,6 +124,15 @@ function renderMarkdown(summary) {
     for (const e of issues.pageErrors) lines.push(`- JS 예외 [${e.flow}]: ${e.message}`);
     for (const e of issues.consoleErrors) lines.push(`- 콘솔 에러 [${e.flow}]: ${e.message}`);
     for (const e of issues.badResponses) lines.push(`- HTTP ${e.status} [${e.flow}]: ${e.url}`);
+  }
+  // Restore mode (#858): closed codes and counts only — no message text, URL or path.
+  const restore = summary.restoreRuntime;
+  if (restore && (Object.keys(restore.events).length || restore.responses.length)) {
+    lines.push('', '### 런타임 오류 (복원 모드 · 분류 코드·건수만)');
+    for (const [code, n] of Object.entries(restore.events).sort()) lines.push(`- ${code}: ${n}건`);
+    const byStatus = new Map();
+    for (const r of restore.responses) { const k = `HTTP ${r.status} · ${r.kind}`; byStatus.set(k, (byStatus.get(k) ?? 0) + 1); }
+    for (const [k, n] of [...byStatus.entries()].sort()) lines.push(`- ${k}: ${n}건`);
   }
   return redact(lines.join('\n'));
 }
@@ -214,6 +234,527 @@ async function revoke(supabase, session) {
   }).catch(() => {});
 }
 
+// ---------------------------------------------------------------------------------------
+// Draft restore mode (#858, `QA_DRAFT_RESTORE=1`). Everything below runs under ONE
+// default-deny guard (draft-restore-contract.mjs) from the first browser context of the
+// run to the last Node fetch: Supabase discovery, the harness login, the signed-in profile
+// check and the restore scenario itself. The standard Daily QA path (`main()` below) is
+// not touched by this mode.
+//
+// Allowed surfaces, and nothing else:
+//   browser  GET/HEAD/OPTIONS on the site and the Supabase origin; POST only to the
+//            STABLE read RPCs in READ_RPCS; Storage public GET/HEAD; Auth token refresh
+//            and local sign-out. Menu AI is failed or answered by a fixture locally.
+//   Node     the same reads/auth allowance plus the password grant exactly once.
+// Any other write, Edge Function call (GET included), outside-origin mutation or Node
+// call is aborted before the network and fails the run. Failures and runtime events are
+// reported as closed codes and counts only — never error.message, page text or a URL.
+// ---------------------------------------------------------------------------------------
+
+// Every check in restore mode records closed codes only.
+const restoreCheckFor = (flow) => (name, fn) => check(flow, name, () => fn().catch((error) => { throw new Error(safeRestoreFailureCode(error)); }));
+
+async function runDraftRestoreMode({ browser, startedAt }) {
+  const flow = '초안 복원';
+  const restoreCheck = restoreCheckFor(flow);
+  const guard = createRestoreGuard({ api: null, site: BASE_URL });
+  const nodeFetch = guardedFetch(guard);
+  const restoreRuntime = createRestoreRuntime();
+  const blockedLog = { first: null };
+  const onBlocked = ({ code, kind }) => { blockedLog.first ??= { code, kind, flowStep: steps.length }; };
+  let supabase = null;
+  let session = null;
+  let loginLabel = '실패';
+
+  // Every browser context of this mode: routed through the guard, runtime kept as codes.
+  const newGuardedContext = async () => {
+    const context = await browser.newContext({ ...device, locale: 'ko-KR', serviceWorkers: 'block' });
+    // Admitted requests are forwarded by handleRoute's default (forwardWithoutRedirects): a 3xx answer is a finding, never followed.
+    await context.route('**/*', (route) => handleRoute(guard, route, { onBlocked }));
+    context.on('page', (page) => {
+      page.on('pageerror', (e) => restoreRuntime.pageError(e?.message));
+      page.on('console', (m) => { if (m.type() === 'error') restoreRuntime.consoleError(m.text()); });
+      page.on('response', (r) => restoreRuntime.response(r.url(), r.status(), guard.api, BASE_URL));
+    });
+    return context;
+  };
+
+  try {
+    // 1. Execution gate BEFORE any site or auth access: manual dispatch on main, first attempt, secrets present.
+    const gate = await restoreCheck('실행 조건 (workflow_dispatch · main · run_attempt 1 · Secret) — 사이트·인증 접근 전', async () => {
+      assertDraftRestoreExecution(process.env);
+      return '승인된 실행 경로';
+    });
+    if (!gate) return;
+
+    // 2. Discovery under the guard: the first request to a *.supabase.co host binds the API origin.
+    const discovered = await restoreCheck('Supabase 프로젝트 탐지 (가드 적용 첫 context · 홈 1회 방문)', async () => {
+      for (let attempt = 1; attempt <= DISCOVERY_ATTEMPTS && !supabase; attempt += 1) {
+        const context = await newGuardedContext();
+        const page = await context.newPage();
+        let found = null;
+        page.on('request', (request) => {
+          if (found) return;
+          let url; try { url = new URL(request.url()); } catch { return; }
+          const apikey = request.headers()['apikey'];
+          if (SUPABASE_HOST.test(url.host) && apikey) found = { origin: url.origin, apikey };
+        });
+        await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+        await context.close();
+        if (found) supabase = found;
+        else if (attempt < DISCOVERY_ATTEMPTS) await new Promise((resolve) => setTimeout(resolve, DISCOVERY_RETRY_MS));
+      }
+      if (!supabase) throw new Error('SUPABASE_NOT_DISCOVERED');
+      secrets.push(supabase.apikey);
+      guard.bindApi(supabase.origin); // API_ORIGIN_MISMATCH if the guard bound another host
+      if (guard.failed) throw new Error(blockedLog.first?.code ?? 'UNEXPECTED_WRITE');
+      return `탐지 완료 · 가드 바인딩 일치 · 홈 요청 중 차단 0건 · 외부 드롭 ${guard.counts.externalDropped}건`;
+    });
+    if (!discovered) return;
+
+    // 3. Harness login from Node (password grant, allowed exactly once by the Node policy).
+    const loggedIn = await restoreCheck('QA 계정 비밀번호 로그인 (Node 정책 · 1회)', async () => {
+      const response = await nodeFetch(`${supabase.origin}/auth/v1/token?grant_type=password`, {
+        method: 'POST', headers: { apikey: supabase.apikey, 'content-type': 'application/json' },
+        body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.access_token) throw new Error('LOGIN_FAILED');
+      secrets.push(body.access_token, body.refresh_token);
+      session = body;
+      assertSessionBudget(session);
+      return '세션 발급 · 세션 15분 이상';
+    });
+    if (!loggedIn) return;
+    const storageKey = `sb-${new URL(supabase.origin).hostname.split('.')[0]}-auth-token`;
+
+    // 4. The app must recognise the session (own profile) — same bootstrap as Daily QA, under the guard.
+    const appReady = await restoreCheck('앱이 로그인 상태로 인식 (가드 적용 context · /profile)', async () => {
+      const context = await newGuardedContext();
+      try {
+        const page = await context.newPage();
+        await page.goto(`${BASE_URL}/legal/terms`, { waitUntil: 'domcontentloaded' });
+        await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
+        const profileResponse = page.waitForResponse(async (response) => {
+          let url; try { url = new URL(response.url()); } catch { return false; }
+          if (url.origin !== supabase.origin || url.pathname !== '/rest/v1/profiles' || !response.ok()) return false;
+          try { ownProfileUsername(await response.json(), session.user.id); return true; } catch { return false; }
+        }, { timeout: STEP_TIMEOUT_MS }).catch(() => null);
+        await page.goto(`${BASE_URL}/profile`, { waitUntil: 'networkidle' });
+        if (await page.getByText('프로필을 완성해주세요').isVisible()) throw new Error('QA_USERNAME_MISSING');
+        if (await page.getByRole('button', { name: '로그인하기' }).isVisible()) throw new Error('APP_SESSION_NOT_RECOGNIZED');
+        const response = await profileResponse;
+        if (!response) throw new Error('APP_SESSION_NOT_RECOGNIZED');
+        qaUsername = ownProfileUsername(await response.json(), session.user.id);
+        profileLayout = await detectOwnProfileLayout(page, STEP_TIMEOUT_MS);
+        await assertOwnProfile(page, qaUsername, STEP_TIMEOUT_MS, profileLayout).catch(() => { throw new Error('PROFILE_NOT_SHOWN'); });
+      } finally { await context.close(); }
+      if (guard.failed) throw new Error(blockedLog.first?.code ?? 'UNEXPECTED_WRITE');
+      return `내 프로필 표시 (${profileLayout === '757' ? '#757 레이아웃' : '기존 레이아웃'}) · 부트스트랩 차단 0건`;
+    });
+    loginLabel = appReady ? '성공' : '세션 발급됨, 앱 인식 실패';
+    if (!appReady) return;
+
+    await runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blockedLog, onBlocked, storageKey, newGuardedContext });
+  } catch (error) {
+    record(flow, '스크립트', 'fail', safeRestoreFailureCode(error));
+  } finally {
+    if (supabase && session) {
+      await nodeFetch(`${supabase.origin}/auth/v1/logout?scope=local`, {
+        method: 'POST', headers: { apikey: supabase.apikey, authorization: `Bearer ${session.access_token}` },
+      }).catch(() => {});
+    }
+    await browser.close();
+    const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
+    for (const s of steps) counts[s.status] += 1;
+    writeReport({ baseUrl: BASE_URL, startedAt, login: loginLabel, counts, restoreRuntime: restoreRuntime.summary,
+      note: `복원 모드 · 가드 집계: 쓰기 ${guard.counts.blockedWrites} · 함수 ${guard.counts.blockedFunctions} · 외부 쓰기 ${guard.counts.blockedOutside} · Node ${guard.counts.blockedNodeCalls} · 리다이렉트 ${guard.counts.blockedRedirects} 차단 · Node 로그인 ${guard.counts.nodeLogins}회` });
+  }
+}
+
+// The scenario: photo + review draft → menu classification pending (request held), then
+// failing → the same web session re-enters twice in each state → the review step comes
+// back (manually, then automatically once the classification is answered by a fixture;
+// and again after the current-Pick lookup failed once). Then: editing the menu name on
+// 2/4 clears the resume target and the next confirm goes through 3/4, never straight to
+// 4/4; sign-out/re-login keeps the draft; a lost photo asks again; another account's
+// draft is discarded; changing the store resets menu and photo. No registration, upload,
+// AI call or other write ever leaves the browser (guard fails closed) and the account's
+// Pick count is compared read-only before and after.
+async function runDraftRestoreFlow({ supabase, session, guard, nodeFetch, blockedLog, onBlocked, storageKey, newGuardedContext }) {
+  const flow = '초안 복원';
+  const userId = session.user.id;
+  const restoreCheck = restoreCheckFor(flow);
+  const readJson = async (url, init) => {
+    const response = await nodeFetch(url, { ...init, headers: { apikey: supabase.apikey, authorization: `Bearer ${session.access_token}`, 'content-type': 'application/json', ...(init?.headers ?? {}) } });
+    const body = await response.json().catch(() => null);
+    return { ok: response.ok, body };
+  };
+  const stepMeta = (page, n) => page.getByText(new RegExp(`^${n} / 4 · `)).first();
+  const nextButton = (page) => page.getByRole('button', { name: '다음', exact: true });
+  const backButton = (page) => page.getByRole('button', { name: '이전 단계', exact: true });
+  const menuBox = (page) => page.getByRole('textbox', { name: '메뉴 이름', exact: true });
+  const reviewBox = (page) => page.getByRole('textbox', { name: '원픽 한줄평', exact: true });
+  const readDraft = (page) => page.evaluate(([k, p]) => [sessionStorage.getItem(k), sessionStorage.getItem(p)], [DRAFT_KEY, DRAFT_PHOTO_KEY])
+    .then(([raw, photo]) => ({ raw, draft: inspectDraft(raw, photo) }));
+  // Autosave is an effect; give it a moment and keep the last inspection for the error text.
+  const waitDraft = async (page, predicate) => {
+    const deadline = Date.now() + STEP_TIMEOUT_MS;
+    let last = null;
+    while (Date.now() < deadline) {
+      last = await readDraft(page);
+      if (predicate(last.draft)) return last;
+      await page.waitForTimeout(250);
+    }
+    return last;
+  };
+  const waitCount = async (page, read, min) => {
+    const deadline = Date.now() + STEP_TIMEOUT_MS;
+    while (read() < min && Date.now() < deadline) await page.waitForTimeout(250);
+    return read();
+  };
+  const draftState = (d) => d ? `step=${d.step} photo=${d.photo} review=${d.review === RESTORE_REVIEW ? '유지' : '유실'}` : '초안 없음';
+  const countPicks = async () => {
+    const { ok, body } = await readJson(`${supabase.origin}/rest/v1/picks?user_id=eq.${userId}&select=id`);
+    if (!ok || !Array.isArray(body)) throw new Error('PICK_COUNT_READ_FAILED');
+    return body.length;
+  };
+  // Deterministic canvas test card; it stays in sessionStorage and is never uploaded.
+  const attachTestPhoto = async (page) => {
+    const png = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 640, 480);
+      g.fillStyle = '#111'; g.font = 'bold 40px sans-serif'; g.fillText('ONEPICK QA', 70, 150);
+      g.font = '28px sans-serif'; g.fillText('DRAFT RESTORE #858', 70, 220); g.fillText('NOT A REAL MENU', 70, 280);
+      return c.toDataURL('image/png').split(',')[1];
+    });
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: '사진 고르기', exact: true }).click();
+    await (await chooser).setFiles({ name: 'onepick-qa-draft.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+    await page.getByRole('img', { name: '선택한 대표 이미지 미리보기', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+  };
+  // 1/4 → "URL 없음" → store search → pick the n-th result → 2/4.
+  const pickStoreResult = async (page, index) => {
+    const noUrl = page.getByRole('button', { name: 'URL 없음', exact: true });
+    if (await noUrl.isVisible().catch(() => false)) await noUrl.click({ timeout: STEP_TIMEOUT_MS });
+    await page.getByRole('textbox', { name: '매장명 검색', exact: true }).fill(STORE_QUERY);
+    const result = page.getByRole('button', { name: /선택$/ });
+    await result.nth(index).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+    await result.nth(index).click();
+    await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+    return (await stepMeta(page, 2).innerText()).trim();
+  };
+
+  let picksBefore = null;
+  let deployment = 'unknown';
+  const authorized = await restoreCheck('복원 조건 (배포 일치 · 일반 사용자 · 원픽 수 읽기)', async () => {
+    // The tester site must be serving the commit this run was dispatched from; otherwise the
+    // result would describe another deploy and must not be claimed as QA of main.
+    const dep = await nodeFetch(`${BASE_URL}/deployment.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    deployment = typeof dep?.commitSha === 'string' ? dep.commitSha.slice(0, 7) : 'unreadable';
+    if (!dep || dep.commitSha !== process.env.GITHUB_SHA) throw new Error('DEPLOYMENT_NOT_CURRENT');
+    // Only the dedicated general QA account may run this; an admin session would widen what the screen can do.
+    const admin = await readJson(`${supabase.origin}/rest/v1/rpc/current_user_is_admin`, { method: 'POST', body: '{}' });
+    if (!admin.ok || admin.body !== false) throw new Error('GENERAL_USER_REQUIRED');
+    picksBefore = await countPicks();
+    return `배포 ${deployment} = GITHUB_SHA · 일반 사용자 · 원픽 ${picksBefore}개(읽기 전용)`;
+  });
+  if (!authorized) return;
+
+  const context = await newGuardedContext();
+  const page = await context.newPage();
+  let menuRows = null;
+  page.on('response', (r) => {
+    let pathname = '';
+    try { pathname = new URL(r.url()).pathname; } catch { return; }
+    if (r.request().method() === 'POST' && pathname === '/rest/v1/rpc/store_menu_options' && r.ok()) {
+      r.json().then((rows) => { menuRows = rows; }).catch(() => {});
+    }
+  });
+
+  let meta2 = '';
+  let meta5 = '';
+  let expectedMenu = RESTORE_MENU;
+  try {
+    await page.goto(`${BASE_URL}/legal/terms`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
+
+    const ready = await restoreCheck('등록 화면 → 매장 선택 (1/4 → 2/4)', async () => {
+      await page.goto(`${BASE_URL}/pick/new`, { waitUntil: 'networkidle' });
+      if (await page.getByText('로그인하고').first().isVisible().catch(() => false)) throw new Error('LOGIN_REQUIRED_SCREEN');
+      meta2 = await pickStoreResult(page, 0);
+      return '매장 검색 첫 결과 선택 · 2/4 진입';
+    });
+    if (!ready) return;
+
+    const drafted = await restoreCheck('메뉴 입력 → AI 분류 실패(차단) → 수동 다음 → 사진 → 한줄평 (4/4)', async () => {
+      await menuBox(page).fill(RESTORE_MENU);
+      // The typed name is not in the taxonomy, so the AI pass is attempted and dropped.
+      const aiFailed = await waitCount(page, () => guard.counts.aiFailed, 1);
+      if (aiFailed < 1) throw new Error('MENU_AI_NOT_ATTEMPTED');
+      await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await nextButton(page).click();
+      await stepMeta(page, 3).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await attachTestPhoto(page);
+      await nextButton(page).click();
+      await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      meta5 = (await stepMeta(page, 4).innerText()).trim();
+      await reviewBox(page).fill(RESTORE_REVIEW);
+      const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.review === RESTORE_REVIEW && d.photo === 'stored');
+      assertReviewDraft(draft, { userId });
+      await shot(page, 'draft_restore_review');
+      return `AI 요청 ${guard.counts.aiFailed}건 차단 · 미분류 메뉴로 진행 · 초안 ${draftState(draft)}`;
+    });
+    if (!drafted) return;
+    const storeName = (await readDraft(page)).draft?.storeName ?? null;
+
+    // #858 as titled: the classification request is still PENDING when the session re-enters
+    // (twice). While it waits nothing is decided — the screen must stay on 2/4 with the
+    // review-step target kept, and the AI pass must not even start.
+    const requireNoResume = async () => {
+      if (await stepMeta(page, 4).isVisible().catch(() => false)) throw new Error('RESTORE_TOO_EARLY');
+      if (await page.getByRole('button', { name: '원픽 등록하기', exact: true }).isVisible().catch(() => false)) throw new Error('RESTORE_TOO_EARLY');
+    };
+    guard.setFault('holdMenuOptions', true);
+    for (const round of [1, 2]) {
+      await restoreCheck(`동일 세션 재진입 ${round}회 (분류 대기 = 요청 보류) → 2/4 대기 · 복귀 목표 유지`, async () => {
+        const aiBefore = guard.counts.aiFailed;
+        const heldBefore = guard.counts.held;
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await waitCount(page, () => guard.counts.held, heldBefore + 1)) <= heldBefore) throw new Error('MENU_OPTIONS_NOT_HELD');
+        await page.waitForTimeout(1_500);
+        await requireNoResume();
+        if (guard.counts.aiFailed !== aiBefore) throw new Error('RESTORE_TOO_EARLY'); // AI pass must wait for the menu list
+        const { draft } = await waitDraft(page, (d) => d?.step === 5);
+        assertReviewDraft(draft, { storeName, userId });
+        if ((await stepMeta(page, 2).innerText()).trim() !== meta2) throw new Error('STORE_LABEL_CHANGED');
+        return `2/4 대기 · 매장 표시 유지 · 분류 요청 보류 ${guard.parkedCount}건 · 초안 ${draftState(draft)} · 자동 진행 없음`;
+      });
+    }
+    guard.setFault('holdMenuOptions', false);
+    await restoreCheck('보류 해제 → 분류 실패로 정착 · 2/4 유지 · "다음" 활성 · 자동 등록 없음', async () => {
+      const aiBefore = guard.counts.aiFailed;
+      await guard.release((route) => forwardWithoutRedirects(guard, route, onBlocked));
+      if ((await waitCount(page, () => guard.counts.aiFailed, aiBefore + 1)) <= aiBefore) throw new Error('MENU_AI_NOT_ATTEMPTED');
+      await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.waitForTimeout(1_000);
+      await requireNoResume();
+      const { draft } = await waitDraft(page, (d) => d?.step === 5);
+      assertReviewDraft(draft, { storeName, userId });
+      if (await nextButton(page).isDisabled()) throw new Error('NEXT_DISABLED');
+      return `보류 해제 후 AI 차단 ${guard.counts.aiFailed}건 · 2/4 유지 · 초안 ${draftState(draft)} · "다음" 활성`;
+    });
+
+    for (const round of [1, 2]) {
+      await restoreCheck(`동일 세션 재진입 ${round}회 (분류 실패 유지) → 2/4 대기 · 복귀 목표 유지`, async () => {
+        const before = guard.counts.aiFailed;
+        await page.reload({ waitUntil: 'networkidle' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        const after = await waitCount(page, () => guard.counts.aiFailed, before + 1);
+        if (after <= before) throw new Error('MENU_AI_NOT_ATTEMPTED');
+        // Settle time for the restore's own autosave; the target step must not regress to 2.
+        await page.waitForTimeout(1_000);
+        await requireNoResume();
+        const { draft } = await waitDraft(page, (d) => d?.step === 5);
+        assertReviewDraft(draft, { storeName, userId });
+        if ((await stepMeta(page, 2).innerText()).trim() !== meta2) throw new Error('STORE_LABEL_CHANGED');
+        if (await nextButton(page).isDisabled()) throw new Error('NEXT_DISABLED');
+        return `2/4 · 매장 표시 유지 · 초안 ${draftState(draft)} · 매장·메뉴명 유지 · 자동 진행 없음`;
+      });
+    }
+
+    await restoreCheck('수동 "다음" → 원래 한줄평 단계(4/4) 복귀 · 입력 유지', async () => {
+      await nextButton(page).click();
+      await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      if ((await stepMeta(page, 4).innerText()).trim() !== meta5) throw new Error('STEP_LABEL_CHANGED');
+      const review = await reviewBox(page).inputValue();
+      if (review !== RESTORE_REVIEW) throw new Error('DRAFT_REVIEW_LOST');
+      // The submit button exists but is never pressed.
+      await page.getByRole('button', { name: '원픽 등록하기', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.photo === 'stored');
+      assertReviewDraft(draft, { storeName, userId });
+      await shot(page, 'draft_restore_manual_resume');
+      return '4/4 복귀 · 한줄평·사진·메뉴명·매장명 유지 (등록하지 않음)';
+    });
+
+    // Classification succeeds (fixture) but the current-Pick lookup fails during the automatic
+    // resume: the target must survive the failed lookup (#861) and a manual "다음" must then
+    // reach 4/4 once the lookup works again (#865 test 14, in a real browser).
+    await restoreCheck('재진입 (분류 성공 fixture · 원픽 조회 실패) → 2/4 유지 · 목표 보존 → 수동 "다음" 재시도 성공', async () => {
+      const category = pickFixtureCategory(menuRows);
+      if (!category) throw new Error('MENU_OPTIONS_NOT_CAPTURED');
+      guard.setMode('success', category);
+      guard.setFault('failPickSlotRead', true);
+      try {
+        const slotBefore = guard.counts.slotReadFailed;
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await waitCount(page, () => guard.counts.slotReadFailed, slotBefore + 1)) <= slotBefore) throw new Error('RETRY_FAILED');
+        await page.getByRole('alert').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }); // lookup error under the menu controls
+        if (await stepMeta(page, 4).isVisible().catch(() => false)) throw new Error('RETRY_FAILED');
+        const { draft } = await waitDraft(page, (d) => d?.step === 5);
+        assertReviewDraft(draft, { storeName, userId }); // target not consumed on a failed lookup
+        guard.setFault('failPickSlotRead', false);
+        await nextButton(page).click();
+        await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await stepMeta(page, 4).innerText()).trim() !== meta5) throw new Error('STEP_LABEL_CHANGED');
+        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('RETRY_FAILED');
+        return `조회 실패 ${guard.counts.slotReadFailed}건 중 2/4 유지(초안 ${draftState(draft)}) · 재시도 후 4/4 복귀 · 한줄평 유지`;
+      } finally { guard.setFault('failPickSlotRead', false); guard.setMode('fail'); }
+    });
+
+    await restoreCheck('재진입 (분류 성공 fixture) → 4/4 자동 복귀', async () => {
+      const category = pickFixtureCategory(menuRows);
+      if (!category) throw new Error('MENU_OPTIONS_NOT_CAPTURED');
+      guard.setMode('success', category);
+      try {
+        await page.reload({ waitUntil: 'networkidle' });
+        await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        if ((await stepMeta(page, 4).innerText()).trim() !== meta5) throw new Error('STEP_LABEL_CHANGED');
+        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('DRAFT_REVIEW_LOST');
+        const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.menuName === RESTORE_MENU);
+        assertReviewDraft(draft, { storeName, userId });
+        return `탭 없이 4/4 복귀 · AI fixture ${guard.counts.aiFixture}건 · place-catalog fixture ${guard.counts.placeCatalogFixture}건 · 초안 ${draftState(draft)}`;
+      } finally { guard.setMode('fail'); }
+    });
+
+    // #858 handoff: editing the menu name after a confirmed draft must drop the resume
+    // target (draft.step back to 2; photo and review kept) and the next confirm — even with
+    // a successful classification — must go through 3/4, never jump to the old 4/4.
+    await restoreCheck('메뉴명 수정 (4/4 → 이전 → 2/4) → 복귀 목표 해제 · 사진·한줄평 유지 → 분류 성공 시 3/4 경유 → 4/4', async () => {
+      await backButton(page).click(); // 5 → 4 (photo)
+      await stepMeta(page, 3).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await backButton(page).click(); // 4 → 2 (menu)
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const category = pickFixtureCategory(menuRows);
+      if (!category) throw new Error('MENU_OPTIONS_NOT_CAPTURED');
+      guard.setMode('success', category);
+      try {
+        await menuBox(page).fill(RESTORE_MENU_EDITED);
+        // Autosave now records the current step, not a stale later target; the photo and
+        // review entered before the edit stay in the draft.
+        const { draft: reset } = await waitDraft(page, (d) => d?.step === 2 && d.menuQuery === RESTORE_MENU_EDITED);
+        if (!reset || reset.step !== 2 || reset.menuQuery !== RESTORE_MENU_EDITED) throw new Error('MENU_EDIT_NOT_RESET');
+        if (reset.review !== RESTORE_REVIEW || reset.photo !== 'stored') throw new Error('DRAFT_REVIEW_LOST');
+        // Re-entry with the edited name: no resume target → the screen stays on 2/4 even
+        // though the classification now succeeds. Only the person's own "다음" moves on, and it
+        // follows the normal path: the photo step (3/4) unless the matched item already has a
+        // photo, in which case the screen's own rule skips to 4/4 — that is not a stale resume.
+        await page.reload({ waitUntil: 'networkidle' });
+        await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).or(page.getByRole('button', { name: '다음', exact: true }))
+          .first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        await page.waitForTimeout(1_500);
+        if (await stepMeta(page, 4).isVisible().catch(() => false) || await stepMeta(page, 3).isVisible().catch(() => false)) throw new Error('RESUME_SKIPPED_PHOTO_STEP');
+        const { draft: still } = await readDraft(page);
+        if (!still || still.step !== 2) throw new Error('MENU_EDIT_NOT_RESET');
+        await nextButton(page).click();
+        await stepMeta(page, 3).or(stepMeta(page, 4)).first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        let path = '3/4 경유';
+        if (await stepMeta(page, 3).isVisible().catch(() => false)) {
+          await page.getByRole('img', { name: '선택한 대표 이미지 미리보기', exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+          await nextButton(page).click();
+          await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+        } else path = '항목 사진 있음 → 3/4 생략(화면 정책)';
+        if ((await reviewBox(page).inputValue()) !== RESTORE_REVIEW) throw new Error('DRAFT_REVIEW_LOST');
+        expectedMenu = RESTORE_MENU_EDITED;
+        const { draft } = await waitDraft(page, (d) => d?.step === 5 && d.menuQuery === RESTORE_MENU_EDITED);
+        assertReviewDraft(draft, { storeName, userId, menuQuery: RESTORE_MENU_EDITED });
+        return `수정 직후 초안 step=2(사진·한줄평 유지) · 재진입 2/4 유지(자동 진행 없음) · 수동 "다음" ${path} → 4/4 · 초안 ${draftState(draft)}`;
+      } finally { guard.setMode('fail'); }
+    });
+
+    await restoreCheck('세션 제거(로그아웃 상태) → 초안 비노출 → 같은 계정 재로그인 → 초안 유지', async () => {
+      await page.evaluate((key) => window.localStorage.removeItem(key), storageKey);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByText('로그인하고').first().waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      if (await stepMeta(page, 4).isVisible().catch(() => false) || await stepMeta(page, 2).isVisible().catch(() => false)) throw new Error('DRAFT_SHOWN_SIGNED_OUT');
+      const kept = (await readDraft(page)).draft;
+      assertReviewDraft(kept, { storeName, userId, menuQuery: expectedMenu });
+      await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [storageKey, JSON.stringify(session)]);
+      await page.reload({ waitUntil: 'networkidle' });
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const { draft } = await waitDraft(page, (d) => d?.step === 5);
+      assertReviewDraft(draft, { storeName, userId, menuQuery: expectedMenu });
+      return `비로그인 안내 표시 · 초안 보존 · 재로그인 후 2/4 복귀 · 초안 ${draftState(draft)}`;
+    });
+
+    await restoreCheck('사진 유실 표시 → "다음" 후 3/4 재선택 안내 · 한줄평 유지', async () => {
+      const { raw } = await readDraft(page);
+      await page.evaluate(([k, p, value]) => { sessionStorage.setItem(k, value); sessionStorage.removeItem(p); }, [DRAFT_KEY, DRAFT_PHOTO_KEY, markPhotoLost(raw)]);
+      await page.reload({ waitUntil: 'networkidle' });
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await nextButton(page).click();
+      await stepMeta(page, 3).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.getByText('사진을 다시 선택해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      const { draft } = await readDraft(page);
+      if (!draft || draft.review !== RESTORE_REVIEW || draft.menuQuery !== expectedMenu) throw new Error('DRAFT_REVIEW_LOST');
+      return `3/4 재선택 안내 표시 · 한줄평·메뉴명 유지 · 초안 ${draftState(draft)}`;
+    });
+
+    await restoreCheck('다른 계정 소유 초안 → 재진입 시 폐기 (빈 등록 화면)', async () => {
+      const { raw } = await readDraft(page);
+      await page.evaluate(([k, value]) => sessionStorage.setItem(k, value), [DRAFT_KEY, reassignDraftOwner(raw, crypto.randomUUID())]);
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByText('네이버 지도 링크를 입력해주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      for (const n of [2, 3, 4]) if (await stepMeta(page, n).isVisible().catch(() => false)) throw new Error('OTHER_OWNER_DRAFT_RESTORED');
+      const { draft } = await readDraft(page);
+      if (draft && (draft.userId !== userId || draft.review || draft.menuQuery)) throw new Error('OTHER_OWNER_DRAFT_KEPT');
+      return `링크 입력 첫 화면 · 이전 입력 없음 · ${draft ? '현재 계정의 빈 초안만 저장' : '초안 없음'}`;
+    });
+
+    // #858 handoff: changing the store after a confirmed draft is an intended reset of the
+    // menu and photo (the review text is kept by the screen); the re-entry must not resume.
+    await restoreCheck('매장 변경 (새 초안 4/4 → 이전 ×3 → 다른 매장 선택) → 메뉴·사진 초기화 · 복귀 목표 없음', async () => {
+      const first = await pickStoreResult(page, 0);
+      const aiBefore = guard.counts.aiFailed;
+      await menuBox(page).fill(RESTORE_MENU);
+      if ((await waitCount(page, () => guard.counts.aiFailed, aiBefore + 1)) <= aiBefore) throw new Error('MENU_AI_NOT_ATTEMPTED');
+      await page.getByText('메뉴를 확인했어요. 다음으로 넘어가주세요.', { exact: true }).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await nextButton(page).click();
+      await stepMeta(page, 3).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await attachTestPhoto(page);
+      await nextButton(page).click();
+      await stepMeta(page, 4).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await reviewBox(page).fill(RESTORE_REVIEW);
+      const { draft: before } = await waitDraft(page, (d) => d?.step === 5 && d.photo === 'stored' && d.review === RESTORE_REVIEW);
+      assertReviewDraft(before, { userId });
+      for (const target of [3, 2]) { await backButton(page).click(); await stepMeta(page, target).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS }); }
+      await backButton(page).click(); // 2 → 1
+      const second = await pickStoreResult(page, 1);
+      if (second === first) throw new Error('STORE_CHANGE_NOT_RESET');
+      const { draft } = await waitDraft(page, (d) => d?.step === 2 && d.storeName !== before.storeName);
+      if (!draft || draft.step !== 2 || draft.storeName === before.storeName) throw new Error('STORE_CHANGE_NOT_RESET');
+      if (draft.menuQuery !== '' || draft.photo !== 'none') throw new Error('STORE_CHANGE_NOT_RESET');
+      if (await menuBox(page).inputValue()) throw new Error('STORE_CHANGE_NOT_RESET');
+      await page.reload({ waitUntil: 'networkidle' });
+      await stepMeta(page, 2).waitFor({ state: 'visible', timeout: STEP_TIMEOUT_MS });
+      await page.waitForTimeout(1_000);
+      for (const n of [3, 4]) if (await stepMeta(page, n).isVisible().catch(() => false)) throw new Error('STORE_CHANGE_NOT_RESET');
+      if (await menuBox(page).inputValue()) throw new Error('STORE_CHANGE_NOT_RESET');
+      return `다른 매장 선택 후 초안 ${draftState(draft)} · 메뉴명 비움 · 재진입 2/4 · 자동 진행 없음 (한줄평 텍스트는 화면 정책상 유지)`;
+    });
+  } catch (error) {
+    record(flow, '스크립트', 'fail', safeRestoreFailureCode(error));
+  } finally {
+    await guard.release((route) => route.abort('blockedbyclient')).catch(() => {});
+    await context.close().catch(() => {});
+    // The blocked-request facts of the WHOLE run (discovery, login, bootstrap, scenario, Node)
+    // are reported as counts and closed codes only.
+    await check(flow, '쓰기·유료 호출·외부 쓰기·Node 호출·리다이렉트 차단 가드 (전 구간) · 원픽 수 불변 (읽기 전용 비교)', async () => {
+      const c = guard.counts;
+      const picksAfter = await countPicks().catch(() => null);
+      const first = blockedLog.first ? `${blockedLog.first.code} (${blockedLog.first.kind}, 검사 #${blockedLog.first.flowStep + 1})` : null;
+      const summary = `차단된 쓰기 ${c.blockedWrites}건 · 함수 호출 ${c.blockedFunctions}건 · 외부 쓰기 ${c.blockedOutside}건 · Node 호출 ${c.blockedNodeCalls}건 · 리다이렉트 ${c.blockedRedirects}건${first ? ` · 최초 ${first}` : ''} · 원픽 ${picksBefore ?? '?'}→${picksAfter ?? '?'}`;
+      if (picksAfter === null) return { status: 'fail', detail: `PICK_COUNT_READ_FAILED · ${summary}` };
+      if (picksBefore !== null && picksAfter !== picksBefore) return { status: 'fail', detail: `PICK_COUNT_CHANGED · ${summary}` };
+      if (guard.failed) return { status: 'fail', detail: `${blockedLog.first?.code ?? 'UNEXPECTED_WRITE'} · ${summary}` };
+      return `${summary} · Node 로그인 ${c.nodeLogins}회 · AI 차단 ${c.aiFailed}건 · AI fixture ${c.aiFixture}건 · place-catalog fixture ${c.placeCatalogFixture}건 · 분류 보류 ${c.held}건 · 조회 실패 주입 ${c.slotReadFailed}건 · 텔레메트리 드롭 ${c.telemetryDropped}건 · 외부 읽기 드롭 ${c.externalDropped}건`;
+    });
+  }
+}
+
 async function main() {
   const startedAt = new Date().toISOString();
   if (!EMAIL || !PASSWORD) {
@@ -223,6 +764,12 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const browser = await chromium.launch(process.env.QA_CHROMIUM_PATH ? { executablePath: process.env.QA_CHROMIUM_PATH } : {});
+  if (DRAFT_RESTORE) {
+    // Opt-in restore mode owns the whole run (gate → discovery → login → profile → scenario)
+    // under its default-deny guard; the standard flow below is not run and not changed.
+    await runDraftRestoreMode({ browser, startedAt });
+    return;
+  }
   const runtime = { pageErrors: [], consoleErrors: [], badResponses: [] };
   let blockedMenuSuggestions = 0;
   let loginLabel = '실패';

@@ -1,0 +1,56 @@
+name: Draft Restore QA
+
+# Opt-in authenticated QA of the /pick/new draft restore path (#858): photo + review
+# draft → menu classification failing → the same web session re-enters twice →
+# the review step comes back. Manual only, on main, with the `daily-qa` Environment.
+# Every registration/upload/AI/other write is blocked in the browser (fails closed);
+# only read requests reach the service. Not a required check; never runs on
+# pull requests, pushes or a schedule. Each run must be approved by the user.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-qa
+  cancel-in-progress: false
+
+jobs:
+  draft-restore:
+    if: github.ref == 'refs/heads/main' && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: daily-qa
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+      - name: Install pinned QA dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check the restore network guard offline
+        run: node --test draft-restore-contract.test.mjs
+      - name: Run draft restore QA (no data writes)
+        env:
+          QA_DRAFT_RESTORE: '1'
+          QA_OUT_DIR: ${{ github.workspace }}/qa-output
+          ONEPICK_QA_EMAIL: ${{ secrets.ONEPICK_QA_EMAIL }}
+          ONEPICK_QA_PASSWORD: ${{ secrets.ONEPICK_QA_PASSWORD }}
+        run: node logged-in-qa.mjs
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qa-draft-restore
+          path: qa-output
+          retention-days: 14
