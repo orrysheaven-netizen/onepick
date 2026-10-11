@@ -1,0 +1,52 @@
+name: QA Contract Fixtures
+
+# Run the offline browser contracts only when the QA harness changes.
+# No QA account secrets, real app requests, production writes, or paid model calls.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'tools/qa/**'
+      - '.github/workflows/qa-contract-fixtures.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-contract-fixtures-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  logged-in-contracts:
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tools/qa
+    steps:
+      - name: Checkout PR test files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/qa/package-lock.json
+
+      - name: Install locked QA dependencies and Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run offline logged-in contract fixtures
+        env:
+          # Deliberately no ONEPICK_QA_EMAIL, ONEPICK_QA_PASSWORD, QA_BASE_URL,
+          # Supabase token, service role, or deployment credentials.
+          CI: 'true'
+        run: node --test logged-in-contract.test.cjs

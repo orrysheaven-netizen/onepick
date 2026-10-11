@@ -1,6 +1,12 @@
 // UI contracts shared by the live QA and offline DOM fixtures. No network calls here.
 export const SUGGESTION_ROUTE = '**/functions/v1/suggest-item-categories*';
 
+// Default QA observes the site's actual service workers. Only opt-in AI
+// safety mode or a short-lived mock context disables them for route handling.
+export function qaContextOptions(device, interceptMenuAI = false) {
+  return { ...device, locale: 'ko-KR', serviceWorkers: interceptMenuAI ? 'block' : 'allow' };
+}
+
 export function ownProfileUsername(data, userId) {
   const rows = Array.isArray(data) ? data : [data];
   const own = rows.find((row) => row?.id === userId);
@@ -192,6 +198,17 @@ export async function checkMenuSelection(page, menuName, timeout = 15_000) {
   }
   // confirmMenu may write: only trial-click the real, enabled Next button.
   await page.getByRole('button', { name: '다음', exact: true }).click({ trial: true, timeout });
+}
+
+// The caller must first observe the *specific* empty/failed AI classification
+// response for an unknown menu; an enabled Next button alone cannot prove that
+// the fallback path was exercised. This helper never presses the real button.
+export async function checkUnclassifiedMenuNext(page, menuName, timeout = 15_000) {
+  await page.getByText(/^2 \/ 4 · /).waitFor({ state: 'visible', timeout });
+  const input = page.getByRole('textbox', { name: '메뉴 이름', exact: true });
+  if (await input.inputValue() !== menuName) throw new Error('미분류 메뉴명이 입력란에 유지되지 않음');
+  await page.getByRole('button', { name: '다음', exact: true }).click({ trial: true, timeout });
+  if (await input.inputValue() !== menuName) throw new Error('미분류 메뉴명이 다음 버튼 검사 중 변경됨');
 }
 
 function homeSearchDialog(page) {

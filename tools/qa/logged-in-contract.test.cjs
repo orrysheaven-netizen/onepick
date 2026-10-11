@@ -8,7 +8,7 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
   const api = await import('./logged-in-contract.mjs');
   const browser = await chromium.launch(process.env.QA_CHROMIUM_PATH
     ? { executablePath: process.env.QA_CHROMIUM_PATH } : {});
-  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const context = await browser.newContext(api.qaContextOptions({}));
   let unexpectedRequests = 0;
   await context.route('**/*', async (route) => {
     if (new URL(route.request().url()).hostname === 'fixture.invalid') {
@@ -22,6 +22,50 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
   const timeout = 400;
   const set = async (html) => { await page.goto('https://fixture.invalid/profile'); await page.setContent(html); };
   try {
+    await t.test('isolated mock copies login state but never copies or overwrites session-only registration draft', async () => {
+      const draftKey = 'onepick:pick-draft:v1';
+      const localKey = 'qa-fixture-auth';
+      const originalDraft = 'original-qa-draft';
+      await set('<div>Original QA page</div>');
+      await page.evaluate(({ localKey, draftKey, originalDraft }) => {
+        localStorage.setItem(localKey, 'fake-qa-session');
+        sessionStorage.setItem(draftKey, originalDraft);
+      }, { localKey, draftKey, originalDraft });
+
+      const isolated = await browser.newContext({
+        ...api.qaContextOptions({}, true),
+        storageState: await context.storageState(),
+      });
+      await isolated.route('**/*', async (route) => {
+        if (new URL(route.request().url()).hostname === 'fixture.invalid') {
+          await route.fulfill({ contentType: 'text/html', body: '<body>Isolated QA page</body>' });
+        } else {
+          unexpectedRequests += 1;
+          await route.abort();
+        }
+      });
+      try {
+        const isolatedPage = await isolated.newPage();
+        await isolatedPage.goto('https://fixture.invalid/profile');
+        assert.equal(await isolatedPage.evaluate((key) => localStorage.getItem(key), localKey), 'fake-qa-session');
+        assert.equal(await isolatedPage.evaluate((key) => sessionStorage.getItem(key), draftKey), null,
+          'storageState must not copy the original registration sessionStorage');
+        await isolatedPage.evaluate((key) => sessionStorage.setItem(key, 'synthetic-unclassified-menu'), draftKey);
+        assert.equal(await page.evaluate((key) => sessionStorage.getItem(key), draftKey), originalDraft,
+          'the original registration draft must remain unchanged after isolated mock input');
+      } finally {
+        await isolated.close();
+        await page.evaluate(({ localKey, draftKey }) => {
+          localStorage.removeItem(localKey);
+          sessionStorage.removeItem(draftKey);
+        }, { localKey, draftKey });
+      }
+    });
+    await t.test('regular QA retains SW policy and explicit interception blocks only the isolated context', () => {
+      assert.equal(api.qaContextOptions({}).serviceWorkers, 'allow');
+      assert.equal(api.qaContextOptions({}).locale, 'ko-KR');
+      assert.equal(api.qaContextOptions({ viewport: { width: 390 } }, true).serviceWorkers, 'block');
+    });
     await t.test('identity belongs to authenticated user, not another visible profile', async () => {
       assert.equal(api.ownProfileUsername([{ id: 'other', username: 'stranger' }, { id: 'qa', username: 'qa_user' }], 'qa'), 'qa_user');
       assert.throws(() => api.ownProfileUsername([{ id: 'other', username: 'qa_user' }], 'qa'));
@@ -107,6 +151,66 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
         }, 60), { once: true });
       }, successCopy);
       await api.checkMenuSelection(page, '도가니탕', timeout);
+      assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
+    });
+    await t.test('empty AI recommendation is mocked only in a short-lived SW-blocked context', async () => {
+      const name = 'QA미분류검증메뉴20261010';
+      const isolated = await browser.newContext(api.qaContextOptions({}, true));
+      let calls = 0;
+      let unexpectedIsolatedRequests = 0;
+      await isolated.route('**/*', async (route) => {
+        if (new URL(route.request().url()).hostname === 'fixture.invalid') {
+          await route.fulfill({ contentType: 'text/html', body: '<body></body>' });
+        } else {
+          unexpectedIsolatedRequests += 1;
+          await route.abort();
+        }
+      });
+      await isolated.route(api.SUGGESTION_ROUTE, async (route) => {
+        calls += 1;
+        const req = route.request().postDataJSON();
+        assert.equal(req.store.menuName, name);
+        await route.fulfill({
+          status: 200, contentType: 'application/json',
+          body: JSON.stringify({ suggestions: [], needsNewCategory: true }),
+        });
+      });
+      const mockPage = await isolated.newPage();
+      try {
+        await mockPage.goto('https://fixture.invalid/profile');
+        await mockPage.setContent(menu('추천 중', true));
+        const input = mockPage.getByRole('textbox', { name: '메뉴 이름', exact: true });
+        await input.evaluate((element) => {
+          element.addEventListener('input', async () => {
+            const response = await fetch('/functions/v1/suggest-item-categories', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ store: { menuName: element.value } }),
+            });
+            const result = await response.json();
+            if (result.needsNewCategory && result.suggestions.length === 0) {
+              document.querySelector('button').disabled = false;
+              document.getElementById('classification').textContent = '메뉴를 확인했어요. 다음으로 넘어가주세요.';
+            }
+          }, { once: true });
+        });
+        await input.fill(name);
+        await mockPage.getByText(successCopy, { exact: true }).waitFor({ state: 'visible', timeout });
+        await api.checkUnclassifiedMenuNext(mockPage, name, timeout);
+        assert.equal(calls, 1, 'empty AI response must actually be intercepted');
+        assert.equal(await input.inputValue(), name);
+        assert.equal(await mockPage.evaluate(() => Boolean(window.submitted)), false, 'trial click cannot submit');
+      } finally {
+        await isolated.close();
+      }
+      assert.equal(unexpectedIsolatedRequests, 0);
+      // A synthetic menu must not alter the ordinary QA page or its routing.
+      assert.equal(await page.evaluate(() => window.location.pathname), '/profile');
+      await set(menu(successCopy, true));
+      await page.getByRole('textbox', { name: '메뉴 이름' }).fill(name);
+      await assert.rejects(api.checkUnclassifiedMenuNext(page, name, timeout), 'disabled Next cannot pass');
+      await set(menu(successCopy));
+      await page.getByRole('textbox', { name: '메뉴 이름' }).fill('다른 메뉴');
+      await assert.rejects(api.checkUnclassifiedMenuNext(page, name, timeout), /유지되지/);
       assert.equal(await page.evaluate(() => Boolean(window.submitted)), false);
     });
     await t.test('missing, loading, unresolved and legacy category choices cannot pass', async () => {
