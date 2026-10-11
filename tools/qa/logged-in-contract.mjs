@@ -58,11 +58,27 @@ export async function assertOwnProfile(page, username, timeout = 15_000, layout 
 // collection itself is the signal — current Pick rows or that profile's normal empty card.
 // Hidden (still-mounted) screens are ignored. Returns the visible row count (0 = empty card).
 const PROFILE_PICK_EMPTY = Object.freeze({ own: '첫 원픽을 골라보세요.', public: '아직 고른 원픽이 없어요.' });
+
+// Controls only the own profile renders (hidden ones included). A public-screen root must
+// contain none of them, so a still-mounted own profile can never feed the public list.
+const OWN_PROFILE_MARKERS = ['설정 열기', '원픽 탭', '내 프로필 공유하기', '다른 사람에게 보이는 내 프로필 미리 보기']
+  .map((label) => `[aria-label="${label}"]`).join(', ');
+
+// The active public profile screen: the outermost ancestor of the visible header share button
+// ("프로필 공유", first in document order) that holds no own-profile control. A missing header
+// is a failure, never a page-wide fallback.
+export async function publicProfileRoot(page, timeout = 15_000) {
+  const share = page.getByRole('button', { name: '프로필 공유', exact: true }).filter({ visible: true }).first();
+  await share.waitFor({ state: 'visible', timeout });
+  return page.locator('*').filter({ has: share }).filter({ hasNot: page.locator(OWN_PROFILE_MARKERS) }).first();
+}
+
 export async function assertProfilePickList(page, timeout = 15_000, scope = 'own') {
   const emptyCopy = PROFILE_PICK_EMPTY[scope];
   if (!emptyCopy) throw new Error(`알 수 없는 프로필 범위: ${scope}`);
-  const rows = page.getByRole('button', { name: / 원픽 상세 보기$/ }).filter({ visible: true });
-  const empty = page.getByText(emptyCopy, { exact: true }).filter({ visible: true });
+  const root = scope === 'public' ? await publicProfileRoot(page, timeout) : page;
+  const rows = root.getByRole('button', { name: / 원픽 상세 보기$/ }).filter({ visible: true });
+  const empty = root.getByText(emptyCopy, { exact: true }).filter({ visible: true });
   await rows.first().or(empty.first()).first().waitFor({ state: 'visible', timeout });
   const [rowCount, emptyCount] = await Promise.all([rows.count(), empty.count()]);
   if (rowCount && emptyCount) throw new Error('원픽 목록이 빈 상태 문구와 원픽 행을 함께 보임');

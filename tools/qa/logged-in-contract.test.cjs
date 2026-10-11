@@ -300,6 +300,46 @@ test('logged-in QA contracts against isolated UI states', async (t) => {
       await api.openPublicProfilePreview(page, timeout, '757');
       await assert.rejects(api.assertPublicProfile(page, timeout, '757'), 'a public profile with neither rows nor the empty card fails');
     });
+    // Public list must come from the active public screen, not from a previous own-profile
+    // screen that is still visible in the DOM. The fixture keeps own rows visible after the
+    // preview opens on purpose; whether real Expo navigation leaves them visible is unverified.
+    await t.test('#757 public 원픽 list is scoped to the public screen, never to visible own-profile rows', async () => {
+      const openPublic = async (opts) => { await set(profile757(opts)); await api.openPublicProfilePreview(page, timeout, '757'); };
+      const twoRows = '<button aria-label="떡볶이 원픽 상세 보기">행</button><button aria-label="라멘 원픽 상세 보기">행</button>';
+      // Negative: public collection absent, only the previous own row is visible.
+      await openPublic({ publicPicks: '' });
+      assert.equal(await page.getByRole('button', { name: '김치찌개 원픽 상세 보기' }).isVisible(), true, 'own row stays visible in this fixture');
+      await assert.rejects(api.assertProfilePickList(page, timeout, 'public'));
+      await assert.rejects(api.assertPublicProfile(page, timeout, '757'));
+      // Own-profile empty card left visible does not satisfy the public list either.
+      await openPublic({ ownPicks: '<div>첫 원픽을 골라보세요.</div>', publicPicks: '' });
+      await assert.rejects(api.assertPublicProfile(page, timeout, '757'));
+      // Positive: public rows / public empty card count, own rows beside them do not.
+      await openPublic({ publicPicks: twoRows });
+      assert.equal(await api.assertProfilePickList(page, timeout, 'public'), 2);
+      await api.assertPublicProfile(page, timeout, '757');
+      await openPublic({ publicPicks: '<div>아직 고른 원픽이 없어요.</div>' });
+      assert.equal(await api.assertProfilePickList(page, timeout, 'public'), 0, 'own rows do not turn the public empty card into a mix');
+      await api.assertPublicProfile(page, timeout, '757');
+      // Another user's profile also renders a second 프로필 공유 in the follow row.
+      await openPublic({ publicPicks: `${twoRows}<button aria-label="프로필 공유">공유</button>` });
+      assert.equal(await api.assertProfilePickList(page, timeout, 'public'), 2);
+      // Hidden own screen (the assumed real app behaviour) still passes.
+      await openPublic({ publicPicks: twoRows });
+      await page.evaluate(() => { document.getElementById('picks').hidden = true; });
+      assert.equal(await api.assertProfilePickList(page, timeout, 'public'), 2);
+      // Loading, error and row + empty mixes inside the public screen fail.
+      for (const publicPicks of ['<div>원픽을 모으고 있어요.</div>', '<div role="alert">원픽을 불러오지 못했어요.</div>']) {
+        await openPublic({ publicPicks });
+        await assert.rejects(api.assertPublicProfile(page, timeout, '757'));
+      }
+      await openPublic({ publicPicks: `<div>아직 고른 원픽이 없어요.</div>${twoRows}` });
+      await assert.rejects(api.assertPublicProfile(page, timeout, '757'), /함께 보임/);
+      // No active public screen (share header missing) is a failure, not a page-wide fallback.
+      await openPublic({});
+      await page.evaluate(() => document.querySelector('#public [aria-label="프로필 공유"]').remove());
+      await assert.rejects(api.assertProfilePickList(page, timeout, 'public'));
+    });
     await t.test('#757 own comments are reached through 설정, legacy through the profile button', async () => {
       await set(profile757());
       await api.openOwnComments(page, timeout, '757');
