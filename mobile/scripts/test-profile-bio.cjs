@@ -164,7 +164,7 @@ async function main() {
   assert.notEqual(ProfileBioEditor(props).key, key, 'Account changes remount the editor');
 
   const publicData = { profile: { id: 'owner', username: 'owner', bio: '영화와 라면\n<script>plain text</script>' }, currentPicks: [], isMine: false };
-  const { default: PublicProfile } = load('app/(tabs)/(profile)/u/[username].tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
+  const { default: PublicProfile } = load('app/(tabs)/(profile)/u/[username].tsx', { '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
     'expo-router': {
       useLocalSearchParams: () => ({ username: 'owner' }),
       useRouter: () => ({ back() {}, push() {}, replace() {}, canGoBack: () => false, dismissTo() {} }),

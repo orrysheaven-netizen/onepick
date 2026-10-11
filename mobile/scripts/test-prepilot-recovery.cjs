@@ -119,6 +119,7 @@ function replies() {
     mutateAsync: async (id) => { deletes.push(id); if (removal.fail) { removal.isError = true; throw new Error('offline'); } } };
   mutation.mutateAsync = (payload) => { writes.push(payload); return new Promise((resolve, reject) => pending.push({ resolve, reject })); };
   const view = harness('components/pick-replies.tsx', 'PickReplies', {
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, 
     'expo-router': { useRouter: () => ({ push() {} }) }, '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/usePickDetail': { usePickDetail: () => detail },
     '@/hooks/usePickComments': { usePickComments: (...args) => { reads.push(args); return comments; } },
