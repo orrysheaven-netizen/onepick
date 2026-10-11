@@ -712,7 +712,7 @@ export default function NewPickScreen() {
               {storeSearchReady && search.hasNextPage ? <FlowButton variant="secondary" label="매장 더 보기" onPress={fetchNextStores} /> : null}
               {storeSearchReady && search.isSuccess && !search.isFetching && !search.hasNextPage && (search.data ?? []).length === 0 && !entryLink
                 ? <Text style={styles.helper}>검색한 이름의 매장을 찾지 못했어요.</Text> : null}
-            </>            </> : requestPart === 'name' ? <View style={styles.fieldBlock}>
+            </> : requestPart === 'name' ? <View style={styles.fieldBlock}>
               {/* One input per screen (#593): the store name here, its Naver map link next. */}
               <FieldLabel label="상호명" />
               <TextInput accessibilityLabel="등록 요청 이름" maxLength={100} value={newName} onChangeText={setNewName} style={styles.input}
