@@ -29,6 +29,7 @@ async function main() {
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }
+  imports['@/lib/home/channelFeedMerge'] = load('lib/home/channelFeedMerge.ts');
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   const poster = 'https://image.tmdb.org/t/p/w342/u1L4qxIu5sC2P082uMHYt7Ifvnj.jpg';
   const storagePaths = [], calls = [];

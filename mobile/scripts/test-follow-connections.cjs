@@ -93,7 +93,7 @@ async function main() {
     getPublicCounts: async (...args) => { serviceCalls.push(['publicCounts', ...args]); return { followingCount: 2, followerCount: 3 }; },
     getConnections: async (...args) => { serviceCalls.push(['connections', ...args]); return { items: [], nextCursor: null }; },
   };
-  const { FollowService } = loadSource('services/followService.ts', { '@/errors/appError': { AppError }, '@/lib/home/channelFeedMerge': loadSource('lib/home/channelFeedMerge.ts') });
+  const { FollowService } = loadSource('services/followService.ts', { '@/errors/appError': { AppError } });
   const service = new FollowService(followRepository, { getFollowingPicks: async () => ({ items: [], nextCursor: null }) });
   assert.throws(() => service.getPublicCounts(''), (error) => error.code === 'PROFILE_NOT_FOUND');
   assert.throws(() => service.getConnections('', 'followers'), (error) => error.code === 'PROFILE_NOT_FOUND');

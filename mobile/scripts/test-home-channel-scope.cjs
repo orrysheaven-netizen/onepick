@@ -18,33 +18,52 @@ function load(file, imports = {}) {
 const merge = load('lib/home/channelFeedMerge.ts');
 const { HomeService } = load('services/homeService.ts', { '@/lib/home/channelFeedMerge': merge });
 const earlyHome = load('lib/home/earlyHome.ts');
+const { AppError } = load('errors/appError.ts');
+const { mapSupabaseError } = load('errors/mapSupabaseError.ts', { './appError': { AppError } });
 
-// A fake server with the RPC contract: (started_at, id) desc, cursor strictly before, 20 per
-// page, p_channel matches the Pick's channel or (legacy NULL) any of its item's channels.
+// A fake server with the RPC contract: (started_at, id) desc, cursor strictly before, 21 rows
+// (20 + lookahead), p_channel matches the Pick's channel or (legacy NULL) its item's channels.
 function server(picks) {
   const sorted = [...picks].sort(merge.compareFeedOrder);
-  const calls = [];
-  const read = async (cursor, channel) => {
-    calls.push(channel);
-    const rows = sorted.filter((pick) => {
-      if (channel !== null && !(pick.channel === channel || (pick.channel === null && (pick.itemChannels ?? []).includes(channel)))) return false;
-      if (!cursor) return true;
-      return merge.compareFeedOrder(pick, { startedAt: cursor.timestamp, pickId: cursor.id }) > 0;
-    }).slice(0, 21);
-    const items = rows.slice(0, 20);
-    return { items, nextCursor: rows.length > 20 ? { timestamp: items[19].startedAt, id: items[19].pickId } : null };
+  const calls = { feed: [], brands: 0, providers: 0 };
+  const client = {
+    rpc: async (name, args) => {
+      if (name === 'item_brands') { calls.brands += 1; return { data: [], error: null }; }
+      assert.ok(name === 'home_pick_feed_page' || name === 'home_following_feed_page', name);
+      const channel = args.p_channel ?? null;
+      calls.feed.push(channel);
+      const data = sorted.filter((pick) => {
+        if (channel !== null && !(pick.channel === channel || (pick.channel === null && (pick.itemChannels ?? []).includes(channel)))) return false;
+        if (args.p_before_time === undefined) return true;
+        return merge.compareFeedOrder(pick, { startedAt: args.p_before_time, pickId: args.p_before_id }) > 0;
+      }).slice(0, 21).map((pick) => ({
+        pick_id: pick.pickId, user_id: 'u', username: 'u', profile_image_url: null, item_id: `item-${pick.pickId}`,
+        item_name: 'x', category_id: 'c', category_name: 'c', one_line_review: null, thumbnail_path: null,
+        image_path: null, image_source_url: null, started_at: pick.startedAt, channels: pick.channel ? [pick.channel] : [],
+      }));
+      return { data, error: null };
+    },
+    storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: p } }) }) },
   };
-  return { read, calls };
+  const imports = { '@/errors/appError': { AppError }, '@/errors/mapSupabaseError': { mapSupabaseError },
+    '@/lib/home/channelFeedMerge': merge,
+    '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
+    '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => { calls.providers += 1; return new Map(); } } };
+  for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
+    imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
+  }
+  const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
+  return { repo: new SupabaseReadRepository(client), calls };
 }
 
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const at = (minute, micros = '') => `2026-10-10T12:${String(minute).padStart(2, '0')}:00${micros}+00:00`;
 
-async function readAll(scope, fake) {
+async function readAll(scope, fake, method = 'getHomePicks') {
   const seen = [];
   let cursor = null;
   for (let guard = 0; guard < 50; guard += 1) {
-    const page = await merge.readChannelScopePage(scope, (one) => fake.read(cursor, one));
+    const page = await fake.repo[method](cursor, scope, 'food');
     assert.ok(page.items.length <= 20, 'never more than one page of rows');
     seen.push(...page.items.map((item) => item.pickId));
     if (!page.nextCursor) return seen;
@@ -76,7 +95,12 @@ async function main() {
     .sort(merge.compareFeedOrder).map((pick) => pick.pickId);
   assert.equal(new Set(seen).size, seen.length, 'no Pick appears twice across pages');
   assert.deepEqual(seen, expected, 'every offline/online Pick once, in server order, none missing');
-  assert.ok(!fake.calls.includes('recipe') && !fake.calls.includes(null), 'only offline and online are requested; never recipe or every-channel');
+  assert.ok(!fake.calls.feed.includes('recipe') && !fake.calls.feed.includes(null), 'only offline and online are requested; never recipe or every-channel');
+  const pagesRead = fake.calls.feed.length / 2;
+  assert.equal(fake.calls.brands, pagesRead, 'brand logos are read once per merged page, not per channel');
+  assert.equal(fake.calls.providers, pagesRead, 'providers are read once per merged page, not per channel');
+  const following = server(picks);
+  assert.deepEqual(await readAll(['offline', 'online'], following, 'getFollowingPicks'), expected, 'the following feed merges the same way');
 
   // 2. Microsecond ordering beats millisecond rounding.
   assert.ok(merge.compareFeedOrder({ startedAt: at(1, '.000002'), pickId: id(1) }, { startedAt: at(1, '.000001'), pickId: id(9) }) < 0);
@@ -98,24 +122,24 @@ async function main() {
 
   // 4. Single/null scopes stay one server call (unchanged behaviour elsewhere).
   const single = server(picks);
-  await merge.readChannelScopePage('offline', (one) => single.read(null, one));
-  await merge.readChannelScopePage(null, (one) => single.read(null, one));
-  assert.deepEqual(single.calls, ['offline', null]);
+  await single.repo.getHomePicks(null, 'offline');
+  await single.repo.getHomePicks(null, null);
+  assert.deepEqual(single.calls.feed, ['offline', null]);
   assert.equal(merge.channelScopeKey(['online', 'offline']), merge.channelScopeKey(['offline', 'online']));
   assert.equal(merge.channelScopeKey('offline'), 'offline');
 
-  // 5. HomeService: merged feed and summed menu counts.
+  // 5. HomeService passes the scope through and sums menu counts per channel.
   const countCalls = [];
-  const repo = {
-    getHomePicks: (cursor, channel) => fake.read(cursor, channel),
+  const scopes = [];
+  const service = new HomeService({
+    getHomePicks: async (cursor, channel) => { scopes.push(channel); return { items: [], nextCursor: null }; },
     getFoodMenuPickCounts: async (channel) => {
       countCalls.push(channel);
       return new Map(channel === 'offline' ? [['m1', 3], ['m2', 1]] : [['m1', 2], ['m3', 4]]);
     },
-  };
-  const service = new HomeService(repo);
-  const first = await service.getHomePicks(null, ['offline', 'online'], 'food');
-  assert.deepEqual(Array.from(first.picks, (p) => p.pickId), expected.slice(0, 20));
+  });
+  await service.getHomePicks(null, ['offline', 'online'], 'food');
+  assert.equal(JSON.stringify(scopes), JSON.stringify([['offline', 'online']]));
   const counts = await service.getFoodMenuPickCounts(['offline', 'online']);
   assert.deepEqual(countCalls, ['offline', 'online']);
   assert.equal(JSON.stringify(Object.fromEntries(counts)), JSON.stringify({ m1: 5, m2: 1, m3: 4 }));

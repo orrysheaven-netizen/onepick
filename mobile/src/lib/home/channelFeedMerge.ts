@@ -84,14 +84,3 @@ export function mergeChannelPages<T extends ChannelFeedRow>(pages: readonly Chan
     nextCursor: hasMore && lastItem ? { timestamp: lastItem.startedAt, id: lastItem.pickId } : null,
   };
 }
-
-/** Read a feed page for a channel scope: one server call per channel, merged in server order. */
-export async function readChannelScopePage<T extends ChannelFeedRow>(
-  scope: PickChannelScope,
-  read: (channel: PickChannel | null) => Promise<ChannelFeedPage<T>>,
-  limit = 20,
-): Promise<ChannelFeedPage<T>> {
-  const channels = channelScopeList(scope);
-  if (channels.length === 1) return read(channels[0]);
-  return mergeChannelPages(await Promise.all(channels.map(read)), limit);
-}

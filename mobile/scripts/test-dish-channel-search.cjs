@@ -39,6 +39,7 @@ async function main() {
     storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: 'https://storage/' + p } }) }) },
   };
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', {
+    '@/lib/home/channelFeedMerge': load('lib/home/channelFeedMerge.ts'),
     '@/errors/appError': { AppError: Error },
     '@/errors/mapSupabaseError': { mapSupabaseError: (error) => error },
     '@/repositories/mappers/categoryMapper': {}, '@/repositories/mappers/commentMapper': {}, '@/repositories/mappers/itemMapper': {},

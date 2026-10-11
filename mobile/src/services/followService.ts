@@ -1,7 +1,7 @@
 import { AppError } from '@/errors/appError';
 import type { FollowRepository } from '@/repositories/interfaces/followRepository';
 import type { FollowConnectionCursor, FollowDirection } from '@/types/domain/safety';
-import { readChannelScopePage, type PickChannelScope } from '@/lib/home/channelFeedMerge';
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 export class FollowService {
@@ -57,6 +57,6 @@ export class FollowService {
     rootSlug: string | null = null,
   ) {
     if (!userId) throw new AppError('AUTH_REQUIRED');
-    return readChannelScopePage(channel, (one) => this.readRepository.getFollowingPicks(cursor, one, rootSlug));
+    return this.readRepository.getFollowingPicks(cursor, channel, rootSlug);
   }
 }

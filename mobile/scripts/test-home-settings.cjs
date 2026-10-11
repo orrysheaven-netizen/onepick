@@ -56,6 +56,7 @@ async function main() {
     '@/repositories/supabase/itemChannels': { fetchItemChannels: async () => new Map() },
     '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() } };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
+  imports['@/lib/home/channelFeedMerge'] = load('lib/home/channelFeedMerge.ts');
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   const repo = new SupabaseReadRepository({ rpc: () => assert.fail('Use public counts, regardless of viewer'), storage: { from: () => ({ getPublicUrl: (p) => ({ data: { publicUrl: p } }) }) } },
     { rpc: (name) => { assert.equal(name, 'home_showcase_page'); return { single: async () => ({ data: { minimum_pick_count: 3,

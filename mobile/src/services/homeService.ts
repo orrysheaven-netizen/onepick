@@ -1,4 +1,4 @@
-import { channelScopeList, readChannelScopePage, type PickChannelScope } from '@/lib/home/channelFeedMerge';
+import { channelScopeList, type PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { HomeFeedPick, PickChannel, PickReadItem, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const PARTICIPANT_PAGE_SIZE = 100;
@@ -26,10 +26,9 @@ export class HomeService {
   // Home is people-first: each card is one person's current Pick with their
   // reason (docs/people-first-home.md). The server excludes the viewer's own
   // Picks and applies block/suspension rules; no minimum pick count applies.
-  // A multi-channel scope (오프라인 식당 + 온라인 음식, #762) is read per channel and merged
-  // in server order; see channelFeedMerge for the cursor rules.
+  // A multi-channel scope (오프라인 식당 + 온라인 음식, #762) is merged by the repository.
   async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannelScope = null, rootSlug: string | null = null, categoryId: string | null = null) {
-    const feed = await readChannelScopePage(channel, (one) => this.readRepository.getHomePicks(cursor, one, rootSlug, categoryId));
+    const feed = await this.readRepository.getHomePicks(cursor, channel, rootSlug, categoryId);
     return {
       picks: feed.items,
       nextCursor: feed.nextCursor,

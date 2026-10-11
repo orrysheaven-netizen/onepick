@@ -42,7 +42,7 @@ async function main() {
   const readRepository = {
     getFollowingPicks: async (...args) => { calls.push(['feed', ...args]); return { items: [], nextCursor: null }; },
   };
-  const { FollowService } = loadSource('services/followService.ts', { '@/errors/appError': { AppError }, '@/lib/home/channelFeedMerge': loadSource('lib/home/channelFeedMerge.ts') });
+  const { FollowService } = loadSource('services/followService.ts', { '@/errors/appError': { AppError } });
   const service = new FollowService(followRepository, readRepository);
 
   assert.throws(() => service.follow('', 'them'), (error) => error.code === 'AUTH_REQUIRED');

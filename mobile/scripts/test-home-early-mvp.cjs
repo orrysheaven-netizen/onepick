@@ -262,6 +262,7 @@ async function repositoryChecks() {
     '@/repositories/supabase/itemProviders': { fetchItemProviderIds: async () => new Map() },
   };
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
+  imports['@/lib/home/channelFeedMerge'] = load('lib/home/channelFeedMerge.ts');
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   const daily = (result) => {
     const client = { rpc: (name, args) => { assert.equal(name, 'home_daily_question'); assert.equal(args, undefined); return result; },

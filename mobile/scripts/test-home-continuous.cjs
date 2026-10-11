@@ -89,6 +89,7 @@ async function main() {
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }
+  imports['@/lib/home/channelFeedMerge'] = load('lib/home/channelFeedMerge.ts');
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   let rows = Array.from({ length: 21 }, (_, i) => ({
     item_id: 'item-'+i, last_picked_at: cursor.timestamp, pick_count: 3,

@@ -1,3 +1,4 @@
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Category } from '@/types/domain/category';
 import type { Comment } from '@/types/domain/comment';
@@ -229,9 +230,9 @@ export interface ReadRepository {
    * keeps one top-level category tree (MVP: 'food') and `categoryId` one dish
    * (the 미역국 page); null keeps every Pick.
    */
-  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannelScope, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
-  getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
+  getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannelScope, rootSlug?: string | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
   getFoodMenuRecentRanking(groupCategoryId?: string | null, channel?: PickChannel | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
