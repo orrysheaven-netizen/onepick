@@ -17,7 +17,7 @@ declare
   n integer; raised boolean; detail_text text;
 begin
   assert not has_function_privilege('anon','public.register_item_pick(uuid,text,text,uuid,uuid,uuid,text,text,text,text,uuid,uuid)','execute'), 'Guests cannot register';
-  assert not has_function_privilege('anon','public.revise_item_request(uuid,text,text,text,text,boolean)','execute'), 'Guests cannot revise requests';
+  assert not has_function_privilege('anon','public.revise_item_request(uuid,text,text,text,text,boolean,text)','execute'), 'Guests cannot revise requests';
 
   insert into auth.users(id,aud,role,created_at,updated_at)
     select id,'authenticated','authenticated',now(),now() from unnest(array[alice,bob,admin]) id;
