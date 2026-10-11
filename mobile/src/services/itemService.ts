@@ -45,7 +45,14 @@ export class ItemService {
     private readonly readRepository: ReadRepository,
   ) {}
 
-  async getItemDetail(itemId: string, userId?: string, focusPickId?: string, prefetchedFocus?: PickReadItem, channel?: PickChannel) {
+  async getItemDetail(
+    itemId: string,
+    userId?: string,
+    focusPickId?: string,
+    prefetchedFocus?: PickReadItem,
+    channel?: PickChannel,
+    options?: { includeProvider?: boolean },
+  ) {
     const cachedFocus = prefetchedFocus
       && prefetchedFocus.pick.id === focusPickId
       && prefetchedFocus.item?.id === itemId
@@ -53,7 +60,10 @@ export class ItemService {
       : undefined;
     // Shared links already fetched the focused Pick. Reuse that item/category when
     // available, and start independent list/category reads while the item resolves.
-    const itemPromise = cachedFocus?.item ? Promise.resolve(cachedFocus.item) : this.itemRepository.getById(itemId);
+    // A cached focus item comes from the pick read, which already carries providerId.
+    const itemPromise = cachedFocus?.item
+      ? Promise.resolve(cachedFocus.item)
+      : this.itemRepository.getById(itemId, options?.includeProvider ? { includeProvider: true } : undefined);
     const usesItemReviewPage = typeof this.readRepository.getItemReviews === 'function';
     const picksPromise = usesItemReviewPage
       ? this.readRepository.getItemReviews!(itemId, 20)

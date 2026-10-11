@@ -52,7 +52,7 @@ export default function PickDetailScreen() {
     && pickQuery.data.pick.channel !== OnePickMvp.publicPickChannel
   );
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
-  const itemQuery = useItemDetail(itemId, user?.id, pickId, false, Boolean(itemId) && !hiddenFutureChannel, publicFoodChannel);
+  const itemQuery = useItemDetail(itemId, user?.id, pickId, false, Boolean(itemId) && !hiddenFutureChannel, publicFoodChannel, true);
   const readNotificationGroup = useReadNotificationGroup(user?.id);
   const trackedPickId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);

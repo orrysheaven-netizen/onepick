@@ -63,16 +63,17 @@ async function repositoryChecks() {
     '@/repositories/supabase/itemProviders': { fetchItemProviderIds },
   });
 
+  const withProvider = { includeProvider: true };
   const linked = new SupabaseItemRepository(fakeClient([{ item_id: 'item-store', provider_id: 'provider-99' }]));
-  const withStore = await linked.getById('item-store');
+  const withStore = await linked.getById('item-store', withProvider);
   assert.equal(withStore.providerId, 'provider-99', 'A plain item read resolves the store through item_providers');
   assert.equal(JSON.stringify(withStore.channels), JSON.stringify(['offline']), 'Channel lookup still runs alongside the provider lookup');
 
-  const withoutStore = await linked.getById('item-plain');
+  const withoutStore = await linked.getById('item-plain', withProvider);
   assert.equal(withoutStore.providerId, null, 'Items without a store carry providerId null, not undefined');
 
   const noRelation = new SupabaseItemRepository(fakeClient([]));
-  assert.equal((await noRelation.getById('item-store')).providerId, null);
+  assert.equal((await noRelation.getById('item-store', withProvider)).providerId, null);
 
   // Enhancement-only: a failing provider lookup must not break the item itself.
   const broken = fakeClient([]);
@@ -80,22 +81,74 @@ async function repositoryChecks() {
   broken.from = (table) => table === 'item_providers'
     ? { select: () => ({ in: async () => ({ data: null, error: new Error('offline') }) }) }
     : originalFrom(table);
-  const degraded = await new SupabaseItemRepository(broken).getById('item-store');
+  const degraded = await new SupabaseItemRepository(broken).getById('item-store', withProvider);
   assert.equal(degraded.id, 'item-store');
   assert.equal(degraded.providerId, null);
+
+  // Write/registration callers (pickService, registrationService) call getById
+  // without options: no item_providers round trip, providerId left unset.
+  const tablesRead = [];
+  const plainClient = fakeClient([{ item_id: 'item-store', provider_id: 'provider-99' }]);
+  const plainFrom = plainClient.from.bind(plainClient);
+  plainClient.from = (table) => { tablesRead.push(table); return plainFrom(table); };
+  const plain = await new SupabaseItemRepository(plainClient).getById('item-store');
+  assert.equal(plain.id, 'item-store');
+  assert.equal(JSON.stringify(plain.channels), JSON.stringify(['offline']));
+  assert.ok(!('providerId' in plain), 'Default getById keeps the pre-#757 shape');
+  assert.ok(!tablesRead.includes('item_providers'), 'Default getById must not read item_providers');
+
+  // item_providers.item_id is the primary key: single row -> that store, no row -> null.
+  // A conflicting response must not let row order choose the store.
+  const single = await fetchItemProviderIds(fakeClient([{ item_id: 'a', provider_id: 'p1' }]), ['a', 'b']);
+  assert.equal(single.get('a'), 'p1');
+  assert.equal(single.has('b'), false);
+  const duplicateSame = await fetchItemProviderIds(fakeClient([
+    { item_id: 'a', provider_id: 'p1' }, { item_id: 'a', provider_id: 'p1' },
+  ]), ['a']);
+  assert.equal(duplicateSame.get('a'), 'p1', 'A repeated identical row is still one store');
+  for (const rows of [
+    [{ item_id: 'a', provider_id: 'p1' }, { item_id: 'a', provider_id: 'p2' }],
+    [{ item_id: 'a', provider_id: 'p2' }, { item_id: 'a', provider_id: 'p1' }],
+    [{ item_id: 'a', provider_id: 'p1' }, { item_id: 'a', provider_id: 'p2' }, { item_id: 'a', provider_id: 'p1' }],
+  ]) {
+    const conflicted = await fetchItemProviderIds(fakeClient(rows), ['a', 'b']);
+    assert.equal(conflicted.has('a'), false, 'Conflicting stores resolve to no link regardless of row order');
+  }
+  const mixed = await fetchItemProviderIds(fakeClient([
+    { item_id: 'a', provider_id: 'p1' }, { item_id: 'a', provider_id: 'p2' }, { item_id: 'b', provider_id: 'p3' },
+  ]), ['a', 'b']);
+  assert.equal(mixed.get('b'), 'p3', 'A conflict on one item leaves other items intact');
+  const conflictedItem = await new SupabaseItemRepository(fakeClient([
+    { item_id: 'item-store', provider_id: 'p1' }, { item_id: 'item-store', provider_id: 'p2' },
+  ])).getById('item-store', withProvider);
+  assert.equal(conflictedItem.providerId, null);
 }
 
 async function serviceChecks() {
   const { ItemService } = loadSource('services/itemService.ts', { '@/errors/appError': { AppError: Error } });
   const item = { id: 'item-store', name: '흑당밀크티', categoryId: 'food-cafe', status: 'active', providerId: 'provider-99' };
+  const getByIdCalls = [];
   const service = new ItemService(
-    { getById: async () => item },
+    { getById: async (id, options) => { getByIdCalls.push(options); return item; } },
     { getCurrentPicksInCategory: async () => [] },
     { getById: async () => ({ id: 'food-cafe', rootSlug: 'food' }), getOpenCategories: async () => [{ id: 'food-cafe', rootSlug: 'food' }] },
     { getPicks: async () => [], getPickById: async () => null },
   );
-  const detail = await service.getItemDetail('item-store', 'viewer');
+  const detail = await service.getItemDetail('item-store', 'viewer', undefined, undefined, undefined, { includeProvider: true });
   assert.equal(detail.item.providerId, 'provider-99', 'getItemDetail passes the repository providerId through untouched');
+  assert.equal(JSON.stringify(getByIdCalls[0]), JSON.stringify({ includeProvider: true }), 'Pick detail asks for the provider');
+  await service.getItemDetail('item-store', 'viewer');
+  assert.equal(getByIdCalls[1], undefined, 'Other item detail readers (menu detail, registration) skip the provider lookup');
+
+  const read = (rel) => fs.readFileSync(path.join(__dirname, '..', 'src', rel), 'utf8');
+  assert.match(read('app/pick/[pickId].tsx'), /useItemDetail\([^;]*publicFoodChannel, true\)/, 'Only the pick detail opts into the provider read');
+  for (const rel of ['app/item/[itemId].tsx', 'app/pick/new.tsx', 'app/pick/choose.tsx']) {
+    assert.doesNotMatch(read(rel), /useItemDetail\([^;]*, true\);/, rel + ' must not opt into the provider read');
+  }
+  assert.match(read('hooks/useItemDetail.ts'), /channel \?\? null, includeProvider\]/, 'Provider-bearing and plain detail results use separate cache entries');
+  for (const rel of ['services/pickService.ts', 'services/registrationService.ts']) {
+    assert.doesNotMatch(read(rel), /getById\([^)]*includeProvider/, rel + ' keeps the plain item read');
+  }
 }
 
 function screenChecks() {
