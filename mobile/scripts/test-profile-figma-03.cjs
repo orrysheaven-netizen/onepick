@@ -7,7 +7,8 @@ const photo = fs.readFileSync(path.join(__dirname, '../src/components/pick-photo
 const avatar = fs.readFileSync(path.join(__dirname, '../src/components/ui/avatar.tsx'), 'utf8');
 
 assert.match(profile, /03|profileHeader/);
-assert.match(profile, /<Avatar name=\{displayName\} size=\{72\} tone="subtle" \/>/);
+assert.match(profile, /<Avatar name=\{displayName\} size=\{72\} tone="subtle" imageUrl=\{profileAvatarUrl\(profile\.profileImageUrl\)\}/);
+assert.match(profile, /accessibilityLabel="프로필 사진 바꾸기" onPress=\{\(\) => router\.push\('\/settings\/profile-photo'\)\}/, 'My avatar opens the photo screen (2026-10-11)');
 assert.match(profile, /<Chip label="음식"[\s\S]*?visualStyle=\{styles\.profileScopeChip\}/);
 assert.match(profile, /<Chip label="기타"[\s\S]*?visualStyle=\{styles\.profileScopeChip\}/);
 assert.match(profile, /useMyComments\(listUserId\)/);

@@ -82,6 +82,14 @@ export default function SettingsScreen() {
             </View>
             </> : null}
 
+            <Text style={styles.sectionLabel}>프로필</Text>
+            <View style={styles.card}>
+              <Pressable accessibilityRole="button" accessibilityLabel="프로필 사진 바꾸기" onPress={() => router.push('/settings/profile-photo')}
+                style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}>
+                <Text style={styles.linkText}>프로필 사진</Text><Icon name="chevronRight" size="sm" color={OnePick.textTertiary} />
+              </Pressable>
+            </View>
+
             <Text style={styles.sectionLabel}>차단한 사용자</Text>
             <View style={styles.card}>
               {blocked.isPending ? <ActivityIndicator style={styles.inlineLoading} /> : null}
