@@ -99,7 +99,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       });
       setCommentBody('');
       setReplyingTo(null);
-      if (compact) setComposing(false);
+      setComposing(false);
     } catch {
       // Keep the draft; mutation state shows the failure and allows retry.
     } finally {

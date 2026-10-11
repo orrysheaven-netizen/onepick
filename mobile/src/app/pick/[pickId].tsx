@@ -104,6 +104,13 @@ export default function PickDetailScreen() {
   const title = itemQuery.data
     ? itemTitle(itemQuery.data.item.name, itemQuery.data.category?.name, itemQuery.data.isRestaurant)
     : pickQuery.data?.item?.name ?? '한줄평 대화';
+  // Match Home: split store/menu only when a single offline/online channel proves it.
+  // Legacy or uncategorized items keep their item name without inventing a menu.
+  const channel = itemQuery.data?.item.channels?.length === 1 ? itemQuery.data.item.channels[0] : undefined;
+  const hasProviderContext = channel === 'offline' || channel === 'online';
+  const providerId = hasProviderContext ? itemQuery.data?.item.providerId : null;
+  const menuName = hasProviderContext ? itemQuery.data?.category?.name?.trim() : null;
+  const showSeparateMenu = Boolean(menuName && menuName !== itemQuery.data?.item.name.trim());
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -117,7 +124,7 @@ export default function PickDetailScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="이전 화면" onPress={goBack} style={styles.headerSide}>
           <Icon name="back" />
         </Pressable>
-        <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{title}</Text>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>한줄평 대화</Text>
         <View style={styles.headerSide} />
       </View>
 
@@ -144,14 +151,19 @@ export default function PickDetailScreen() {
           </Pressable>
         </View>
         : <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={styles.itemContext}>
+          <View testID="pick-item-context" style={styles.itemContext}>
             <PickPhoto uri={itemQuery.data?.item.imageUrl ?? itemQuery.data?.item.thumbnailUrl ?? itemQuery.data?.item.imageSourceUrl}
               label={itemQuery.data?.item.name ?? title} large logoUri={itemQuery.data?.brand?.logoUrl} />
-            {itemQuery.data?.isRestaurant ? <>
-              <Text style={styles.storeName}>{itemQuery.data.item.name}</Text>
-              {itemQuery.data.category?.name && itemQuery.data.category.name !== itemQuery.data.item.name
-                ? <Text style={styles.menuName}>{itemQuery.data.category.name}</Text> : null}
-            </> : <Text style={styles.menuName}>{itemQuery.data?.item.name}</Text>}
+            {hasProviderContext ? <>
+              {providerId
+                ? <Pressable accessibilityRole="button" accessibilityLabel={itemQuery.data!.item.name + ' 매장 보기'}
+                    onPress={() => router.push({ pathname: '/provider/[providerId]', params: { providerId, scope: 'provider' } })}
+                    style={styles.storeAction}>
+                    <Text testID="pick-store-name" style={styles.storeName}>{itemQuery.data?.item.name}</Text>
+                  </Pressable>
+                : <Text testID="pick-store-name" style={styles.storeName}>{itemQuery.data?.item.name}</Text>}
+              {showSeparateMenu ? <Text testID="pick-menu-name" style={styles.menuName}>{menuName}</Text> : null}
+            </> : <Text testID="pick-menu-name" style={styles.menuName}>{itemQuery.data?.item.name}</Text>}
           </View>
           <View style={styles.review}>
             <View style={styles.reviewMeta}>
@@ -191,6 +203,7 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 390, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, paddingBottom: OnePickSpace.xxxl },
   itemContext: { paddingTop: OnePickSpace.lg, gap: OnePickSpace.sm },
   storeName: { ...OnePickType.bodyMedium, color: OnePick.textSecondary },
+  storeAction: { minHeight: 44, alignSelf: 'flex-start', maxWidth: '100%', justifyContent: 'center' },
   menuName: { ...OnePickType.title, color: OnePick.textPrimary },
   review: { paddingVertical: OnePickSpace.lg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: OnePick.borderDefault },
   reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
