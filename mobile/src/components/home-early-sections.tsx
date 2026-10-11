@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { Avatar, Button, Chip, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from '@/components/ui/touch';
 import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -82,7 +83,7 @@ export function HomePeopleRow({ people, onOpenProfile }: { people: HomeParticipa
             accessibilityLabel={`${name} 프로필 보기, 원픽 ${person.pickCount}개`}
             onPress={() => onOpenProfile(person.username)}
             style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-            <Avatar name={name} size={64} tone="subtle" />
+            <Avatar name={name} size={64} tone="subtle" imageUrl={profileAvatarUrl(person.profileImageUrl)} />
             <Text style={styles.personName} numberOfLines={1}>{name}</Text>
             <Text style={styles.personCount}>{`원픽 ${person.pickCount}`}</Text>
           </Pressable>;

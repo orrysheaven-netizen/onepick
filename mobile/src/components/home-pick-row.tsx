@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { PickPhoto } from '@/components/pick-photo';
 import { Avatar } from '@/components/ui';
 import { profileDisplayName } from '@/lib/profile/profileName';
@@ -50,7 +51,7 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
     {authorAbove ? <View style={styles.authorRow}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${authorName} 프로필 보기`} onPress={onOpenProfile}
         style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
-        <Avatar name={authorName} size={24} tone="subtle" />
+        <Avatar name={authorName} size={24} tone="subtle" imageUrl={profileAvatarUrl(pick.profileImageUrl)} />
         <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.username, styles.authorName]}>{authorName}</Text>
       </Pressable>
     </View> : null}

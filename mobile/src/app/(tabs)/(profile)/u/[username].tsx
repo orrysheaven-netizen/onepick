@@ -5,6 +5,7 @@ import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text,
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { profileDisplayName } from '@/lib/profile/profileName';
+import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { BlockUserButton } from '@/components/block-user-button';
 import { FollowButton } from '@/components/follow-button';
 import { FollowConnectionsView } from '@/components/follow-connections-view';
@@ -366,7 +367,7 @@ export default function PublicProfileScreen() {
 
           <View style={styles.publicBody}>
             <View style={styles.publicIdentity}>
-              <Avatar name={profileDisplayName(query.data.profile)} size={68} tone="subtle" />
+              <Avatar name={profileDisplayName(query.data.profile)} size={68} tone="subtle" imageUrl={profileAvatarUrl(query.data.profile.profileImageUrl)} />
               <View style={styles.publicIdentityCopy}>
                 <Text numberOfLines={1} style={styles.publicDisplayName}>{profileDisplayName(query.data.profile)}</Text>
                 <Text numberOfLines={1} style={styles.publicHandle}>@{query.data.profile.username}</Text>

@@ -93,7 +93,7 @@ async function main() {
     '@/hooks/useMyProfile': { useMyProfile: () => profileQuery },
     '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
     '@/lib/categories/registrationRoute': load('lib/categories/registrationRoute.ts'),
-    '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
+    '@/lib/profile/profileAvatar': { profileAvatarUrl: () => null }, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
     '@/lib/share/shareProfile': { shareProfile: async () => {} },
     '@/hooks/useMyProfileLists': {
       useMyPickHistory: (userId) => { historyUser = userId; return historyQuery; },

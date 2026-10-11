@@ -292,7 +292,7 @@ const jsxRuntime = { jsx, jsxs: jsx, Fragment: 'Fragment' };
 const profileName = load('lib/profile/profileName.ts');
 const sections = load('components/home-early-sections.tsx', {
   'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': constants,
-  '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileName': profileName,
+  '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': profileName,
 });
 
 function home(options = {}) {
@@ -330,7 +330,7 @@ function home(options = {}) {
     '@/hooks/useFollow': { useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }), useFollowingFeed: () => query({ items: [], nextCursor: null }) },
     '@/hooks/useExploreData': { useExploreCategories: (enabled) => { calls.categoriesEnabled = enabled; return query(catalog); }, useFoodMenuPickCounts: () => countsQuery ?? query(counts) },
     '@/hooks/useMyProfile': { useMyProfile: (userId) => { calls.profileUserId = userId; return query(userId && profile ? { profile: { id: userId, username: userId, ...profile }, currentPicks } : undefined); } },
-    '@/lib/profile/profileName': profileName,
+    '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': profileName,
     '@/components/home-feedback-button': load('components/home-feedback-button.tsx', {
       react: { useState: (initial) => [initial, () => {}] },
       'react/jsx-runtime': jsxRuntime,
@@ -735,7 +735,7 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
     'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/pick-photo': names('PickPhoto'),
     '@/components/current-pick-flag': names('CurrentPickFlag'), '@/components/store-badge': names('StoreBadge'),
     '@/constants/onepick': constants, '@/components/ui/touch': load('components/ui/touch.ts'),
-    '@/lib/profile/profileName': profileName,
+    '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': profileName,
   });
   const visitTree = (channels) => {
     const nodes = [];

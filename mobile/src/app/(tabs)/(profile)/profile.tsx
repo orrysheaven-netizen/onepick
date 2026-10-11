@@ -4,6 +4,7 @@ import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Sty
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { profileDisplayName } from '@/lib/profile/profileName';
+import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
@@ -309,7 +310,8 @@ export default function ProfileScreen() {
 
         <View style={styles.profileBody}>
           <View style={styles.identity}>
-            <Avatar name={displayName} size={72} tone="subtle" />
+            <Avatar name={displayName} size={72} tone="subtle" imageUrl={profileAvatarUrl(profile.profileImageUrl)}
+              accessibilityLabel="프로필 사진 바꾸기" onPress={() => router.push('/settings/profile-photo')} />
             <View style={styles.stats}>
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{currentPicks.length}</Text>
