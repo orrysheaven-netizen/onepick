@@ -49,11 +49,20 @@ export function unpickedCategories(
 }
 
 /** Viewer's current Picks inside the browsed MVP menu set and public channel. */
-export function myScopedPicks(currentPicks: readonly PickReadItem[], menuIds: ReadonlySet<string>, channel: PickChannel) {
+/**
+ * Home's channel scope check: a Pick in one of the scoped channels, or a legacy Pick with no
+ * channel (kept as before). Recipe stays out unless a scope names it.
+ */
+function inChannelScope(pickChannel: PickChannel | null, scope: PickChannel | readonly PickChannel[]) {
+  if (pickChannel === null) return true;
+  return typeof scope === 'string' ? pickChannel === scope : scope.includes(pickChannel);
+}
+
+export function myScopedPicks(currentPicks: readonly PickReadItem[], menuIds: ReadonlySet<string>, channel: PickChannel | readonly PickChannel[]) {
   return currentPicks.filter(({ pick }) =>
     (pick.status === 'active' || pick.status === 'needs_review')
     && menuIds.has(pick.categoryId)
-    && (pick.channel === null || pick.channel === channel));
+    && inChannelScope(pick.channel, channel));
 }
 
 /** The viewer's answer to today's question: their current Pick in that menu, if any. */
@@ -117,13 +126,13 @@ export interface HomeParticipant {
 export function homeParticipants(
   rows: readonly PickReadItem[],
   eligibleMenuIds: ReadonlySet<string>,
-  channel: PickChannel,
+  channel: PickChannel | readonly PickChannel[],
 ): HomeParticipant[] {
   const byUser = new Map<string, HomeParticipant>();
   const seenPicks = new Set<string>();
   for (const { pick, profile } of rows) {
     if (!profile || pick.status !== 'active' || seenPicks.has(pick.id)) continue;
-    if (!eligibleMenuIds.has(pick.categoryId) || (pick.channel !== null && pick.channel !== channel)) continue;
+    if (!eligibleMenuIds.has(pick.categoryId) || !inChannelScope(pick.channel, channel)) continue;
     seenPicks.add(pick.id);
     const existing = byUser.get(pick.userId);
     if (existing) {

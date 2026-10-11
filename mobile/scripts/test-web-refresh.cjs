@@ -45,7 +45,7 @@ function fixture(kind, platform = 'web') {
     '@/constants/onepick': constants,
     '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]),
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return home; }, useHomeItemRanking: () => query([]), useHomeFoodMenuPickCounts: () => query(new Map()),
       useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
     '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
     '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),

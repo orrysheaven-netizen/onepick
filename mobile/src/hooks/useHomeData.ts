@@ -1,5 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepository';
 import { homeService } from '@/services/homeServiceInstance';
 
@@ -23,6 +24,19 @@ export function useHomeItemRanking(channel: PickChannel | null = null, limit = 2
     queryKey: queryKeys.home.itemRanking(channel, limit),
     queryFn: () => homeService.getRecentItemRanking(channel, limit),
     staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
+/**
+ * Home's per-menu Pick counts over its channel scope (offline + online food, #762). Keyed
+ * under explore.menuPickCounts so a new Pick invalidates it with the Explore counts.
+ */
+export function useHomeFoodMenuPickCounts(channel: PickChannelScope = null, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.explore.menuPickCounts(channel),
+    queryFn: () => homeService.getFoodMenuPickCounts(channel),
+    staleTime: 60_000,
   });
 }
 
@@ -60,7 +74,7 @@ export function useHomeParticipantPicks(userId: string | undefined, enabled = tr
  * Full public feed (Home → 사람들의 원픽 더보기): 20 Picks per server page, all pages kept
  * so the list never drops rows it already showed, each Pick shown once.
  */
-export function useFullPickFeed(userId: string | undefined, enabled: boolean, channel: PickChannel | null = null, rootSlug: string | null = null) {
+export function useFullPickFeed(userId: string | undefined, enabled: boolean, channel: PickChannelScope = null, rootSlug: string | null = null) {
   return useInfiniteQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'full-feed', channel ?? 'all', rootSlug ?? 'every-root'],
@@ -78,7 +92,7 @@ export function useFullPickFeed(userId: string | undefined, enabled: boolean, ch
   });
 }
 
-export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
+export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannelScope = null, rootSlug: string | null = null) {
   const context = useQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'context', channel ?? 'all', rootSlug ?? 'every-root'],

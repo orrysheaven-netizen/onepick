@@ -1,3 +1,4 @@
+import { channelScopeList, readChannelScopePage, type PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { HomeFeedPick, PickChannel, PickReadItem, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
 
 const PARTICIPANT_PAGE_SIZE = 100;
@@ -9,7 +10,7 @@ export class HomeService {
 
   // Home context changes much less often than feed pages. Keep it outside the
   // infinite query so pagination/refetching never repeats these broad reads.
-  async getHomeContext(userId?: string, _channel: PickChannel | null = null, _rootSlug: string | null = null) {
+  async getHomeContext(userId?: string, _channel: PickChannelScope = null, _rootSlug: string | null = null) {
     const currentPicks = userId
       ? await this.readRepository.getPicks({
           userId,
@@ -25,12 +26,26 @@ export class HomeService {
   // Home is people-first: each card is one person's current Pick with their
   // reason (docs/people-first-home.md). The server excludes the viewer's own
   // Picks and applies block/suspension rules; no minimum pick count applies.
-  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
-    const feed = await this.readRepository.getHomePicks(cursor, channel, rootSlug, categoryId);
+  // A multi-channel scope (오프라인 식당 + 온라인 음식, #762) is read per channel and merged
+  // in server order; see channelFeedMerge for the cursor rules.
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannelScope = null, rootSlug: string | null = null, categoryId: string | null = null) {
+    const feed = await readChannelScopePage(channel, (one) => this.readRepository.getHomePicks(cursor, one, rootSlug, categoryId));
     return {
       picks: feed.items,
       nextCursor: feed.nextCursor,
     };
+  }
+
+  /**
+   * Current Pick count per food menu across a channel scope. Each channel is a separate
+   * public aggregate; a Pick has one channel there, so the sums never double count.
+   */
+  async getFoodMenuPickCounts(channel: PickChannelScope = null) {
+    const maps = await Promise.all(channelScopeList(channel).map((one) => this.readRepository.getFoodMenuPickCounts(one)));
+    if (maps.length === 1) return maps[0];
+    const total = new Map<string, number>();
+    for (const map of maps) for (const [categoryId, count] of map) total.set(categoryId, (total.get(categoryId) ?? 0) + count);
+    return total;
   }
 
   /** Date-seeded random food menu chosen by the DB each Korean calendar day. */

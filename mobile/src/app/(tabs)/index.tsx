@@ -11,9 +11,9 @@ import { HomeHeader } from '@/components/home-header';
 import { BrandMark, Button, Chip, StateCard } from '@/components/ui';
 import { OnePick, OnePickFeatures, OnePickLayout, OnePickMvp, OnePickRadius, OnePickSpace, OnePickThresholds, OnePickType } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { useExploreCategories, useFoodMenuPickCounts } from '@/hooks/useExploreData';
+import { useExploreCategories } from '@/hooks/useExploreData';
 import { useFollowCounts, useFollowingFeed } from '@/hooks/useFollow';
-import { useDailyQuestionCategory, useHomeData, useHomeItemRanking, useHomeParticipantPicks } from '@/hooks/useHomeData';
+import { useDailyQuestionCategory, useHomeData, useHomeFoodMenuPickCounts, useHomeItemRanking, useHomeParticipantPicks } from '@/hooks/useHomeData';
 import { useMyProfile } from '@/hooks/useMyProfile';
 import { useHomeReplyBanner, useNotificationCount } from '@/hooks/useNotifications';
 import { browseScope } from '@/lib/categories/browseScope';
@@ -49,9 +49,12 @@ export default function HomeScreen() {
     if (user) setFeedScopeChoice({ userId: user.id, scope });
   };
   const showFollowing = Boolean(followCountUserId) && !followDefaultPending && feedScope === 'following';
-  // Initial MVP exposes only food Picks from physical stores. Online/recipe
-  // remain in the data model for later rollout but never enter these feed pages.
-  const mvpChannel = OnePickMvp.publicPickChannel;
+  // Home reads food Picks from 오프라인 식당 + 온라인 음식 (#762); recipe never enters these
+  // pages. Each channel is read separately and merged (no server-wide channel = NULL read).
+  const mvpChannel = OnePickMvp.homeFeedChannels;
+  // The store×menu ranking RPC takes one channel and its ranks cannot be merged client-side,
+  // so 인기 메뉴 stays on the existing offline scope until a server contract covers both.
+  const rankingChannel = OnePickMvp.publicPickChannel;
   const homeQuery = useHomeData(
     user?.id,
     !isSessionLoading && !sessionError,
@@ -72,7 +75,7 @@ export default function HomeScreen() {
   // read from the same cached profile the Profile tab uses. Signed-out viewers get no name.
   const myProfileQuery = useMyProfile(homeEnabled ? user?.id : undefined);
   const mentionName = user && myProfileQuery.data ? profileMentionName(myProfileQuery.data.profile) : null;
-  const menuCountsQuery = useFoodMenuPickCounts(mvpChannel, homeEnabled);
+  const menuCountsQuery = useHomeFoodMenuPickCounts(mvpChannel, homeEnabled);
   const discovery = earlyHomeDiscovery(totalPickCount(menuCountsQuery.data));
   const questionQuery = useDailyQuestionCategory(homeEnabled);
   const participantsQuery = useHomeParticipantPicks(user?.id, homeEnabled);
@@ -110,7 +113,7 @@ export default function HomeScreen() {
   // The 7-day ranking is only visible after the 30-Pick threshold, so do not pay for its RPC
   // in the early-MVP state or while the threshold total is still unknown.
   const itemRankingQuery = useHomeItemRanking(
-    mvpChannel,
+    rankingChannel,
     HOME_RANKING_CANDIDATES,
     homeEnabled && discovery === 'popular',
   );

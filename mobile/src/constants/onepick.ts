@@ -191,6 +191,10 @@ export const OnePickMvp = {
   // Initial MVP exposure: food Picks from physical stores only. Keep the full
   // offline|online|recipe data model so later rollout does not require redesign.
   publicPickChannel: 'offline' as const,
+  // Home (전체·팔로잉), its 전체보기 /feed and Home's menu counts read 오프라인 식당 + 온라인 음식
+  // (user decision 2026-10-10, #762). Recipe stays out. Registration, Explore, rankings and
+  // profiles still follow publicPickChannel until their own scope is decided.
+  homeFeedChannels: ['offline', 'online'] as const,
   // taste_dimensions.code shown on the main profile while OnePickFeatures.lab is on.
   mainThemeCode: 'food',
 } as const;

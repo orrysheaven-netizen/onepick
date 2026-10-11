@@ -33,7 +33,7 @@ function home(count = 20, followingCount = 0) {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }), useFocusEffect: () => {} },
     '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'),
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]),
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]), useHomeFoodMenuPickCounts: () => query(new Map()),
       useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
     '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
     '@/components/home-early-sections': names('HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus'),
@@ -152,13 +152,13 @@ async function main() {
     q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 10);
     assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
   });
-  await test('MVP Home exposes food + offline only while future channels stay internal', () => {
+  await test('MVP Home exposes food (offline + online) while recipe stays internal', () => {
     const { view, calls } = home(2);
     assert.equal(view.all('Chip').filter(isChannelChip).length, 0, 'No channel switcher is exposed in the initial MVP');
-    assert.equal(calls.home[3], 'offline', 'Public Home is server-filtered to physical-store Picks');
+    assert.equal(JSON.stringify(calls.home[3]), JSON.stringify(['offline', 'online']), 'Public Home is server-filtered to offline + online food Picks (#762)');
     assert.equal(calls.home[4], 'food', 'Public Home stays inside the food root');
     assert.equal(calls.following[1], false, 'Following-feed-off MVP keeps the preserved following query disabled');
-    assert.equal(calls.following[2], 'offline', 'Preserved following query keeps the same offline scope');
+    assert.equal(JSON.stringify(calls.following[2]), JSON.stringify(['offline', 'online']), 'Preserved following query keeps the same channel scope');
     assert.equal(calls.following[3], 'food', 'Preserved following query keeps the same food root');
   });
   await test('MVP hides Home category chips even above the Pick threshold', () => {

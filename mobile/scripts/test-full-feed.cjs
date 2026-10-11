@@ -63,7 +63,7 @@ const { default: FullFeed } = load('app/feed.tsx', {
   '@/components/ui': { ...require('./icon-stub.cjs'), StateCard: ({ title, text }) => React.createElement('aside', null, title, text) },
   '@/constants/onepick': constants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useHomeData': { useFullPickFeed: (...args) => { assert.deepEqual(args.slice(2), ['offline', 'food']); return feed; } },
+  '@/hooks/useHomeData': { useFullPickFeed: (...args) => { assert.equal(JSON.stringify(args.slice(2)), JSON.stringify([['offline', 'online'], 'food'])); return feed; } },
   '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food' },
 });
 const render = () => { rowProps.length = 0; presses.length = 0; return renderToStaticMarkup(React.createElement(FullFeed)); };

@@ -1,5 +1,10 @@
 import type { RootCategoryScope } from '@/repositories/interfaces/readRepository';
 
+/** Channel scope as one key part: a multi-channel scope ('offline+online') is order-independent. */
+type ChannelKey = string | readonly string[] | null;
+const channelKey = (channel: ChannelKey) =>
+  channel === null ? null : typeof channel === 'string' ? channel : [...new Set(channel)].sort().join('+');
+
 export const queryKeys = {
   home: {
     all: ['home'] as const,
@@ -16,7 +21,7 @@ export const queryKeys = {
   },
   explore: {
     all: ['explore'] as const,
-    menuPickCounts: (channel: string | null = null) => ['explore', 'menu-pick-counts', channel ?? 'all-channels'] as const,
+    menuPickCounts: (channel: ChannelKey = null) => ['explore', 'menu-pick-counts', channelKey(channel) ?? 'all-channels'] as const,
     topItems: (categoryId?: string, channel: string | null = null) =>
       ['explore', categoryId ?? 'all', 'top-items', channel ?? 'all-channels'] as const,
     ranking: (slug?: string, channel: string | null = null, rootSlug: string | null = null) =>
@@ -97,8 +102,8 @@ export const queryKeys = {
       ['follows', 'public-counts', profileId, viewerId ?? 'public'] as const,
     connections: (profileId: string, direction: 'followers' | 'following', viewerId: string | null) =>
       ['follows', 'connections', profileId, direction, viewerId ?? 'public', 'cursor'] as const,
-    feed: (userId: string, channel: string | null = null, rootSlug: string | null = null) =>
-      ['follows', 'feed', userId, channel ?? 'all-channels', rootSlug ?? 'all-roots', 'cursor'] as const,
+    feed: (userId: string, channel: ChannelKey = null, rootSlug: string | null = null) =>
+      ['follows', 'feed', userId, channelKey(channel) ?? 'all-channels', rootSlug ?? 'all-roots', 'cursor'] as const,
   },
   safety: {
     all: ['safety'] as const,

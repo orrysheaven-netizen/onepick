@@ -319,6 +319,7 @@ function home(options = {}) {
         calls.itemRanking = args;
         return query([{ itemId: 'jin', itemName: '라면집', categoryId: 'ramen', categoryName: '라면', pickCount: 7, rank: 1, isTied: false, thumbnailUrl: 'https://x/ramen.jpg' }], { refetch: () => { calls.rankingRefetch = (calls.rankingRefetch ?? 0) + 1; } });
       },
+      useHomeFoodMenuPickCounts: () => countsQuery ?? query(counts),
       useDailyQuestionCategory: () => questionQuery ?? query(question),
       useHomeParticipantPicks: () => query({ rows: participants, complete: participantsComplete }),
     },

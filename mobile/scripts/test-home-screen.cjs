@@ -131,6 +131,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }; } },
   '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; },
+    useHomeFoodMenuPickCounts: () => menuCountsQuery,
     useDailyQuestionCategory: () => emptyQuery(null), useHomeParticipantPicks: () => emptyQuery({ rows: [], complete: true }) },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
@@ -155,10 +156,10 @@ assert.match(allFirstPage, />friend</);
 assert.match(allFirstPage, />neighbor</, 'Member Home stays on the public feed while follow is hidden');
 assert.doesNotMatch(allFirstPage, /원픽 더 둘러보기|모아보기/, 'Figma 30-1: no explore/my-picks links under the feed');
 assert.equal(homeDataArgs[2], true, 'Hidden following-feed mode enables the public feed');
-assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline Picks only');
+assert.equal(JSON.stringify(homeDataArgs[3]), JSON.stringify(['offline', 'online']), 'Home reads offline restaurants + online food, never recipe (#762)');
 assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(followingFeedArgs[1], false, 'Hidden following-feed mode never enables the following query');
-assert.equal(followingFeedArgs[2], 'offline', 'Preserved following query keeps the same offline scope');
+assert.equal(JSON.stringify(followingFeedArgs[2]), JSON.stringify(['offline', 'online']), 'Preserved following query keeps the same channel scope');
 assert.equal(followingFeedArgs[3], 'food', 'Preserved following query keeps the same food root');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
@@ -190,7 +191,7 @@ assert.doesNotMatch(allFirstPage, /메뉴별 원픽 보기|먼저 소개하는 �
 assert.match(allFirstPage, /서울집<\/span> 미역국/, 'Cards show the store (bold) then the menu (10-05)');
 assert.equal(presses.find((p) => p.accessibilityLabel === '인기 메뉴 더보기'), undefined, 'Unapproved /popular destination stays hidden');
 assert.equal(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), undefined, 'Figma 30-1 (10-04): no ranking group chips');
-assert.equal(itemRankingArgs[0], 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
+assert.equal(itemRankingArgs[0], 'offline', 'Home ranking stays offline until a multi-channel ranking contract exists (#762)');
 
 // The following-feed implementation remains available behind its separate rollout gate.
 onepickConstants.OnePickFeatures.followingFeed = true;
