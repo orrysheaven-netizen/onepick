@@ -69,7 +69,8 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   // One inline confirmation at a time; native Alert does not exist on web.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
-  const [composing, setComposing] = useState(!compact);
+  // Keep existing threads readable without asking the viewer to write again.
+  const [composing, setComposing] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const submittingComment = useRef(false);
   // The caller passes the authoritative viewer-scoped item_review_page.can_comment.
@@ -98,7 +99,7 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       });
       setCommentBody('');
       setReplyingTo(null);
-      if (compact) setComposing(false);
+      setComposing(false);
     } catch {
       // Keep the draft; mutation state shows the failure and allows retry.
     } finally {

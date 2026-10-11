@@ -150,7 +150,10 @@ assert.doesNotMatch(conversationSource, /✓ 이 집 원픽|✓ 원픽/, 'Conver
 
 // PickReplies keeps its existing CRUD/composer behavior.
 const repliesSource = source('components/pick-replies.tsx');
-assert.match(repliesSource, /useState\(!compact\)/);
+assert.match(repliesSource, /useState\(false\)/, 'Existing comments do not automatically open a new composer');
+const submitSource = repliesSource.split('const handleCommentSubmit = async () => {')[1].split('const handleCommentDelete = async')[0];
+assert.match(submitSource, /setComposing\(false\);/, 'Success closes the composer');
+assert.doesNotMatch(submitSource, /if \(compact\) setComposing\(false\)/, 'Both full and compact composers close');
 assert.match(repliesSource, /canComment && !composing \?/);
 assert.match(repliesSource, /const canComment = canWrite && !isSessionLoading && !sessionError/);
 assert.match(repliesSource, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag mine=\{author\.id === user\?\.id\} \/> : null/,
