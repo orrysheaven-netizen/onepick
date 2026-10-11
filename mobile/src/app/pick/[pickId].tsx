@@ -24,6 +24,7 @@ type Params = {
   rootCommentId?: string;
   commentAfterTime?: string;
   commentAfterId?: string;
+  afterAuth?: string;
 };
 
 
@@ -104,6 +105,13 @@ export default function PickDetailScreen() {
     ? itemTitle(itemQuery.data.item.name, itemQuery.data.category?.name, itemQuery.data.isRestaurant)
     : pickQuery.data?.item?.name ?? '한줄평 대화';
 
+  // Comments are open only to members who picked the same menu (server rule); a viewer
+  // without that Pick, e.g. right after signing up from here, is sent to pick it first.
+  const canPickFirst = Boolean(user && focused && !focused.pick.canComment && !focused.pick.isDeleted
+    && itemQuery.data?.canChoose && itemQuery.data.isRestaurant
+    && itemQuery.data.pickChannel === OnePickMvp.publicPickChannel
+    && itemQuery.data.myPickStatus.type === 'not_selected');
+
   const goBack = () => {
     if (router.canGoBack()) router.back();
     else if (itemId) router.replace({ pathname: '/item/[itemId]', params: { itemId } });
@@ -157,6 +165,13 @@ export default function PickDetailScreen() {
           <PickReplies
             pickId={focused.pick.id}
             canWrite={Boolean(focused.pick.canComment)}
+            isReviewDeleted={Boolean(focused.pick.isDeleted)}
+            autoOpenPickFirst={params.afterAuth === '1'}
+            onPickFirstAutoOpened={() => router.setParams({ afterAuth: undefined })}
+            onPickFirst={canPickFirst ? () => router.push({ pathname: '/pick/choose', params: {
+              itemId: focused.pick.itemId, categoryId: focused.pick.categoryId,
+              ...(focused.pick.channel ? { channel: focused.pick.channel } : {}), returnPickId: focused.pick.id,
+            } }) : undefined}
             focusCommentId={notificationKind === 'reply' ? rootCommentId : routeFocusCommentId}
             initialCursor={notificationKind === 'reply' ? commentInitialCursor : null}
             onFocusLoaded={notificationKind === 'reply' ? () => setReplyTargetLoaded(true) : undefined}

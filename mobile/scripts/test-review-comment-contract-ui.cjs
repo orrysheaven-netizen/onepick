@@ -90,6 +90,10 @@ async function main() {
   const replies = source('components/pick-replies.tsx');
   assert.doesNotMatch(replies, /usePickDetail/, 'Conversation permission must not re-read Pick lifecycle state');
   assert.match(replies, /const canComment = canWrite && !isSessionLoading && !sessionError/);
+  assert.match(replies, /!user && !isReviewDeleted && !isSessionLoading && !sessionError \? loginPrompt/,
+    'Deleted review never offers an impossible guest-login CTA');
+  assert.doesNotMatch(replies, /ownReview/, 'Review owners keep their approved top-level comment and reply composer');
+  assert.match(replies, /!isReply && canComment && !deleted \?/, 'Eligible review owners may reply under their own comments');
   assert.match(replies, /parentCommentId: replyingTo\?\.id \?\? null/);
   assert.match(replies, /\(entry\.replies \?\? \[\]\)\.map\(\(reply\) => renderComment\(reply, true\)\)/);
   assert.match(replies, /comment\.authorCurrentPickMatchesItem \? <CurrentPickFlag mine=\{author\.id === user\?\.id\} \/> : null/);
@@ -111,6 +115,65 @@ async function main() {
   assert.match(pickDetail, /focusCommentId=\{notificationKind === 'reply' \? rootCommentId : routeFocusCommentId\}/);
   assert.match(pickDetail, /<CurrentPickFlag mine=\{focused\.pick\.userId === user\?\.id\} \/>/);
   assert.doesNotMatch(pickDetail, /✓ 이 집 원픽|✓ 원픽/);
+  assert.match(pickDetail, /itemQuery\.data\.isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
+    'Comment prompt is restricted to supported food/offline scope');
+  assert.match(pickDetail, /isReviewDeleted=\{Boolean\(focused\.pick\.isDeleted\)\}/,
+    'Review deletion is explicitly passed to the thread component');
+  assert.match(pickDetail, /myPickStatus\.type === 'not_selected'/,
+    'Comment CTA must not route selected_other into an unconfirmed replacement');
+  const commentChoose = source('app/pick/choose.tsx');
+  assert.match(commentChoose, /if \(returnPickId && !commentAttempt\.current\)[\s\S]*?await itemQuery\.refetch\(\)/,
+    'Comment-entry save rechecks the current Pick before mutation');
+  assert.match(commentChoose, /latest\.data\.myPickStatus\.type !== 'not_selected'/,
+    'Comment-entry save declines a replacement');
+  assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| commentPickConflict \|\| Boolean\(returnPickId/,
+    'Comment-entry replacement cannot be submitted from a stale screen');
+  assert.match(commentChoose, /const atomicCommentRegistration = Boolean\(returnPickId[\s\S]*?isRestaurant[\s\S]*?pickChannel === OnePickMvp\.publicPickChannel/,
+    'Atomic comment registration is scoped to food and the public channel');
+  assert.match(commentChoose, /const registration = \{[\s\S]*?expectedPreviousPickId: null,[\s\S]*?requestId: attempt\.id,[\s\S]*?registerCommentPick\.mutateAsync\(registration\)/,
+    'Comment-entry registration uses the existing expected-null RPC');
+  assert.match(commentChoose, /commentAttempt\.current \?\? \{ id: Crypto\.randomUUID\(\), review: trimmedReview \}/,
+    'The request ID and original review remain stable for a lost-response retry');
+  assert.match(commentChoose, /oneLineReview: attempt\.review,[\s\S]*?requestId: attempt\.id/,
+    'An idempotent retry cannot display a different unsaved review');
+  assert.match(commentChoose, /const review = commentAttempt\.current\?\.review \?\? draftReview/,
+    'The on-screen draft reflects the original idempotent request');
+  assert.match(commentChoose, /const checkingCommentReceipt = Boolean\(returnPickId && commentAttempt\.current && !savedChoice && !commentPickConflict\)/,
+    'Lost-response retry is explicitly distinguished from a new Pick or review edit');
+  assert.match(commentChoose, /const submitLabel = checkingCommentReceipt \? '저장 결과 다시 확인하기'/,
+    'Retry CTA names the receipt recheck rather than editing a prior Pick');
+  assert.match(commentChoose, /editable=\{!saving && !commentAttempt\.current\}/,
+    'The review input is read-only after the first comment-origin save attempt');
+  assert.match(commentChoose, /returnPickId && !commentAttempt\.current && pickStatus\?\.type !== 'not_selected'/,
+    'A lost-response retry is not confused with an unconfirmed Pick replacement');
+  assert.match(commentChoose, /error\.code === 'PICK_CHANGED_ELSEWHERE'[\s\S]*?setCommentPickConflict\(true\)/,
+    'A server conflict permanently blocks retry in this comment flow');
+  assert.match(commentChoose, /disabled=\{needsPhotoStep \|\| commentPickConflict/,
+    'The save button must be disabled after an atomic server conflict');
+  assert.match(commentChoose, /if \(!isReceiptRetry \|\| !\(error instanceof AppError && error\.code === 'PICK_CHANGED_ELSEWHERE'\)\) throw error;\s*result = await registerCommentPick\.mutateAsync\(registration\);/,
+    'Only a receipt retry re-reads once with the same request after a self-overlap conflict');
+  assert.match(commentChoose, /TERMINAL_COMMENT_PICK_ERRORS\.has\(error\.code\)\)[\s\S]*?setCommentPickConflict\(true\)/,
+    'Terminal server refusals end the comment attempt instead of a receipt-retry loop');
+  assert.doesNotMatch(commentChoose, /TERMINAL_COMMENT_PICK_ERRORS = new Set\(\[[^\]]*'(AUTH_REQUIRED|PROFILE_NOT_FOUND)'/,
+    'Recoverable auth/profile errors keep their recovery actions');
+  assert.match(commentChoose, /if \(returnPickId && !atomicCommentRegistration\)/,
+    'Unsupported comment-origin flows fail closed before reaching change_pick');
+  assert.match(commentChoose, /const hasReturnKey = params\.returnPickId !== undefined;[\s\S]*?const invalidReturnLink = hasReturnKey && !returnPickId;/,
+    'A present but unusable returnPickId is a damaged comment entry, not an ordinary entry');
+  assert.match(commentChoose, /if \(invalidReturnLink\) return;[\s\S]*?if \(returnPickId && threadBinding !== 'match'\)/,
+    'Damaged links and unconfirmed threads stop before any save');
+  assert.match(commentChoose, /usePickDetail\(returnPickId \?\? undefined/,
+    'The originating thread is read through the existing Pick lookup, not from URL values');
+  assert.match(commentChoose, /threadPick\.itemId === loadedItem\.id && threadPick\.categoryId === loadedItem\.categoryId[\s\S]*?threadPick\.channel === OnePickMvp\.publicPickChannel/,
+    'Thread item, category and channel must match the registration target');
+  assert.match(commentChoose, /published: result\.published/,
+    'Registration receipt distinguishes a pending photo review from a commentable Pick');
+  assert.match(commentChoose, /const intent = returnPickId[\s\S]*?action: 'comment_pick', pickId: returnPickId[\s\S]*?action: 'choose_pick'/,
+    'Authentication recovery preserves comment intent rather than an unguarded choose_pick');
+  assert.match(commentChoose, /const backToComments = \(\) => \{[\s\S]*?router\.dismissTo\(\{ pathname: '\/pick\/\[pickId\]', params: \{ pickId: returnPickId \} \}\)/,
+    'Successful comment-origin registration always returns to the exact discussion');
+  assert.doesNotMatch(commentChoose, /if \(router\.canGoBack\(\)\) router\.back\(\);\s*else router\.replace\(\{ pathname: '\/pick\/\[pickId\]'/,
+    'Comment return may not blindly pop an unrelated login/history route');
 
   const myComments = source('components/profile-my-comments.tsx');
   assert.match(myComments, /commentService\.locateComment\(entry\.comment\.id\)/);

@@ -59,7 +59,7 @@ async function main() {
   assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseBook, externalBookId: 'bad/id' })), '/');
   same(getPostAuthRoute(getAuthIntent(chooseYouTube)), { pathname: '/pick/youtube', params: { categoryId: ids[1], externalYouTubeId: 'UC1234567890123456789012' } });
   assert.equal(getPostAuthRoute(getAuthIntent({ ...chooseYouTube, externalYouTubeId: 'bad' })), '/');
-  same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0] } });
+  same(getPostAuthRoute(getAuthIntent(comment)), { pathname: '/pick/[pickId]', params: { pickId: ids[0], afterAuth: '1' } });
   same(getAuthIntent(request), { action: 'request_item', itemName: '신라면 더 레드', categoryId: ids[0] });
   same(getPostAuthRoute(getAuthIntent(request)), {
     pathname: '/pick/request',

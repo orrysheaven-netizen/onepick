@@ -16,7 +16,23 @@ function loadSource(relativePath, imports = {}) {
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
-      if (name in imports) return imports[name];
+      // The choose screen imports these only for comment-origin registration;
+    // preserve every existing test hook while rejecting unexpected new writes.
+    if (name === 'expo-crypto') return { randomUUID: () => '11111111-1111-4111-8111-111111111111' };
+    if (name === '@/hooks/useRegisterPick') {
+      const hooks = imports[name] ?? {};
+      return { ...hooks, useRegisterItemPick: hooks.useRegisterItemPick ?? (() => ({
+        isPending: false, error: null,
+        mutateAsync: async () => { throw new Error('unexpected comment-origin registration'); },
+      })) };
+    }
+    if (name in imports) return imports[name];
+    // The choose screen reads its originating comment thread only for a
+    // comment-origin entry; ordinary entries keep the lookup disabled.
+    if (name === '@/hooks/usePickDetail') return { usePickDetail: (pickId) => {
+      if (pickId) throw new Error('unexpected comment-thread lookup');
+      return { data: undefined, isPending: true, isError: false, isFetching: false };
+    } };
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
@@ -137,7 +153,7 @@ async function main() {
 
   // A product change starts with a blank review. The action must explain what is
   // missing instead of silently disabling itself or copying the previous reason.
-  let chooseStates = [], chooseStateIndex = 0, reviewFocuses = 0;
+  let chooseStates = [], chooseStateIndex = 0, chooseRefs = [], chooseRefIndex = 0, reviewFocuses = 0;
   const chosenInputs = [];
   const choiceMutation = { isPending: false, mutateAsync: async (input) => { chosenInputs.push(input); return input; } };
   const { default: ChangeChoice } = loadSource('app/pick/choose.tsx', {
@@ -148,12 +164,16 @@ async function main() {
         if (!(index in chooseStates)) chooseStates[index] = initial;
         return [chooseStates[index], (value) => { chooseStates[index] = value; }];
       },
-      useRef: () => ({ current: { focus: () => reviewFocuses++ } }),
+      useRef: (initial) => {
+        const index = chooseRefIndex++;
+        if (!(index in chooseRefs)) chooseRefs[index] = { current: index === 1 ? { focus: () => reviewFocuses++ } : initial };
+        return chooseRefs[index];
+      },
     },
     '@/hooks/useChoosePick': { useChoosePick: () => choiceMutation, useRequestPendingPick: () => ({ isPending: false, error: null }) },
   });
   detail.myPickStatus = { type: 'selected_other', pickId: 'previous', itemId: 'previous-item' };
-  const renderChoice = () => { chooseStateIndex = 0; return render(ChangeChoice); };
+  const renderChoice = () => { chooseStateIndex = 0; chooseRefIndex = 0; return render(ChangeChoice); };
   const changeButton = () => presses.find((p) => p.accessibilityLabel === '원픽 바꾸기');
   renderChoice();
   assert.equal(inputs[0].value, '', 'A new product needs the user’s own reason');

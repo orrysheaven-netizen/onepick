@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -11,13 +12,14 @@ import {
 
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
-import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
+import { Button } from '@/components/ui';
+import { DIALOG_CANCEL_LABEL, DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
 import { AppError } from '@/errors/appError';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useCreateComment } from '@/hooks/useCreateComment';
 import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
-import { OnePick } from '@/constants/onepick';
+import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { CommentReadItem, ReadCursor } from '@/repositories/interfaces/readRepository';
 
 function getCommentErrorMessage(error: unknown) {
@@ -37,11 +39,19 @@ function getCommentErrorMessage(error: unknown) {
  * `compact` embeds the thread in a review card: no card frame, no empty-state line,
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
+ * `onPickFirst` is offered when the viewer cannot comment only because they have no Pick of this menu yet:
+ * "댓글 남기기" then asks in a popup whether to pick this menu first. `autoOpenPickFirst` (back from
+ * login/signup) opens that popup once on arrival. The server-provided `canWrite`
+ * covers review authors as well as members with the same current Pick.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, isReviewDeleted = false, onPickFirst, autoOpenPickFirst = false, onPickFirstAutoOpened, focusCommentId, initialCursor = null, onFocusLoaded }: {
   pickId: string;
   compact?: boolean;
   canWrite?: boolean;
+  isReviewDeleted?: boolean;
+  onPickFirst?: () => void;
+  autoOpenPickFirst?: boolean;
+  onPickFirstAutoOpened?: () => void;
   focusCommentId?: string;
   initialCursor?: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -49,14 +59,18 @@ export function PickReplies({ pickId, compact = false, canWrite = true, focusCom
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} isReviewDeleted={isReviewDeleted} onPickFirst={onPickFirst} autoOpenPickFirst={autoOpenPickFirst} onPickFirstAutoOpened={onPickFirstAutoOpened} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, isReviewDeleted, onPickFirst, autoOpenPickFirst, onPickFirstAutoOpened, focusCommentId, initialCursor, onFocusLoaded }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
   compact: boolean;
   canWrite: boolean;
+  isReviewDeleted: boolean;
+  onPickFirst?: () => void;
+  autoOpenPickFirst: boolean;
+  onPickFirstAutoOpened?: () => void;
   focusCommentId?: string;
   initialCursor: ReadCursor | null;
   onFocusLoaded?: () => void;
@@ -70,6 +84,8 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [commentBody, setCommentBody] = useState('');
   const [composing, setComposing] = useState(!compact);
+  const [pickFirstOpen, setPickFirstOpen] = useState(false);
+  const pickFirstAutoOpened = useRef(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
   const submittingComment = useRef(false);
   // The caller passes the authoritative viewer-scoped item_review_page.can_comment.
@@ -80,6 +96,25 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
   useEffect(() => {
     if (focusedCommentLoaded) onFocusLoaded?.();
   }, [focusedCommentLoaded, onFocusLoaded]);
+
+  const canPickFirst = Boolean(!isReviewDeleted && onPickFirst && user && !compact);
+  useEffect(() => {
+    if (!autoOpenPickFirst || !canPickFirst || pickFirstAutoOpened.current) return;
+    pickFirstAutoOpened.current = true;
+    setPickFirstOpen(true);
+    // Consume the one-time trigger so a remount (account switch, refresh) does not reopen it.
+    onPickFirstAutoOpened?.();
+  }, [autoOpenPickFirst, canPickFirst, onPickFirstAutoOpened]);
+
+  const loginPrompt = (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId } })}
+      style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
+      <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
+      <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
+    </Pressable>
+  );
 
   const trimmedComment = commentBody.trim();
   const canSubmitComment = trimmedComment.length >= 1 && trimmedComment.length <= 300;
@@ -302,18 +337,30 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
                       )}
                     </Pressable>
                   </View>
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => router.push({ pathname: '/auth/login', params: { action: 'comment_pick', pickId } })}
-                    style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
-                    <Text style={styles.loginPromptTitle}>로그인하고 댓글 남기기</Text>
-                    <Text style={styles.loginPromptText}>원픽을 고른 이유에 대해 이야기를 나눠보세요.</Text>
-                  </Pressable>
-                )
-              ) : compact ? null : (
+                ) : loginPrompt
+              ) : compact ? null : !user && !isReviewDeleted && !isSessionLoading && !sessionError ? loginPrompt
+              : user && !isReviewDeleted && onPickFirst ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setPickFirstOpen(true)}
+                  style={({ pressed }) => [styles.loginPrompt, pressed && styles.pressed]}>
+                  <Text style={styles.loginPromptTitle}>댓글 남기기</Text>
+                  <Text style={styles.loginPromptText}>같은 메뉴를 원픽으로 고른 사람끼리 댓글을 남길 수 있어요.</Text>
+                </Pressable>
+              ) : (
                 <Text style={styles.historyCommentNotice}>지금은 댓글을 남길 수 없는 한줄평이에요.</Text>
               )}
+              {onPickFirst && !isReviewDeleted ? <Modal visible={pickFirstOpen} transparent animationType="fade" onRequestClose={() => setPickFirstOpen(false)}>
+                <View style={styles.popupBackdrop}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록 안내 닫기" onPress={() => setPickFirstOpen(false)} style={StyleSheet.absoluteFill} />
+                  <View accessibilityViewIsModal style={styles.popup}>
+                    <Text style={styles.popupTitle}>원픽으로 등록해야 댓글을 남길 수 있어요</Text>
+                    <Text style={styles.popupText}>이 메뉴를 내 원픽으로 등록할까요?</Text>
+                    <Button fullWidth label="원픽으로 등록하기" onPress={() => { setPickFirstOpen(false); onPickFirst(); }} />
+                    <Button variant="ghost" size="sm" label={DIALOG_CANCEL_LABEL} onPress={() => setPickFirstOpen(false)} />
+                  </View>
+                </View>
+              </Modal> : null}
             </View>
 
   );
@@ -361,6 +408,18 @@ const styles = StyleSheet.create({
   commentButton: { minHeight: 44, borderRadius: 14, backgroundColor: OnePick.accent, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   commentButtonDisabled: { opacity: 0.4 },
   commentButtonText: { color: OnePick.onAccent, fontSize: 13, fontWeight: '800' },
+  popupBackdrop: { flex: 1, justifyContent: 'center', padding: OnePickSpace.gutter, backgroundColor: OnePick.bgOverlay },
+  popup: {
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
+    gap: OnePickSpace.md,
+    padding: OnePickSpace.xl,
+    borderRadius: OnePickRadius.xl,
+    backgroundColor: OnePick.bgDefault,
+  },
+  popupTitle: { ...OnePickType.headline, color: OnePick.textPrimary, textAlign: 'center' },
+  popupText: { ...OnePickType.body, color: OnePick.textSecondary, textAlign: 'center', marginBottom: OnePickSpace.sm },
   loginPrompt: { backgroundColor: OnePick.background, borderRadius: 15, padding: 14, marginTop: 16 },
   loginPromptTitle: { color: OnePick.text, fontSize: 13, fontWeight: '800' },
   loginPromptText: { color: OnePick.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },

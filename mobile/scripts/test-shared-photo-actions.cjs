@@ -15,6 +15,12 @@ function load(file, imports = {}) {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
     if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
+    // The choose screen reads its originating comment thread only for a
+    // comment-origin entry; ordinary entries keep the lookup disabled.
+    if (name === '@/hooks/usePickDetail') return { usePickDetail: (pickId) => {
+      if (pickId) throw new Error('unexpected comment-thread lookup');
+      return { data: undefined, isPending: true, isError: false, isFetching: false };
+    } };
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected dependency ${name}`);
   } });
