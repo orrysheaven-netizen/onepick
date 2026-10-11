@@ -10,7 +10,18 @@ Automation-plan item E verifies that the tester deployment catches up to each
 - Supabase Edge Functions: only functions whose source changed in the push are
   checked. They must exist, be `ACTIVE`, and have a deployment timestamp no
   older than the main commit. A change under `supabase/functions/_shared` or
-  `supabase/config.toml` checks all repository Edge Functions.
+  other private/shared directories or function-root dependency files checks all
+  repository Edge Functions (including deleted/renamed paths).
+- `supabase/config.toml` is parsed with Python 3.11+ `tomllib`: only changed
+  `functions.<slug>` tables select that function. Added/removed keys and tables
+  count, including `verify_jwt`, `entrypoint`, and `import_map`. Storage/Auth/DB
+  settings and comments/formatting alone do not select functions. Global
+  `edge_runtime` changes select all functions. Invalid TOML or missing Git
+  history fails detection rather than silently skipping verification.
+- Checkout includes full history so multi-commit pushes compare the exact
+  event `before` SHA. Manual runs compare HEAD with its first parent; initial
+  commits conservatively select all functions. This is a per-push freshness
+  check, not an audit of historical production drift.
 
 The Supabase Management API exposes function status/version/update time but does
 not expose a Git commit SHA. The Edge Function part therefore verifies deployment
@@ -34,3 +45,11 @@ is absent on a function-changing push, the check fails visibly and opens the
 same `qa-alert` rather than silently claiming success.
 
 No paid service is required for this check.
+
+
+## Offline regression checks
+
+```sh
+python3 -m unittest discover -s tools/qa -p test_detect_edge_function_changes.py
+node tools/qa/check-deployment-consistency.test.mjs
+```
