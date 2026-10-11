@@ -86,6 +86,11 @@ public = true
 file_size_limit = "1MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 
+[storage.buckets.profile-avatars]
+public = true
+file_size_limit = "512KiB"
+allowed_mime_types = ["image/jpeg"]
+
 [functions.sbiz-place-catalog]
 # Admin-only bootstrap endpoint; handler validates the caller and keeps the provider key server-side.
 verify_jwt = false

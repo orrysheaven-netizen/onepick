@@ -14,8 +14,8 @@ select ok(
   'authenticated users retain the intended bio update privilege'
 );
 select ok(
-  not has_column_privilege('authenticated','public.profiles','profile_image_url','update'),
-  'clients cannot write the dormant public image field'
+  has_column_privilege('authenticated','public.profiles','profile_image_url','update'),
+  'owners can point profile_image_url at their own uploaded avatar (2026-10-11)'
 );
 select ok(
   not has_column_privilege('authenticated','public.profiles','profile_image_url','insert'),
@@ -64,9 +64,9 @@ select throws_ok(
 select throws_ok(
   $$update public.profiles set profile_image_url='https://tracker.example/pixel.jpg'
     where id='f9700000-0000-4000-8000-000000000001'$$,
-  '42501',
+  '23514',
   null,
-  'client cannot PATCH an arbitrary tracking image URL'
+  'client cannot PATCH an arbitrary tracking image URL (owned-avatar path only)'
 );
 select throws_ok(
   $$update public.profiles set created_at=clock_timestamp()
@@ -83,7 +83,7 @@ select throws_ok(
     where id='f9700000-0000-4000-8000-000000000001'$$,
   '23514',
   null,
-  'DB constraint keeps the dormant image field null even for privileged writes'
+  'DB constraint rejects remote image URLs even for privileged writes'
 );
 reset role;
 
