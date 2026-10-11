@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { profileNickname } from '@/lib/profile/profileName';
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickReplies } from '@/components/pick-replies';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -146,7 +147,7 @@ export default function PickDetailScreen() {
           <View style={styles.review}>
             <View style={styles.reviewMeta}>
               <Text style={styles.author}>
-                {focused.profile ? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
+                {focused.profile ? profileNickname(focused.profile) ?? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
               </Text>
               {focused.pick.isCurrent ? <CurrentPickFlag mine={focused.pick.userId === user?.id} /> : null}
             </View>

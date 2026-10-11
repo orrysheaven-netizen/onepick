@@ -126,7 +126,7 @@ async function main() {
     '@/components/pick-replies': { PickReplies: () => null },
     '@/components/pick-share-actions': { PickShareActions: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/pick-management': { PickManagement, PickManagementActions },
     '@/components/report-action': { ReportAction: () => null },
     '@/errors/appError': { AppError },

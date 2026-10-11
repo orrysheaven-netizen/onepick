@@ -28,6 +28,7 @@ const imports = {
   '@/hooks/usePickDetail': { usePickDetail: () => pickQuery },
   '@/hooks/useItemDetail': { useItemDetail: () => itemQuery },
   '@/hooks/useNotifications': { useReadNotificationGroup: () => ({ mutateAsync: async () => 0 }) },
+  '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null },
   '@/lib/items/itemTitle': { itemTitle: () => '중앙해장 내장탕' },
   '@/services': { observabilityService: { captureProductEvent: async () => {} } },
 };

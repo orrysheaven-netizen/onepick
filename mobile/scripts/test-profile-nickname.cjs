@@ -80,7 +80,8 @@ async function main() {
     'repositories/mappers/profileMapper.ts', 'lib/supabase/database.types.ts'];
   const sources = files.map((file) => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'));
   const featureSource = fs.readFileSync(path.join(__dirname, '../src/constants/onepick.ts'), 'utf8');
-  assert.match(featureSource, /nicknameEditing: false/);
+  // User decision 2026-10-11: nickname editing ships with the home/profile/comment display rollout.
+  assert.match(featureSource, /nicknameEditing: true/);
   assert.ok(sources[0].indexOf('nicknameEditing ?') < sources[0].indexOf('계정 삭제</Text>'));
   assert.match(sources[0], /OnePickFeatures\.nicknameEditing \?/);
   assert.match(sources[1], /!OnePickFeatures\.nicknameEditing/);

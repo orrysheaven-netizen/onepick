@@ -12,7 +12,7 @@ const avatar = read('src/components/ui/avatar.tsx');
 assert.match(profile, /<View style=\{styles\.publicHeader\}>/);
 assert.match(profile, /<View style=\{styles\.publicBody\}>/);
 assert.match(profile, /publicBody: \{ minHeight: 675, paddingTop: 10, gap: OnePickSpace\.md \}/);
-assert.match(profile, /<Avatar name=\{query\.data\.profile\.username\} size=\{68\} tone="subtle" \/>/);
+assert.match(profile, /<Avatar name=\{profileDisplayName\(query\.data\.profile\)\} size=\{68\} tone="subtle" \/>/);
 assert.match(profile, /<View style=\{styles\.followActions\}>[\s\S]*?<FollowButton[\s\S]*?fullWidth \/>[\s\S]*?<Button[\s\S]*?variant="secondary"[\s\S]*?label="공유"/,
   'Figma 40 keeps Follow/Following and Share in one core action row');
 assert.match(profile, /<Chip label="음식"/);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { profileDisplayName } from '@/lib/profile/profileName';
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickManagement, PickManagementActions, type PickManagementMode } from '@/components/pick-management';
 import { PickShareActions } from '@/components/pick-share-actions';
@@ -35,7 +36,7 @@ export function ItemReviewCard({ pick, profile, categoryName, itemName, itemId, 
         {isMine ? (
           <Text style={[styles.author, styles.mineLabel]}>내 한줄평</Text>
         ) : <>
-          <Avatar name={profile?.username ?? '?'} size={24} />
+          <Avatar name={profile ? profileDisplayName(profile) : '?'} size={24} />
           <View style={styles.author}>
             {profile ? (
               <Pressable accessibilityRole="button" accessibilityLabel={`@${profile.username} 공개 프로필 보기`}

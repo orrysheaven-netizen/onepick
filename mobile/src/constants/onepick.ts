@@ -163,7 +163,7 @@ export const OnePickFeatures = {
   followingFeed: false,
   followNotifications: false,
   // #804: release nickname editing only with the global nickname display rollout.
-  nicknameEditing: false,
+  nicknameEditing: true,
   followCounts: false,
   purchaseLinks: false,
   // Keep both profile features implemented, but unmounted during the early MVP.

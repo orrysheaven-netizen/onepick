@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { profileDisplayName } from '@/lib/profile/profileName';
 import { BlockUserButton } from '@/components/block-user-button';
 import { FollowButton } from '@/components/follow-button';
 import { FollowConnectionsView } from '@/components/follow-connections-view';
@@ -365,9 +366,9 @@ export default function PublicProfileScreen() {
 
           <View style={styles.publicBody}>
             <View style={styles.publicIdentity}>
-              <Avatar name={query.data.profile.username} size={68} tone="subtle" />
+              <Avatar name={profileDisplayName(query.data.profile)} size={68} tone="subtle" />
               <View style={styles.publicIdentityCopy}>
-                <Text numberOfLines={1} style={styles.publicDisplayName}>{query.data.profile.username}</Text>
+                <Text numberOfLines={1} style={styles.publicDisplayName}>{profileDisplayName(query.data.profile)}</Text>
                 <Text numberOfLines={1} style={styles.publicHandle}>@{query.data.profile.username}</Text>
                 {query.data.profile.bio ? <Text numberOfLines={2} style={styles.publicBio}>{query.data.profile.bio}</Text> : null}
               </View>

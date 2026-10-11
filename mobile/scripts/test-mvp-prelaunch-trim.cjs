@@ -31,7 +31,7 @@ function home(count = 20, followingCount = 0) {
   const calls = {};
   const view = screen('app/(tabs)/index.tsx', {
     'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }), useFocusEffect: () => {} },
-    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'),
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]), useHomeFoodMenuPickCounts: () => query(new Map()),
       useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
@@ -65,7 +65,7 @@ function explore({ chips = true } = {}) {
   const view = screen('app/(tabs)/explore.tsx', {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
-    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'), '@/components/explore-search-results': names('ExploreSearchResults'),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'), '@/components/explore-search-results': names('ExploreSearchResults'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
       useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; },
       useFoodMenuPickCounts: (channel, enabled) => { calls.menuCounts = { channel, enabled }; return query(new Map([['ramen', 5]])); } },
@@ -91,7 +91,7 @@ function profile(isPublic = false) {
       useLocalSearchParams: () => ({ username: 'owner' }),
     },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
-    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/errors/appError': { AppError: class AppError extends Error {} },
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },

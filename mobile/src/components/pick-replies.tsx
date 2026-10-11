@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { profileDisplayName, profileNickname } from '@/lib/profile/profileName';
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
 import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
@@ -127,7 +128,9 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
     const { comment, author } = entry;
     const deleted = Boolean(comment.isDeleted);
     const canDelete = Boolean(comment.canDelete ?? (user && comment.userId === user.id));
-    const username = author?.username ?? '사용자';
+    // #804: nickname when set, otherwise @username; routes keep the username.
+    const username = author ? profileDisplayName(author) : '사용자';
+    const authorLabel = author ? profileNickname(author) ?? `@${author.username}` : '사용자';
 
     return <View key={comment.id} style={[
       styles.commentRow,
@@ -139,10 +142,10 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       </View>
       <View style={styles.commentCopy}>
         {deleted ? <Text style={styles.commentAuthor}>삭제된 댓글</Text> : author ? <View style={styles.commentAuthorRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`@${author.username} 공개 프로필 보기`}
+          <Pressable accessibilityRole="button" accessibilityLabel={`${authorLabel} 공개 프로필 보기`}
             onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username, returnTo: `/pick/${pickId}` } })}
             style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
-            <Text style={styles.commentAuthor}>@{author.username} ›</Text>
+            <Text style={styles.commentAuthor}>{authorLabel} ›</Text>
           </Pressable>
           {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag mine={author.id === user?.id} /> : null}
         </View> : <Text style={styles.commentAuthor}>사용자</Text>}

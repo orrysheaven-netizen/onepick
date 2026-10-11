@@ -72,7 +72,7 @@ async function main() {
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/profile-pick-card': {
       ProfilePickCard: (props) => React.createElement(
         native.Pressable,
@@ -115,7 +115,7 @@ async function main() {
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: component('section') },
     'expo-router': { useRouter: () => ({ push: (route) => { loginRoute = route; } }) },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/profile-my-comments': { ProfileMyComments: (props) => { commentsProps = props; return React.createElement(native.Text, null, 'MY_COMMENTS_LIST'); } },
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food' },
@@ -142,7 +142,7 @@ async function main() {
     'react-native': native,
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
     '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/lib/format/relativeTime': { formatRelativeTime: () => '방금' },
     '@/services': { commentService: { locateComment: async (commentId) => commentId === 'c1' ? {
       rootCommentId: 'c1', pickId: 'p1', itemId: 'i1', categoryId: 'ramen', channel: 'offline',

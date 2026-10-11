@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { profileDisplayName } from '@/lib/profile/profileName';
 import { PickPhoto } from '@/components/pick-photo';
 import { ProfileBioEditor } from '@/components/profile-bio-editor';
 import { ProfilePickCard } from '@/components/profile-pick-card';
@@ -246,7 +247,8 @@ export default function ProfileScreen() {
   const { profile, currentPicks } = profileQuery.data;
   // The profile contract currently stores username rather than a separate display name.
   // Use it in the Figma 03 identity slot until that field exists server-side.
-  const displayName = profile.username;
+  // #804: nickname when set, otherwise the username; the header title stays the @handle.
+  const displayName = profileDisplayName(profile);
   const loadedCommentCount = commentsQuery.data?.length ?? 0;
   const commentCountLabel = commentsQuery.hasNextPage ? `${loadedCommentCount}+` : String(loadedCommentCount);
   const profileCategories = categoriesQuery.data ?? [];

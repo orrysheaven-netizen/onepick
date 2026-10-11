@@ -76,7 +76,7 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
     PickManagement: ({ mode }) => React.createElement('i', null, `panel:${mode}`),
     PickManagementActions: () => React.createElement('i', null, '수정 · 해제'),
   },  '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
-  '@/components/ui': { Avatar: () => null },
+  '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': { Avatar: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => session },
 });
 const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemReviewCard, {
