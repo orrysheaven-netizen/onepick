@@ -15,6 +15,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, URL, require: (name) => {
     if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+    if (name === '@/lib/pick/registrationFooterLayout') return load('lib/pick/registrationFooterLayout.ts');
     if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react/jsx-runtime') return require(name);
@@ -80,7 +81,7 @@ const hooks = {
 };
 
 const { default: Screen } = load('app/pick/new.tsx', { '@/lib/navigation/swipeBack': { useSwipeBackHandler() {} },
-  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section') },
+  react: fakeReact, 'react-native': native, 'react-native-safe-area-context': { SafeAreaView: part('section'), useSafeAreaInsets: () => ({ bottom: 0 }) },
   'expo-crypto': { randomUUID: () => `request-${++uuidCounter}` },
   'expo-router': {
     useLocalSearchParams: () => routeParams,
