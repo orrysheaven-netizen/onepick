@@ -29,9 +29,12 @@ import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
 import type { Category } from '@/types/domain/category';
 
-// 이웃 제안 (2026-10-11): the newest 10 first, then 10 more each time the list end is reached,
-// over the existing keyset-cursor pages (20 per server page) — never the whole feed at once.
+// 이웃 제안 (2026-10-11): the newest 10 first, then 함께하는 사람들 + 초대 right below them.
+// More cards load only when the viewer, already at the bottom, swipes up again (user decision
+// 2026-10-11 13:28 KST), over the existing keyset-cursor pages (20 per server page).
 const HOME_FEED_PAGE = 10;
+// Distance from the list bottom that still counts as "at the end" for the swipe-up load.
+const HOME_END_SLOP = 24;
 const HOME_MENU_LIMIT = 6;
 // Same candidate size as /popular's first rows, so both screens share one ordering.
 const HOME_RANKING_CANDIDATES = 20;
@@ -133,6 +136,20 @@ export default function HomeScreen() {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     if (contentOffset.y > 0 &&
         contentOffset.y + layoutMeasurement.height >= contentSize.height - 240) setPeopleRequested(true);
+  };
+  // Swipe-up load: a drag that starts with the list already at its bottom and ends there
+  // (the finger pushed the content up past the end) asks for the next ten. Reaching the
+  // bottom by scrolling never loads by itself, so 함께하는 사람들 and 초대 stay in view first.
+  const atListEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) =>
+    contentSize.height > 0 && contentOffset.y + layoutMeasurement.height >= contentSize.height - HOME_END_SLOP;
+  const dragStartedAtEnd = useRef(false);
+  const onPublicDragBegin = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    dragStartedAtEnd.current = atListEnd(event.nativeEvent);
+  };
+  const onPublicDragEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const startedAtEnd = dragStartedAtEnd.current;
+    dragStartedAtEnd.current = false;
+    if (startedAtEnd && atListEnd(event.nativeEvent)) loadMorePublic();
   };
 
   // ---- Current Home integration (#762) --------------------------------------------
@@ -237,6 +254,9 @@ export default function HomeScreen() {
   };
   const publicFeedEnd = ready && Boolean(data) && filteredPicks.length > 0 &&
     !homeQuery.hasNextPage && !homeQuery.isFetching && visiblePicks.length >= filteredPicks.length;
+  // More rows exist (already loaded but hidden, or another server page) and nothing is in flight.
+  const publicHasMore = ready && Boolean(data) && !homeQuery.isFetchingNextPage && !homeQuery.isFetchNextPageError &&
+    (filteredPicks.length > visiblePicks.length || Boolean(homeQuery.hasNextPage));
   const refresh = () => {
     if (isSessionLoading || sessionError) return;
     setVisibleCount(HOME_FEED_PAGE);
@@ -269,6 +289,16 @@ export default function HomeScreen() {
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;
   // Existing 1px border/default divider between cards, 24 above and below (Figma 1217:8655).
   const feedGap = () => <View style={styles.feedDivider} />;
+  // 함께하는 사람들 + 초대 sit right after the first ten cards (or the last card when fewer),
+  // before any card the swipe-up load adds.
+  const peopleBlock = contextReady ? <>
+    {showPeople ? <View style={styles.inviteFooter}><HomePeopleRow people={people} onOpenProfile={openProfile} /></View> : null}
+    {/* 30E 834:4889: invite reuses the profile share path; 의견 보내기 opens the admin-configured mailbox (#831). */}
+    {user ? <View style={styles.inviteFooter}><HomeInviteRow onInvite={() => router.push('/profile')} feedback={<HomeFeedbackButton style={styles.inviteAction} />} /></View>
+      : <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>}
+  </> : null;
+  const publicCards = ready ? visiblePicks : [];
+  const peopleAnchor = publicCards.length ? Math.min(HOME_FEED_PAGE, publicCards.length) - 1 : -1;
 
   const listHeader = <>
     {OnePickFeatures.followingFeed && user && !followDefaultPending ? <View style={styles.scopeRow}>
@@ -326,16 +356,18 @@ export default function HomeScreen() {
           {!followingQuery.hasNextPage && followingItems.length > 0 ? <Text style={styles.endText}>팔로우한 사람들의 원픽을 모두 확인했어요.</Text> : null}
         </> : null}
       /> : <FlatList
-        data={ready ? visiblePicks : []}
+        data={publicCards}
         onLayout={onPublicListLayout}
         onContentSizeChange={onPublicListContentSizeChange}
         onScroll={onPublicListScroll}
+        onScrollBeginDrag={onPublicDragBegin}
+        onScrollEndDrag={onPublicDragEnd}
         scrollEventThrottle={16}
         keyExtractor={(pick) => pick.pickId}
-        renderItem={({ item: pick }) => renderFeedCard(pick)}
+        renderItem={({ item: pick, index }) => index === peopleAnchor
+          ? <>{renderFeedCard(pick)}{peopleBlock}</>
+          : renderFeedCard(pick)}
         ItemSeparatorComponent={feedGap}
-        onEndReached={loadMorePublic}
-        onEndReachedThreshold={0.6}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -439,12 +471,12 @@ export default function HomeScreen() {
               action={{ label: '다음 원픽 다시 불러오기', disabled: homeQuery.isFetching, onPress: retryNextPublicPage }} /> : null}
             {publicFeedEnd ? <Text style={styles.endText}>지금 볼 수 있는 원픽을 모두 확인했어요.</Text> : null}
           </> : null}
-          {contextReady ? <>
-          {showPeople ? <View style={styles.inviteFooter}><HomePeopleRow people={people} onOpenProfile={openProfile} /></View> : null}
-          {/* 30E 834:4889: invite reuses the profile share path; 의견 보내기 opens the admin-configured mailbox (#831). */}
-          {user ? <View style={styles.inviteFooter}><HomeInviteRow onInvite={() => router.push('/profile')} feedback={<HomeFeedbackButton style={styles.inviteAction} />} /></View>
-            : <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>}
-          </> : null}
+          {/* No card rendered (feed pending/failed/empty): the people and invite rows still show. */}
+          {peopleAnchor < 0 ? peopleBlock : null}
+          {publicHasMore && peopleAnchor >= 0 ? <View style={styles.moreHint}>
+            <Text style={styles.moreHintText}>위로 밀면 다음 원픽이 나와요.</Text>
+            <Button variant="ghost" size="sm" label="다음 원픽 불러오기" accessibilityLabel="이웃 제안 다음 원픽 불러오기" onPress={loadMorePublic} />
+          </View> : null}
         </>}
       />}
     </SafeAreaView>
@@ -493,6 +525,8 @@ const styles = StyleSheet.create({
   moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
   moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
   feedDivider: { height: 1, backgroundColor: OnePick.borderDefault, marginVertical: OnePickSpace.xxl },
+  moreHint: { alignItems: 'center', gap: OnePickSpace.xs, paddingVertical: OnePickSpace.xl },
+  moreHintText: { ...OnePickType.caption, color: OnePick.textSecondary },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
   pageLoading: { padding: OnePickSpace.xl },
   endText: { ...OnePickType.caption, color: OnePick.textSecondary, textAlign: 'center', paddingVertical: OnePickSpace.xxl },

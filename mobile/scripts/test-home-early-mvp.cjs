@@ -585,6 +585,29 @@ test('People row: 2 hidden, 3 shown, opens the existing profile', () => {
     'Partial reads never show undercounted people');
 });
 
+test('2026-10-11 · 함께하는 사람들 + 초대 sit after the first ten cards, before swipe-up loads', () => {
+  const participants = ['amy', 'ben', 'cat'].map((id) => row(id, 'ramen', '2026-10-05T00:00:00Z'));
+  const picks = Array.from({ length: 15 }, (_, i) => ({ pickId: `p${i}`, itemId: `i${i}`, userId: `u${i}`, username: `u${i}`, categoryId: 'ramen' }));
+  const { view } = home({ participants, feed: { picks } });
+  const list = view.find('FlatList', (props) => typeof props.onScrollEndDrag === 'function');
+  assert.equal(list.data.length, 10, 'ten cards before any swipe');
+  const types = (el) => JSON.stringify(el, (k, v) => (typeof v === 'function' ? undefined : v));
+  assert.match(types(list.renderItem({ item: list.data[9], index: 9 })), /"people":\[/, 'people row follows the tenth card');
+  assert.match(types(list.renderItem({ item: list.data[9], index: 9 })), /"feedback":/, 'invite follows the people row');
+  assert.doesNotMatch(types(list.renderItem({ item: list.data[3], index: 3 })), /"people":\[/);
+  assert.match(view.text(), /위로 밀면 다음 원픽이 나와요/);
+  const at = (y) => ({ nativeEvent: { contentOffset: { y }, layoutMeasurement: { height: 600 }, contentSize: { height: 3000 } } });
+  list.onScrollBeginDrag(at(2400)); list.onScrollEndDrag(at(2400)); view.render();
+  const more = view.find('FlatList', (props) => typeof props.onScrollEndDrag === 'function');
+  assert.equal(more.data.length, 15, 'swipe up at the bottom shows the next cards');
+  assert.match(types(more.renderItem({ item: more.data[9], index: 9 })), /"people":\[/, 'people stay after card ten');
+  assert.doesNotMatch(types(more.renderItem({ item: more.data[14], index: 14 })), /"people":\[/, 'new cards come below, without a second people row');
+  const short = home({ participants, feed: { picks: picks.slice(0, 4) } });
+  const shortList = short.view.find('FlatList', (props) => typeof props.onScrollEndDrag === 'function');
+  assert.match(types(shortList.renderItem({ item: shortList.data[3], index: 3 })), /"people":\[/, 'fewer than ten: after the last card');
+  assert.doesNotMatch(short.text(), /위로 밀면 다음 원픽이 나와요/, 'no hint when nothing more exists');
+});
+
 test('Reply banner: 0 hidden, 1 and many route to the latest group with read params only', () => {
   assert.doesNotMatch(home().text(), /새 답글/);
   const one = home({ groups: [group('c1', 'comment', 1, '2026-10-05T00:00:00Z', 'pick-a')] });

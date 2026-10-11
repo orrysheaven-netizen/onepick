@@ -165,7 +165,8 @@ async function main() {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
     const { view } = home(20); assert.equal(categoryChips(view).length, 0);
     assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home starts with the newest ten');
-    assert.equal(typeof view.find('FlatList').onEndReached, 'function', 'Home loads ten more near the list end');
+    assert.equal(view.find('FlatList').onEndReached, undefined, 'Home never auto-loads at the end (2026-10-11)');
+    assert.equal(typeof view.find('FlatList').onScrollEndDrag, 'function', 'Home loads ten more on a swipe up at the end');
   });
   await test('MVP Explore: no chips, search open, food menus are clickable entry points', () => {
     const { view, calls } = explore({ chips: false });

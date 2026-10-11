@@ -19,7 +19,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs, categoriesEnabled;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, dragBegin, dragEnd, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs, categoriesEnabled;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', channel: 'offline', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -41,7 +41,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
 const native = {
     Text: component('span'), View: component('div'), ActivityIndicator: () => null, RefreshControl: () => null,
     ScrollView: component('nav'),
-    FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item) => React.createElement('div', { key: item.itemId }, props.renderItem({ item }))), props.ListFooterComponent); },
+    FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; dragBegin = props.onScrollBeginDrag; dragEnd = props.onScrollEndDrag; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item, index) => React.createElement('div', { key: item.itemId }, props.renderItem({ item, index }))), props.ListFooterComponent); },
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
 };
@@ -260,25 +260,34 @@ render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 �
 assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
 query.data.picks = smallFeed;
 
-// Home 이웃 제안 (2026-10-11): the newest ten first, then more near the list end over the
-// existing keyset pages (reveal loaded rows before asking the server for the next page).
+// Home 이웃 제안 (2026-10-11 13:28 KST user decision): the newest ten first, then 함께하는 사람들/초대,
+// and the next ten only when the viewer swipes up again at the bottom (or presses the hint button).
 query.data.picks = Array.from({ length: 20 }, (_, i) => ({ ...smallFeed[0], pickId: `ten-${i}`, itemId: `ten-item-${i}`, username: `user${i}` }));
 const capped = render();
 assert.match(capped, />user9</); assert.doesNotMatch(capped, />user10</, 'Home starts with ten Picks');
-assert.equal(typeof endReached, 'function', 'Home loads more near the list end (existing feed pattern)');
-endReached(); assert.equal(pageCalls, 0, 'Already loaded rows are revealed before another server page');
+assert.equal(endReached, undefined, 'Reaching the bottom never loads by itself');
+const at = (y) => ({ nativeEvent: { contentOffset: { y }, layoutMeasurement: { height: 600 }, contentSize: { height: 2000 } } });
+const swipeUpAtEnd = () => { dragBegin(at(1400)); dragEnd(at(1400)); };
+assert.equal(typeof dragBegin, 'function'); assert.equal(typeof dragEnd, 'function');
+dragBegin(at(800)); dragEnd(at(1400)); assert.doesNotMatch(render(), />user10</, 'A drag that only reaches the end does not load');
+dragBegin(at(1400)); dragEnd(at(900)); assert.doesNotMatch(render(), />user10</, 'Scrolling back up from the end does not load');
+assert.match(capped, /위로 밀면 다음 원픽이 나와요/, 'The bottom says how to see more');
+swipeUpAtEnd(); assert.equal(pageCalls, 0, 'Already loaded rows are revealed before another server page');
 query.data.picks = query.data.picks.slice(0, 10);
-render(); endReached(); assert.equal(pageCalls, 1, 'Once loaded rows are all shown, the next keyset page is requested');
-query.isFetching = true; render(); endReached(); assert.equal(pageCalls, 1, 'No duplicate request while one is in flight');
+render(); swipeUpAtEnd(); assert.equal(pageCalls, 1, 'Once loaded rows are all shown, the next keyset page is requested');
+query.isFetching = true; render(); swipeUpAtEnd(); assert.equal(pageCalls, 1, 'No duplicate request while one is in flight');
 query.isFetching = false;
+render(); press('이웃 제안 다음 원픽 불러오기'); assert.equal(pageCalls, 2, 'The hint button is the same load for web and assistive tech');
 query.isFetchNextPageError = true;
 const pageFailed = render();
 assert.match(pageFailed, /다음 원픽을 불러오지 못했어요/, 'A failed next page shows the existing retry card');
-endReached(); assert.equal(pageCalls, 1, 'A failed page waits for the explicit retry');
-press('다음 원픽 다시 불러오기'); assert.equal(pageCalls, 2, 'Retry asks for the same next page');
+swipeUpAtEnd(); assert.equal(pageCalls, 2, 'A failed page waits for the explicit retry');
+press('다음 원픽 다시 불러오기'); assert.equal(pageCalls, 3, 'Retry asks for the same next page');
 query.isFetchNextPageError = false; query.hasNextPage = false;
-assert.match(render(), /지금 볼 수 있는 원픽을 모두 확인했어요/, 'The end of the feed is stated once everything is shown');
-endReached(); assert.equal(pageCalls, 2, 'Stops when the server has no more');
+const ended = render();
+assert.match(ended, /지금 볼 수 있는 원픽을 모두 확인했어요/, 'The end of the feed is stated once everything is shown');
+assert.doesNotMatch(ended, /위로 밀면 다음 원픽이 나와요/, 'No more hint at the end');
+swipeUpAtEnd(); assert.equal(pageCalls, 3, 'Stops when the server has no more');
 pageCalls = 0;
 query.isFetchNextPageError = false; query.hasNextPage = false;
 query.data.picks = smallFeed;

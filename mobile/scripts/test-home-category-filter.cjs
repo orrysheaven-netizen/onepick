@@ -88,7 +88,7 @@ assert.match(home, /전체 카테고리 보기/);
 assert.match(home, /다음 원픽 더 불러오기/);
 // Search menu names are rendered by HomeSearchDialog, covered by
 // test-home-search-loading.cjs; Home no longer builds unused search categories.
-assert.match(home, /data=\{ready \? visiblePicks : \[\]\}/, 'MVP Home has one fixed offline feed, so no channel-switch placeholder gate remains');
+assert.match(home, /const publicCards = ready \? visiblePicks : \[\];/); assert.match(home, /data=\{publicCards\}/, 'MVP Home has one fixed offline feed, so no channel-switch placeholder gate remains');
 
 console.log('Home category filter checks passed: top-level taxonomy, stable recency order, all/filter behavior and empty-filter recovery.');
 

@@ -63,7 +63,7 @@ function screen(relative, imports, platform = 'ios') {
     visit(props.refreshControl);
     if (node.type === 'FlatList') {
       visit(props.ListHeaderComponent);
-      props.data.forEach((item) => visit(props.renderItem({ item })));
+      props.data.forEach((item, index) => visit(props.renderItem({ item, index })));
       if (!props.data.length) visit(props.ListEmptyComponent);
       visit(props.ListFooterComponent);
     }
