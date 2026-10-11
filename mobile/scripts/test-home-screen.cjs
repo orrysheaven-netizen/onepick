@@ -103,6 +103,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   }),
   '@/components/home-pick-row': load('components/home-pick-row.tsx', {
     'react-native': native,
+    '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/components/ui': ui,
     '@/components/pick-photo': pickPhoto,
     '@/components/ui/touch': { MIN_TOUCH_TARGET: 44 },

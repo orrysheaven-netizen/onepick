@@ -19,7 +19,8 @@ assert.match(tokens, /meta: \{ fontFamily: BodyFont, fontSize: 13, lineHeight: 2
 const row = src('components/home-pick-row.tsx');
 assert.doesNotMatch(row, /<CurrentPickFlag|<StoreBadge|import \{ CurrentPickFlag|import \{ StoreBadge/, 'Home Feed v3 intentionally omits the legacy current-Pick flag and channel badge');
 // 2026-10-11 (Figma 1212:8609): Home's author row is the shared Avatar 24 (subtle) + nickname, above the photo.
-assert.match(row, /authorAbove \? <View style=\{styles\.authorRow\}>[\s\S]*?<Avatar name=\{pick\.username\} size=\{24\} tone="subtle" \/>/, 'Author row: shared Avatar 24 subtle before the nickname');
+assert.match(row, /authorAbove \? <View style=\{styles\.authorRow\}>[\s\S]*?<Avatar name=\{authorName\} size=\{24\} tone="subtle" \/>/, 'Author row: shared Avatar 24 subtle before the nickname');
+assert.match(row, /const authorName = profileDisplayName\(pick\);/, '#804: nickname when set, else username');
 assert.match(row, /import \{ MIN_TOUCH_TARGET \} from '@\/components\/ui\/touch';/, 'Interactive Home text uses the shared 44px target contract');
 assert.match(row, /storeAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.storeBranch\.lineHeight/, 'Store/provider action keeps a real 44×44 target without changing visual line height');
 assert.match(row, /  profileAction: \{\n[^}]*minWidth: MIN_TOUCH_TARGET,\n[^}]*minHeight: MIN_TOUCH_TARGET,\n[^}]*AUTHOR_ROW_HEIGHT/, 'Author row profile action keeps a real 44×44 target without changing the 24px row');

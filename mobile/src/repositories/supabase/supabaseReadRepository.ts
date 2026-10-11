@@ -229,6 +229,8 @@ export class SupabaseReadRepository implements ReadRepository {
       nextCursor,
       items: rows.map((row) => ({
         pickId: row.pick_id, userId: row.user_id, username: row.username,
+        // #804: servers before 20261011053000 (and the following feed) omit nickname → username shows.
+        nickname: typeof row.nickname === 'string' ? row.nickname : null,
         profileImageUrl: row.profile_image_url,
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,

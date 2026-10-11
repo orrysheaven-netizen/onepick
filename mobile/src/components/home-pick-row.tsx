@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PickPhoto } from '@/components/pick-photo';
 import { Avatar } from '@/components/ui';
+import { profileDisplayName } from '@/lib/profile/profileName';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
 import { OnePick, OnePickFeedType, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
@@ -42,15 +43,15 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
   const menuName = hasProviderContext ? pick.categoryName : pick.name;
   const contentName = storeBranchName ? `${storeBranchName} ${menuName}` : menuName;
   const openMenu = hasProviderContext ? onOpenMenu : undefined;
+  const authorName = profileDisplayName(pick);
 
   return <View style={styles.card}>
-    {/* Shared Avatar default (initial) — profile photos are not stored yet (profile_image_url is
-        constrained to null), so no photo is fetched. Same profile destination as before. */}
+    {/* Shown name follows the #804 rule (nickname, else username); the route keeps the username. */}
     {authorAbove ? <View style={styles.authorRow}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
+      <Pressable accessibilityRole="button" accessibilityLabel={`${authorName} 프로필 보기`} onPress={onOpenProfile}
         style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
-        <Avatar name={pick.username} size={24} tone="subtle" />
-        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.username, styles.authorName]}>{pick.username}</Text>
+        <Avatar name={authorName} size={24} tone="subtle" />
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.username, styles.authorName]}>{authorName}</Text>
       </Pressable>
     </View> : null}
 
@@ -78,9 +79,9 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
       </View>
 
       {!authorAbove || pick.oneLineReview ? <View style={styles.personGroup}>
-        {authorAbove ? null : <Pressable accessibilityRole="button" accessibilityLabel={`${pick.username} 프로필 보기`} onPress={onOpenProfile}
+        {authorAbove ? null : <Pressable accessibilityRole="button" accessibilityLabel={`${authorName} 프로필 보기`} onPress={onOpenProfile}
           style={({ pressed }) => [styles.legacyProfileAction, pressed && styles.pressed]}>
-          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>{pick.username}</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>{authorName}</Text>
         </Pressable>}
         {pick.oneLineReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
           style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>

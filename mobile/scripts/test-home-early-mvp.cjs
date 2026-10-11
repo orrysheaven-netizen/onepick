@@ -735,6 +735,7 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
     'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/pick-photo': names('PickPhoto'),
     '@/components/current-pick-flag': names('CurrentPickFlag'), '@/components/store-badge': names('StoreBadge'),
     '@/constants/onepick': constants, '@/components/ui/touch': load('components/ui/touch.ts'),
+    '@/lib/profile/profileName': profileName,
   });
   const visitTree = (channels) => {
     const nodes = [];
@@ -743,6 +744,21 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
     visit(row.HomePickRow({ pick: { pickId: 'x', userId: 'u', username: 'u', itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이유', thumbnailUrl: 'https://x', channels }, mine: false, onOpenItem: () => {}, onOpenProfile: () => {} }));
     return nodes;
   };
+  // #804 (2026-10-11): the author row shows the nickname when set, the username otherwise.
+  const authorTexts = (pick) => {
+    const out = [];
+    const visit = (n) => { if (!n || typeof n !== 'object') return; if (Array.isArray(n)) return n.forEach(visit);
+      if (typeof n.type === 'function') return visit(n.type(n.props)); if (n.type === 'Avatar') out.push('avatar:' + n.props.name);
+      if (n.type === 'Pressable' && /프로필 보기$/.test(n.props.accessibilityLabel ?? '')) out.push(n.props.accessibilityLabel);
+      if (typeof n.props?.children === 'string') out.push(n.props.children); visit(n.props?.children); };
+    visit(row.HomePickRow({ pick, mine: false, authorAbove: true, onOpenItem: () => {}, onOpenProfile: () => {} }));
+    return out;
+  };
+  const named = authorTexts({ pickId: 'x', userId: 'u', username: 'duck_01', nickname: '오리', itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이유', thumbnailUrl: 'https://x', channels: ['offline'] });
+  assert.ok(named.includes('오리') && named.includes('avatar:오리') && named.includes('오리 프로필 보기'), 'nickname shown');
+  assert.ok(!named.includes('duck_01'), 'username hidden when a nickname exists');
+  const unnamed = authorTexts({ pickId: 'x', userId: 'u', username: 'duck_01', nickname: null, itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이유', thumbnailUrl: 'https://x', channels: ['offline'] });
+  assert.ok(unnamed.includes('duck_01'), 'username when unset');
   // #762: the menu line of a provider-backed row opens the menu list (44px+ target); legacy rows keep detail.
   const pressables = (pick, extra) => {
     const nodes = [];

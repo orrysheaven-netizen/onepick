@@ -64,6 +64,8 @@ export interface HomeFeedPick {
   pickId: string;
   userId: string;
   username: string;
+  /** Public nickname (#804); NULL when unset, so the card shows the username. Routes keep username. */
+  nickname?: string | null;
   profileImageUrl: string | null;
   itemId: string;
   name: string;

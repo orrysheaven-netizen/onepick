@@ -20,6 +20,8 @@ export type HomePickFeedRow = {
   started_at: string;
   /** home_pick_feed_page only: the Pick's channel for food Picks, else the item's channels ('offline' | 'online' | 'recipe'). */
   channels?: string[] | null;
+  /** home_pick_feed_page only (#804, 20261011053000): the author's public nickname, NULL when unset. */
+  nickname?: string | null;
 };
 
 export type PlaceCatalogSearchRow = {
