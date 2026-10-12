@@ -295,9 +295,10 @@ const sections = load('components/home-early-sections.tsx', {
   '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': profileName,
 });
 
-// 1203:8588 → 1279:9867 (2026-10-12 정돈): the unpicked area lost its border box; the question card
-// is the only bordered container on Home.
-test('Unpicked menus area is a borderless section (1279:9867); only the question card keeps the border box', () => {
+// 1203:8588 → 1279:9867 (2026-10-12 정돈): the unpicked area lost its border box.
+// 1284:9021 (2026-10-12 카드 묶음 B 확정): feed cards carry the border; the question card is a
+// borderless bg/subtle surface so it stays apart from them.
+test('Unpicked menus area is a borderless section (1279:9867); the question card is a bg/subtle surface (1284:9021)', () => {
   const flat = (style) => Object.assign({}, ...[].concat(style).flat(Infinity).filter(Boolean));
   const tree = sections.HomeUnpickedMenus({ categories: [{ id: 'ramen', name: '라면' }], onPick: () => {} });
   assert.equal(tree.props.testID, 'home-unpicked-card');
@@ -308,8 +309,9 @@ test('Unpicked menus area is a borderless section (1279:9867); only the question
   assert.equal(card.gap, constants.OnePickSpace.md, 'Title-to-chips gap is unchanged');
   const question = flat(sections.HomeQuestionCard({ category: { id: 'ramen', name: '라면' }, nickname: null, answerCount: null, answered: false,
     footer: { kind: 'none' }, onAnswer: () => {}, onBrowseAnswers: () => {}, onOpenMenu: () => {}, onShareFirstPick: () => {} }).props.style);
-  assert.equal(question.borderWidth, 1, 'Question card keeps the 1px border');
-  assert.equal(question.borderColor, constants.OnePick.borderDefault, 'border/default');
+  assert.equal(question.borderWidth, undefined, 'Question card has no border (feed cards carry it)');
+  assert.equal(question.borderColor, undefined, 'No border color on the question card');
+  assert.equal(question.backgroundColor, constants.OnePick.bgSubtle, 'Question card fill is bg/subtle');
   assert.equal(question.padding, 20, 'Question card padding 20 (was 24)');
   assert.equal(question.borderRadius, constants.OnePickRadius.lg, 'radius lg');
   const people = flat(sections.HomePeopleRow({ people: [], onOpenProfile: () => {} }).props.style);

@@ -30,7 +30,8 @@ assert.match(badgeSrc, /: \{ accessible: true, accessibilityLabel: '매장' \}/,
 assert.doesNotMatch(badgeSrc, /Pressable|onPress|MIN_TOUCH_TARGET/, 'Badge gains no click or 44px target');
 assert.match(row, /storeRow: \{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: OnePickSpace\.sm \}/, 'Store row: badge + name side by side, 8 apart');
 // 2026-10-11 (Figma 1212:8609): Home's author row is the shared Avatar 24 (subtle) + nickname, above the photo.
-assert.match(row, /authorAbove \? <View style=\{styles\.authorRow\}>[\s\S]*?<Avatar name=\{authorName\} size=\{24\} tone="subtle" imageUrl=\{profileAvatarUrl\(pick\.profileImageUrl\)\} \/>/, 'Author row: shared Avatar 24 subtle (profile photo when set) before the nickname');
+// 1284:9021 (카드 묶음 B): the row may add the Home-only framed padding; the Avatar itself is unchanged.
+assert.match(row, /authorAbove \? <View style=\{\[styles\.authorRow, framed && styles\.framedAuthorRow\]\}>[\s\S]*?<Avatar name=\{authorName\} size=\{24\} tone="subtle" imageUrl=\{profileAvatarUrl\(pick\.profileImageUrl\)\} \/>/, 'Author row: shared Avatar 24 subtle (profile photo when set) before the nickname');
 assert.match(row, /const authorName = profileDisplayName\(pick\);/, '#804: nickname when set, else username');
 assert.match(row, /import \{ MIN_TOUCH_TARGET \} from '@\/components\/ui\/touch';/, 'Interactive Home text uses the shared 44px target contract');
 assert.match(row, /storeAction: \{[\s\S]*?minWidth: MIN_TOUCH_TARGET,[\s\S]*?minHeight: MIN_TOUCH_TARGET,[\s\S]*?OnePickFeedType\.storeBranch\.lineHeight/, 'Store/provider action keeps a real 44×44 target without changing visual line height');
@@ -75,7 +76,11 @@ assert.match(home, /content: \{[^}]*paddingHorizontal: OnePickLayout\.homeFeedGu
 // the same 28 between sections. Not a Foundations token.
 assert.doesNotMatch(home, /feedDivider/, 'Home feed cards: the 1px divider between cards is gone');
 assert.match(home, /const HOME_SECTION_GAP = 28;/, 'Home-only section/card rhythm 28 (1279:9867)');
-assert.match(home, /feedGap: \{ height: HOME_SECTION_GAP \}/, 'Home feed cards: one 28 gap, no border line');
+// 1284:9021 (2026-10-12 카드 묶음 B): bordered feed cards sit 20 apart; sections stay 28.
+assert.match(home, /const HOME_FEED_CARD_GAP = 20;/, 'Home-only feed card gap 20 (1284:9021)');
+assert.match(home, /feedGap: \{ height: HOME_FEED_CARD_GAP \}/, 'Home feed cards: one 20 gap, no border line');
+assert.match(home, /<HomePickRow pick=\{pick\} mine=\{pick\.userId === user\?\.id\} authorAbove framed/, 'Home feed uses the framed card');
+assert.match(row, /framedCard: \{ borderWidth: 1, borderColor: OnePick\.borderDefault, borderRadius: OnePickRadius\.lg, backgroundColor: OnePick\.bgDefault, overflow: 'hidden' \}/, 'Framed card: 1px border/default, radius lg, white, no shadow');
 assert.match(home, /ItemSeparatorComponent=\{feedGap\}/, 'The gap is the feed separator');
 assert.match(home, /earlyStack: \{ gap: HOME_SECTION_GAP,/, 'Early-MVP sections: 28 between sections');
 assert.match(home, /fixedHeader: \{[^}]*paddingHorizontal: OnePickSpace\.gutter/, 'Header\/overlay surface keeps the global 16px gutter');
