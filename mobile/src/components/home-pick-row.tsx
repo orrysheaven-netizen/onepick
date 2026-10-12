@@ -46,6 +46,9 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
   const contentName = storeBranchName ? `${storeBranchName} ${menuName}` : menuName;
   const openMenu = hasProviderContext ? onOpenMenu : undefined;
   const authorName = profileDisplayName(pick);
+  // #762 (2026-10-12): null/empty/whitespace-only reviews render nothing (no empty target or gap).
+  // Display condition only; the stored text and input policy are unchanged.
+  const hasReview = Boolean(pick.oneLineReview?.trim());
 
   return <View style={styles.card}>
     {/* Shown name follows the #804 rule (nickname, else username); the route keeps the username. */}
@@ -65,9 +68,10 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
     <View style={styles.textArea}>
       <View style={styles.itemGroup}>
         {/* Shared StoreBadge before the store name (#553 / #762, 2026-10-12). This is the store
-            icon, not the offline/online Channel Badge, which Home Feed v3 still omits. */}
+            icon, not the offline/online Channel Badge, which Home Feed v3 still omits. Next to the
+            store link ("… 매장 보기") it is decorative, so screen readers do not announce it twice. */}
         {storeBranchName ? <View style={styles.storeRow}>
-          <StoreBadge />
+          <StoreBadge decorative={Boolean(onOpenProvider)} />
           {onOpenProvider
             ? <Pressable accessibilityRole="button" accessibilityLabel={`${storeBranchName} 매장 보기`} onPress={onOpenProvider}
                 style={({ pressed }) => [styles.storeAction, pressed && styles.pressed]}>
@@ -83,12 +87,12 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
         </Pressable>
       </View>
 
-      {!authorAbove || pick.oneLineReview ? <View style={styles.personGroup}>
+      {!authorAbove || hasReview ? <View style={styles.personGroup}>
         {authorAbove ? null : <Pressable accessibilityRole="button" accessibilityLabel={`${authorName} 프로필 보기`} onPress={onOpenProfile}
           style={({ pressed }) => [styles.legacyProfileAction, pressed && styles.pressed]}>
           <Text numberOfLines={1} ellipsizeMode="tail" style={styles.username}>{authorName}</Text>
         </Pressable>}
-        {pick.oneLineReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
+        {hasReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
           style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
           <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{quotedReview(pick.oneLineReview)}</Text>
         </Pressable> : null}

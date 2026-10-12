@@ -791,6 +791,28 @@ test('Feed card v3 keeps content, omits channel badges and shows StoreBadge befo
   assert.ok(reviewTexts('그 집 "비법" 소스').includes('“그 집 "비법" 소스”'), 'inner quotes kept as written');
   assert.equal(row.quotedReview('  이유 '), '“이유”', 'outer whitespace trimmed for display');
   assert.equal(row.quotedReview('   '), '   ', 'whitespace-only: no empty quotes');
+  // #762 L2 (2026-10-12): null/empty/whitespace-only reviews leave no empty Pressable or person group.
+  const reviewTargets = (oneLineReview, authorAbove) => {
+    const nodes = [];
+    const visit = (n) => { if (!n || typeof n !== 'object') return; if (Array.isArray(n)) return n.forEach(visit);
+      if (typeof n.type === 'function') return visit(n.type(n.props)); nodes.push(n); visit(n.props?.children); };
+    visit(row.HomePickRow({ pick: { pickId: 'x', userId: 'u', username: 'u', itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview, thumbnailUrl: 'https://x', channels: ['offline'] },
+      mine: false, authorAbove, onOpenItem: () => {}, onOpenProfile: () => {}, onOpenProvider: () => {} }));
+    return { reviews: nodes.filter((n) => n.type === 'Pressable' && / 한줄평 상세 보기$/.test(n.props.accessibilityLabel ?? '')), nodes };
+  };
+  for (const blank of [null, undefined, '', '   ', '\n\t ']) {
+    const home = reviewTargets(blank, true);
+    assert.equal(home.reviews.length, 0, `Home: no review target for ${JSON.stringify(blank)}`);
+    assert.doesNotMatch(JSON.stringify(home.nodes.map((n) => n.props?.children).filter((c) => typeof c === 'string')), /“|”/, 'no empty quotes');
+    const lastText = home.nodes.filter((n) => n.type === 'Text').map((n) => n.props.children).pop();
+    assert.equal(lastText, '라면', 'Home: the menu line ends the card (no empty person group)');
+    const feed = reviewTargets(blank, false);
+    assert.equal(feed.reviews.length, 0, `/feed: no review target for ${JSON.stringify(blank)}`);
+    assert.equal(feed.nodes.filter((n) => n.type === 'Text').map((n) => n.props.children).pop(), 'u', '/feed: nickname row stays, no blank review after it');
+  }
+  const kept = reviewTargets('  진짜 이유 ', true);
+  assert.equal(kept.reviews.length, 1, 'Normal review keeps its detail target');
+  assert.equal(kept.nodes.filter((n) => n.type === 'Text').map((n) => n.props.children).pop(), '“진짜 이유”', 'Normal review still quoted');
   // #762: the menu line of a provider-backed row opens the menu list (44px+ target); legacy rows keep detail.
   const pressables = (pick, extra) => {
     const nodes = [];

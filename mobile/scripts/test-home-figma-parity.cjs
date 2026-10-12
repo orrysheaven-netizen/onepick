@@ -21,7 +21,13 @@ assert.doesNotMatch(row, /<CurrentPickFlag|import \{ CurrentPickFlag/, 'Home Fee
 assert.doesNotMatch(row, /PICK_CHANNEL_OPTIONS|channelLabel|<ChannelBadge/, 'Home Feed v3 still omits the offline/online Channel Badge (StoreBadge is a different element)');
 // #553 / #762 (2026-10-12): the shared StoreBadge sits before the store name, in the same row.
 assert.match(row, /import \{ StoreBadge \} from '@\/components\/store-badge';/, 'Store icon reuses the shared StoreBadge, no new icon');
-assert.match(row, /storeBranchName \? <View style=\{styles\.storeRow\}>\s*<StoreBadge \/>\s*\{onOpenProvider/, 'StoreBadge renders first in the store row, before the store name');
+assert.match(row, /storeBranchName \? <View style=\{styles\.storeRow\}>\s*<StoreBadge decorative=\{Boolean\(onOpenProvider\)\} \/>\s*\{onOpenProvider/, 'StoreBadge renders first in the store row, before the store name');
+// #762 L1 (2026-10-12): beside the "… 매장 보기" link the badge is hidden from screen readers; default keeps "매장".
+const badgeSrc = src('components/store-badge.tsx');
+assert.match(badgeSrc, /export function StoreBadge\(\{ decorative = false \}/, 'StoreBadge stays decorative-off by default for other callers');
+assert.match(badgeSrc, /accessible: false, importantForAccessibility: 'no-hide-descendants' as const, accessibilityElementsHidden: true, 'aria-hidden': true/, 'Decorative badge: no focus stop or announcement');
+assert.match(badgeSrc, /: \{ accessible: true, accessibilityLabel: '매장' \}/, 'Default badge keeps its "매장" label');
+assert.doesNotMatch(badgeSrc, /Pressable|onPress|MIN_TOUCH_TARGET/, 'Badge gains no click or 44px target');
 assert.match(row, /storeRow: \{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: OnePickSpace\.sm \}/, 'Store row: badge + name side by side, 8 apart');
 // 2026-10-11 (Figma 1212:8609): Home's author row is the shared Avatar 24 (subtle) + nickname, above the photo.
 assert.match(row, /authorAbove \? <View style=\{styles\.authorRow\}>[\s\S]*?<Avatar name=\{authorName\} size=\{24\} tone="subtle" imageUrl=\{profileAvatarUrl\(pick\.profileImageUrl\)\} \/>/, 'Author row: shared Avatar 24 subtle (profile photo when set) before the nickname');
