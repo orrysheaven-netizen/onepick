@@ -90,6 +90,8 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') }),
   '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
   '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+  '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
+  '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
   '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },

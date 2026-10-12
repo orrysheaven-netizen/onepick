@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, Scrol
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
+import { setHomeTabBarHidden } from '@/components/app-tabs';
 import { HomeInviteRow, HomePeopleRow, HomeQuestionCard, HomeReplyBanner, HomeUnpickedMenus } from '@/components/home-early-sections';
 import { HomeFeedbackButton } from '@/components/home-feedback-button';
 import { HomePickRow } from '@/components/home-pick-row';
@@ -23,6 +24,7 @@ import {
   showParticipants, totalPickCount, unpickedCategories,
 } from '@/lib/home/earlyHome';
 import { consumeFirstPickNotice, peekFirstPickNotice } from '@/lib/home/firstPickNotice';
+import { initialHomeTabBarScroll, nextHomeTabBarScroll } from '@/lib/home/homeTabBarScroll';
 import { profileMentionName } from '@/lib/profile/profileName';
 import { sharePick } from '@/lib/share/sharePick';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
@@ -134,7 +136,30 @@ export default function HomeScreen() {
     publicListHeight.current = height;
     maybeRequestPeopleForShortList();
   };
+  // Bottom tab bar: hidden while scrolling down, shown again on scroll up (#762, 2026-10-12).
+  // Home only: leaving Home, or switching feed lists, always brings the bar back.
+  const tabBarScroll = useRef(initialHomeTabBarScroll);
+  const resetTabBarScroll = useCallback(() => {
+    tabBarScroll.current = initialHomeTabBarScroll;
+    setHomeTabBarHidden(false);
+  }, []);
+  const trackTabBarScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const next = nextHomeTabBarScroll(tabBarScroll.current, {
+      offsetY: contentOffset.y, contentHeight: contentSize.height, viewportHeight: layoutMeasurement.height,
+    });
+    if (next.hidden !== tabBarScroll.current.hidden) setHomeTabBarHidden(next.hidden);
+    tabBarScroll.current = next;
+  };
+  useFocusEffect(useCallback(() => {
+    resetTabBarScroll();
+    return resetTabBarScroll;
+  }, [resetTabBarScroll]));
+  useEffect(() => resetTabBarScroll, [resetTabBarScroll]);
+  // The following and public feeds are separate lists, each starting at its own top.
+  useEffect(() => { resetTabBarScroll(); }, [showFollowing, resetTabBarScroll]);
   const onPublicListScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    trackTabBarScroll(event);
     if (peopleRequested || !contextReady) return;
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     if (contentOffset.y > 0 &&
@@ -326,6 +351,8 @@ export default function HomeScreen() {
         keyExtractor={(pick) => pick.pickId}
         renderItem={({ item: pick }) => renderFeedCard(pick)}
         ItemSeparatorComponent={feedGap}
+        onScroll={trackTabBarScroll}
+        scrollEventThrottle={16}
         onEndReached={() => {
           if (followingQuery.hasNextPage && !followingQuery.isFetching && !followingQuery.isFetchNextPageError) {
             void followingQuery.fetchNextPage({ cancelRefetch: false });

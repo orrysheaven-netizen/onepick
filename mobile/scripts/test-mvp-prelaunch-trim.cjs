@@ -42,6 +42,8 @@ function home(count = 20, followingCount = 0) {
     '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
     '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
     '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+    '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
+    '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,

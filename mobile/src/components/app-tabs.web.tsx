@@ -16,8 +16,20 @@ function isActive(pathname: string, href: '/' | '/explore' | '/notifications' | 
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+// Home asks for the bar to step aside while the viewer scrolls down (#762, 2026-10-12).
+// AppTabs is mounted once for the tab shell; its state setter is stable, so Home reaches
+// it through this module instead of a separate store.
+let applyHomeTabBarHidden: ((hidden: boolean) => void) | null = null;
+export function setHomeTabBarHidden(hidden: boolean) {
+  applyHomeTabBarHidden?.(hidden);
+}
+
 export default function AppTabs() {
   const pathname = usePathname();
+  const [homeTabBarHidden, setHomeTabBarHiddenState] = useState(false);
+  applyHomeTabBarHidden = setHomeTabBarHiddenState;
+  // Only Home may hide the bar; any other tab or screen always shows it.
+  const barHidden = homeTabBarHidden && pathname === '/';
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const auth = useAuthSession();
@@ -26,11 +38,13 @@ export default function AppTabs() {
 
   const safeBottom = Math.max(insets.bottom, OnePickLayout.safeAreaBottom);
   const reservedBottom = safeBottom + OnePickLayout.tabBarSafeAreaGap + OnePickLayout.tabBarHeight + OnePickLayout.tabBarContentGap;
+  // Hidden = not rendered: no invisible tap area, focus stop or screen-reader entry remains.
+  // Content then keeps only the safe-area inset at the bottom.
 
   return (
     <View style={styles.tabs}>
-      <View style={[styles.slot, { paddingBottom: reservedBottom }]}><Slot /></View>
-      <View style={[styles.bar, { bottom: safeBottom + OnePickLayout.tabBarSafeAreaGap }]}>
+      <View style={[styles.slot, { paddingBottom: barHidden ? safeBottom : reservedBottom }]}><Slot /></View>
+      {barHidden ? null : <View style={[styles.bar, { bottom: safeBottom + OnePickLayout.tabBarSafeAreaGap }]}>
         <TabLink href="/" icon="home" label="홈" active={isActive(pathname, '/')} />
         <TabLink href="/explore" icon="explore" label="탐색" active={isActive(pathname, '/explore')} />
         <Pressable accessibilityRole="button" accessibilityLabel="원픽 등록" onPress={() => router.push('/pick/new')}
@@ -40,7 +54,7 @@ export default function AppTabs() {
         </Pressable>
         <TabLink href="/notifications" icon="notifications" label="알림" active={isActive(pathname, '/notifications')} unread={hasUnreadNotifications} />
         <TabLink href="/profile" icon="profile" label="프로필" active={isActive(pathname, '/profile')} />
-      </View>
+      </View>}
     </View>
   );
 }

@@ -329,7 +329,7 @@ function home(options = {}) {
   const contextData = contextPending || contextError ? undefined : { currentPicks };
   const feedData = feed && !feedError ? feed : undefined;
   const view = screen('app/(tabs)/index.tsx', {
-    'expo-router': { useRouter: () => ({ push: (route) => calls.routes.push(route) }), useFocusEffect: (fn) => { calls.focus = fn; } },
+    'expo-router': { useRouter: () => ({ push: (route) => calls.routes.push(route) }), useFocusEffect: (fn) => { calls.focus = fn; (calls.focusAll ??= []).push(fn); } },
     '@/constants/onepick': constants,
     '@/components/ui': ui,
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user, isLoading: false, error: null, retry: () => {} }) },
@@ -375,6 +375,8 @@ function home(options = {}) {
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => [], filterHomeFeedByCategory: (items) => items },
     '@/lib/home/earlyHome': early,
     '@/lib/home/firstPickNotice': notice,
+    '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
+    '@/components/app-tabs': { setHomeTabBarHidden: (hidden) => { (calls.tabBar ??= []).push(hidden); } },
     '@/lib/share/sharePick': { sharePick: async (input) => { calls.shares.push(input); return 'shared'; } },
     '@/components/home-early-sections': sections,
     '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'),
@@ -593,6 +595,35 @@ test('People are deferred on cold load; footer scroll or short content starts th
   feedPending.view.render();
   assert.equal(feedPending.calls.participantsEnabled, true, 'user scroll works while the feed query is pending');
   assert.match(feedPending.text(), /함께하는 사람들/, 'footer people still do not depend on feed success');
+});
+
+// #762 (2026-10-12): Home hides the bottom tab bar on scroll down, shows it on scroll up.
+test('Tab bar: Home scroll down hides, up shows; leaving Home restores it; people gate still loads', () => {
+  const participants = ['amy', 'ben', 'cat'].map((id) => row(id, 'ramen', '2026-10-05T00:00:00Z'));
+  const picks = Array.from({ length: 15 }, (_, i) => ({ pickId: `p${i}`, itemId: `i${i}`, userId: `u${i}`, username: `u${i}`, categoryId: 'ramen' }));
+  const h = home({ participants, feed: { picks }, autoScrollPeople: false });
+  const list = () => h.view.find('FlatList', (props) => typeof props.onScroll === 'function');
+  const at = (y) => ({ nativeEvent: { contentOffset: { y }, layoutMeasurement: { height: 600 }, contentSize: { height: 3000 } } });
+  h.calls.tabBar = [];
+  list().onScroll(at(100)); list().onScroll(at(123));
+  deepEq(h.calls.tabBar, [], 'under 24px down: bar stays');
+  list().onScroll(at(124));
+  deepEq(h.calls.tabBar, [true], 'scroll down hides');
+  list().onScroll(at(2300)); h.view.render();
+  assert.equal(h.calls.participantsEnabled, true, 'the existing footer people gate still fires on the same scroll');
+  list().onScroll(at(2280));
+  deepEq(h.calls.tabBar, [true], 'under 24px up: still hidden');
+  list().onScroll(at(2276));
+  deepEq(h.calls.tabBar, [true, false], 'scroll up shows');
+  list().onScroll(at(2400));
+  const more = h.view.find('FlatList', (props) => typeof props.onScrollEndDrag === 'function');
+  more.onScrollBeginDrag(at(2400)); more.onScrollEndDrag(at(2400)); h.view.render();
+  assert.equal(h.view.find('FlatList', (props) => typeof props.onScrollEndDrag === 'function').data.length, 15, 'swipe-up load is unchanged');
+  // Leaving Home (blur) always brings the bar back.
+  const leave = h.calls.focusAll[0]();
+  h.calls.tabBar = [];
+  leave();
+  deepEq(h.calls.tabBar, [false], 'blur restores the bar');
 });
 
 test('People row: 2 hidden, 3 shown, opens the existing profile', () => {

@@ -50,6 +50,8 @@ function fixture(kind, platform = 'web') {
     '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
     '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
     '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+    '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
+    '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),
