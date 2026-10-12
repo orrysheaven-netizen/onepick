@@ -1,4 +1,4 @@
-// Current Home integration (Figma 1058:9018, #762). Presentational only: Home decides what to show
+// Current Home integration (Figma 1058:9018 → 정돈 검토안 1279:9867, 2026-10-12, #762). Presentational only: Home decides what to show
 // with lib/home/earlyHome and passes callbacks that reuse existing routes.
 import type { ReactNode } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,7 +6,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { Avatar, Button, Chip, Icon } from '@/components/ui';
 import { MIN_TOUCH_TARGET, PRESSED_OPACITY } from '@/components/ui/touch';
-import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
+import { OnePick, OnePickFeedType, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { HomeParticipant, QuestionFooter } from '@/lib/home/earlyHome';
 import { homeQuestionTitle, homeQuestionSubtitle } from '@/lib/home/questionTitle';
 import { profileDisplayName } from '@/lib/profile/profileName';
@@ -94,7 +94,7 @@ export function HomePeopleRow({ people, onOpenProfile }: { people: HomeParticipa
 }
 
 /**
- * 834:4783 → 1203:8588 — menus nobody has picked yet (shown below 30 Picks in total).
+ * 834:4783 → 1203:8588 → 1279:9867 — menus nobody has picked yet (shown below 30 Picks in total).
  * 2026-10-11 confirmed two-line layout: one title line + one chip line (scrolls sideways when
  * the names are long). No description, no '다른 메뉴 찾아보기'. Chips keep the existing
  * menu-preselected registration route and 44px touch targets.
@@ -130,13 +130,18 @@ const styles = StyleSheet.create({
   // 834:4749: bg/subtle, radius md, 14×13 padding, 10 between text and chevron.
   banner: { minHeight: MIN_TOUCH_TARGET, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 13, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
   bannerText: { ...OnePickType.bodyMedium, flex: 1, minWidth: 0, color: OnePick.textPrimary },
-  // 305:799: white card, 1px border/default, radius lg, padding 24, 8 between rows.
-  card: { gap: OnePickSpace.sm, padding: OnePickSpace.xxl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
-  cardTitle: { ...OnePickType.pageTitle, color: OnePick.textSecondary, textAlign: 'center' },
-  cardSubtitle: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
+  // 1279:9867 (2026-10-12 정돈): white card, 1px border/default, radius lg, padding 20, 8 between rows.
+  // This is the only bordered container on Home now.
+  card: { gap: OnePickSpace.sm, padding: OnePickSpace.xl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
+  // Title follows the shared section-header role (16/24 Bold, text/primary, left) instead of
+  // 22 Bold secondary centered, so every Home section title reads the same way.
+  cardTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  // Question line 15/22 Medium (same size as the feed review role, medium weight).
+  cardSubtitle: { ...OnePickFeedType.review, fontWeight: '500', color: OnePick.textPrimary },
   // The 2:1 photo is far taller than the 44px minimum touch target at any card width.
   cardImageAction: { width: '100%', minHeight: MIN_TOUCH_TARGET },
-  cardImage: { width: '100%', aspectRatio: 2, borderRadius: OnePickRadius.md },
+  // 310×140 in 1279:9867 (was 2:1).
+  cardImage: { width: '100%', aspectRatio: 310 / 140, borderRadius: OnePickRadius.md },
   cardCount: { ...OnePickType.body, color: OnePick.textSecondary },
   cardGap: { height: OnePickSpace.sm },
   // Text button 284:263: 40 visual height, 44 touch area.
@@ -151,9 +156,9 @@ const styles = StyleSheet.create({
   personName: { ...OnePickType.captionMedium, maxWidth: 64, color: OnePick.textPrimary },
   // Figma 30E uses text/tertiary here; Foundations reserves tertiary for non-copy (test-tertiary-usage), so secondary.
   personCount: { ...OnePickType.caption, color: OnePick.textSecondary },
-  // 1203:8588: white card, 1px border/default, padding 20, radius lg. Scoped to the unpicked
-  // area only; the shared `section` style stays borderless for the other modules.
-  unpickedCard: { padding: OnePickSpace.xl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
+  // 1203:8588 → 1279:9867 (2026-10-12 정돈): the border box is gone; the unpicked area is a plain
+  // section (title line + chip line) so the question card stays the only bordered container.
+  unpickedCard: {},
   // 1203:8592: one row, 6 between chips (Figma), no wrap.
   chipRow: { flexDirection: 'row', gap: 6, paddingRight: OnePickSpace.xs },
   inviteRow: { flexDirection: 'row', gap: 10 },

@@ -290,8 +290,8 @@ export default function HomeScreen() {
     onOpenProfile={() => openProfile(pick.username)}
     onOpenMenu={menuOpener(pick.categoryId)}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;
-  // Existing 1px border/default divider between cards, 24 above and below (Figma 1217:8655).
-  const feedGap = () => <View style={styles.feedDivider} />;
+  // 2026-10-12 정돈 (Figma 1279:9867): no rule between cards, one 28 gap instead of 24 + 1 + 24.
+  const feedGap = () => <View style={styles.feedGap} />;
   // 함께하는 사람들 + 초대 sit right after the first ten cards (or the last card when fewer),
   // before any card the swipe-up load adds.
   const peopleBlock = contextReady ? <>
@@ -486,6 +486,9 @@ export default function HomeScreen() {
   );
 }
 
+// Home-only vertical rhythm from the 2026-10-12 정돈 frame (1279:9867); not a Foundations token.
+const HOME_SECTION_GAP = 28;
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
   content: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickLayout.homeFeedGutter, paddingBottom: OnePickSpace.xxl },
@@ -513,8 +516,8 @@ const styles = StyleSheet.create({
   fixedHeader: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center', paddingHorizontal: OnePickSpace.gutter, backgroundColor: OnePick.bgDefault },
   // Figma 30-1 (92:39): content starts 12 below the header; header row 28 high, 12 above the grid.
   rankingSection: { marginTop: OnePickSpace.md },
-  // Figma 30E 834:4748: content starts 12 below the header, 24 between sections.
-  earlyStack: { gap: OnePickSpace.xxl, marginTop: OnePickSpace.md, marginBottom: OnePickSpace.xxl },
+  // Figma 834:4748 → 1279:9867: content starts 12 below the header, 28 between sections.
+  earlyStack: { gap: HOME_SECTION_GAP, marginTop: OnePickSpace.md, marginBottom: HOME_SECTION_GAP },
   inviteFooter: { marginTop: OnePickSpace.xxl },
   inviteAction: { flex: 1 },
   rankingHeader: { height: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: OnePickSpace.md },
@@ -527,7 +530,7 @@ const styles = StyleSheet.create({
   // 28-high header row; hitSlop keeps the 44 touch target.
   moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
   moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
-  feedDivider: { height: 1, backgroundColor: OnePick.borderDefault, marginVertical: OnePickSpace.xxl },
+  feedGap: { height: HOME_SECTION_GAP },
   moreHint: { alignItems: 'center', gap: OnePickSpace.xs, paddingVertical: OnePickSpace.xl },
   moreHintText: { ...OnePickType.caption, color: OnePick.textSecondary },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },
