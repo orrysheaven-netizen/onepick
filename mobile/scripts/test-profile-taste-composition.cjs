@@ -38,7 +38,7 @@ const aiIndex = profile.indexOf('<ProfileAiPanel');
 
 assert.ok(picksIndex >= 0, 'Figma 03 primary category Picks are missing');
 assert.ok(managementIndex > picksIndex, 'optional profile tools stay below the Figma 03 primary collection');
-assert.ok(infoIndex > managementIndex, 'profile editing remains available inside management');
+assert.ok(infoIndex >= 0 && infoIndex < picksIndex, 'profile editing is available above the collection');
 assert.ok(tasteIndex > infoIndex, 'gated taste composition remains retained after profile info editing');
 assert.ok(aiIndex > tasteIndex, 'gated AI taste evaluation remains retained after taste composition');
 assert.match(profile, /OnePickFeatures\.tasteComposition \? <ProfileTasteComposition profileId=\{profile\.id\} viewerId=\{user\.id\}/);

@@ -296,6 +296,7 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <Text numberOfLines={1} style={styles.profileHeaderTitle}>{profile.username}</Text>
           <View style={styles.profileHeaderActions}>
+            <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} variant="menu" />
             {profileQuery.isRefetchError ? <Button variant="ghost" size="sm"
               accessibilityLabel={OnePickFeatures.profileItemRequests ? '프로필과 원픽 등록 요청 상태 새로고침' : '프로필 새로고침'}
               disabled={isFetching} onPress={refreshAll} label={isFetching ? '확인 중…' : profileQuery.isRefetchError ? '다시 불러오기' : '새로고침'} /> : null}
@@ -360,9 +361,8 @@ export default function ProfileScreen() {
 
         <View style={styles.managementSection}>
           <Text style={styles.secondaryTitle}>내 프로필 관리</Text>
-          <Text style={styles.secondaryDescription}>소개를 고치거나 공개 프로필을 확인해요.</Text>
+          <Text style={styles.secondaryDescription}>공개 프로필을 확인하거나 공유해요.</Text>
 
-          <ProfileBioEditor profileUserId={profile.id} bio={profile.bio} />
           {OnePickFeatures.profileSocialLinks ? <ProfileSocialLinks profileUserId={profile.id} editable /> : null}
           {OnePickFeatures.followCounts ? <ProfileFollowCounts userId={user.id} /> : null}
           {OnePickFeatures.tasteComposition ? <ProfileTasteComposition profileId={profile.id} viewerId={user.id} /> : null}

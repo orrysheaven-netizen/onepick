@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { DIALOG_CANCEL_LABEL } from '@/components/ui/dialog-labels';
 import { useUpdateProfileBio } from '@/hooks/useUpdateProfileBio';
 import { MAX_PROFILE_BIO_LENGTH, profileBioLength, ProfileBioValidationError } from '@/lib/profileBio';
 import { OnePick } from '@/constants/onepick';
 
-type Props = { profileUserId: string; bio?: string | null };
+type Props = { profileUserId: string; bio?: string | null; variant?: 'card' | 'menu' };
 
 export function ProfileBioEditor(props: Props) {
   const auth = useAuthSession();
@@ -14,7 +14,7 @@ export function ProfileBioEditor(props: Props) {
   return <BioEditor key={`${auth.user.id}:${props.profileUserId}`} {...props} />;
 }
 
-function BioEditor({ profileUserId, bio }: Props) {
+function BioEditor({ profileUserId, bio, variant = 'card' }: Props) {
   const mutation = useUpdateProfileBio(profileUserId);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -47,9 +47,9 @@ function BioEditor({ profileUserId, bio }: Props) {
     } finally { inFlight.current = false; }
   };
 
-  return <View style={styles.card}>
+  const form = <View style={styles.card}>
     <View style={styles.heading}>
-      <Text style={styles.title}>자기소개 <Text style={styles.optional}>선택</Text></Text>
+      <Text style={styles.title}>자기소개 {variant === 'card' ? <Text style={styles.optional}>선택</Text> : null}</Text>
       {!editing ? <Pressable accessibilityRole="button" accessibilityLabel={bio ? '자기소개 수정' : '자기소개 추가'}
         onPress={startEditing} style={({ pressed }) => [styles.action, pressed && styles.disabled]}>
         <Text style={styles.actionText}>{bio ? '수정' : '추가'}</Text>
@@ -57,7 +57,7 @@ function BioEditor({ profileUserId, bio }: Props) {
     </View>
     {editing ? <>
       <Text style={styles.hint}>다른 사람이 내 프로필에서 볼 수 있는 공개 소개예요.</Text>
-      <TextInput accessibilityLabel="자기소개 입력" multiline textAlignVertical="top"
+      <TextInput accessibilityLabel="자기소개 입력" multiline textAlignVertical="top" autoFocus={variant === 'menu'}
         placeholder="라면과 영화를 좋아해요. 오래 좋아한 것들을 모읍니다."
         placeholderTextColor={OnePick.textSecondary} value={draft}
         onChangeText={(value) => { setDraft(value); setError(''); }}
@@ -81,9 +81,29 @@ function BioEditor({ profileUserId, bio }: Props) {
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     {notice ? <Text accessibilityLiveRegion="polite" style={styles.hint}>{notice}</Text> : null}
   </View>;
+
+  if (variant === 'card') return form;
+
+  return <>
+    <Pressable accessibilityRole="button" accessibilityLabel="프로필 편집" accessibilityState={{ expanded: editing }}
+      onPress={startEditing} style={({ pressed }) => [styles.menuButton, pressed && styles.disabled]}>
+      <Text style={styles.actionText}>편집</Text>
+    </Pressable>
+    {editing ? <Modal visible transparent animationType="fade" onRequestClose={cancel}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.dialogContent}>
+          <View accessibilityViewIsModal style={styles.dialog}>{form}</View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal> : null}
+  </>;
 }
 
 const styles = StyleSheet.create({
+  menuButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  dialogContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  dialog: { width: '100%', maxWidth: OnePick.maxWidth, alignSelf: 'center' },
   card: { backgroundColor: OnePick.surface, borderWidth: 1, borderColor: OnePick.border, borderRadius: 20, padding: 16, marginBottom: 18 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   title: { color: OnePick.text, fontSize: 15, fontWeight: '800' },
