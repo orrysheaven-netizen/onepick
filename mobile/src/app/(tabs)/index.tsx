@@ -27,6 +27,7 @@ import { consumeFirstPickNotice, peekFirstPickNotice } from '@/lib/home/firstPic
 import { initialHomeTabBarScroll, nextHomeTabBarScroll } from '@/lib/home/homeTabBarScroll';
 import { profileMentionName } from '@/lib/profile/profileName';
 import { sharePick } from '@/lib/share/sharePick';
+import { shareProfile } from '@/lib/share/shareProfile';
 import { buildHomeCategoryFilters, filterHomeFeedByCategory, HOME_FEED_ROOT_SLUG } from '@/lib/home/homeCategoryFilters';
 import { HOME_ROUTE_SCOPE } from '@/lib/home/publicFoodScope';
 import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
@@ -83,6 +84,8 @@ export default function HomeScreen() {
   // Nickname for the question sentence: the #804 mention rule (nickname, else 원픽 사용자),
   // read from the same cached profile the Profile tab uses. Signed-out viewers get no name.
   const myProfileQuery = useMyProfile(homeEnabled ? user?.id : undefined);
+  const inviteBusy = useRef(false);
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const mentionName = user && myProfileQuery.data ? profileMentionName(myProfileQuery.data.profile) : null;
   const menuCountsQuery = useHomeFoodMenuPickCounts(mvpChannel, homeEnabled);
   const discovery = earlyHomeDiscovery(totalPickCount(menuCountsQuery.data));
@@ -260,6 +263,25 @@ export default function HomeScreen() {
       itemName: item?.name ?? '', oneLineReview: pick.oneLineReview,
     }).catch(() => undefined);
   };
+  const inviteFriend = async () => {
+    if (inviteBusy.current) return;
+    const profile = myProfileQuery.data?.profile;
+    if (!user || profile?.id !== user.id || !profile.username?.trim()) {
+      setInviteNotice('프로필을 불러오지 못했어요. 잠시 후 다시 눌러주세요.');
+      void myProfileQuery.refetch();
+      return;
+    }
+    inviteBusy.current = true;
+    setInviteNotice(null);
+    try {
+      const result = await shareProfile({ username: profile.username, pickCount: myPicks.length });
+      if (result === 'copied') setInviteNotice('친구 초대 링크를 복사했어요. 친구에게 보내주세요.');
+    } catch {
+      setInviteNotice('초대 링크를 공유하지 못했어요. 다시 눌러주세요.');
+    } finally {
+      inviteBusy.current = false;
+    }
+  };
 
   useEffect(() => {
     if (selectedCategoryGroupId && (!showCategoryFilters || !categoryFilters.some((group) => group.id === selectedCategoryGroupId))) {
@@ -322,7 +344,8 @@ export default function HomeScreen() {
   const peopleBlock = contextReady ? <>
     {showPeople ? <View style={styles.inviteFooter}><HomePeopleRow people={people} onOpenProfile={openProfile} /></View> : null}
     {/* 30E 834:4889: invite reuses the profile share path; 의견 보내기 opens the admin-configured mailbox (#831). */}
-    {user ? <View style={styles.inviteFooter}><HomeInviteRow onInvite={() => router.push('/profile')} feedback={<HomeFeedbackButton style={styles.inviteAction} />} /></View>
+    {user ? <View style={styles.inviteFooter}><HomeInviteRow onInvite={inviteFriend} feedback={<HomeFeedbackButton style={styles.inviteAction} />} />
+      {inviteNotice ? <Text accessibilityRole="alert" style={styles.endText}>{inviteNotice}</Text> : null}</View>
       : <View style={styles.footer}><BrandMark size="sm" /><Text style={styles.footerText}>지금 가장 좋아하는 하나를 원픽으로 골라보세요.</Text></View>}
   </> : null;
   const publicCards = ready ? visiblePicks : [];

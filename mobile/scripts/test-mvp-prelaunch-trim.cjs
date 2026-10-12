@@ -44,6 +44,7 @@ function home(count = 20, followingCount = 0) {
     '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
     '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
     '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
+    '@/lib/share/shareProfile': { shareProfile: async (input) => { return 'shared'; } },
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,

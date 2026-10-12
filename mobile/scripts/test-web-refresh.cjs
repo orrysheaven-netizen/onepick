@@ -52,6 +52,7 @@ function fixture(kind, platform = 'web') {
     '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
     '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
     '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
+    '@/lib/share/shareProfile': { shareProfile: async (input) => { return 'shared'; } },
     '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => query({ followingCount: 0, followerCount: 0 }),

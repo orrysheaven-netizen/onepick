@@ -379,6 +379,7 @@ function home(options = {}) {
     '@/lib/home/firstPickNotice': notice,
     '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
     '@/components/app-tabs': { setHomeTabBarHidden: (hidden) => { (calls.tabBar ??= []).push(hidden); } },
+    '@/lib/share/shareProfile': { shareProfile: async (input) => { if (typeof calls !== 'undefined') (calls.invites ??= []).push(input); if (options.inviteError) throw new Error('share failed'); return options.inviteResult ?? 'shared'; } },
     '@/lib/share/sharePick': { sharePick: async (input) => { calls.shares.push(input); return 'shared'; } },
     '@/components/home-early-sections': sections,
     '@/components/home-pick-row': names('HomePickRow'), '@/components/home-header': names('HomeHeader'), '@/components/recent-item-card': names('RecentItemCard'),
@@ -402,6 +403,33 @@ function home(options = {}) {
   };
   return { view, calls, press, text: () => view.text() };
 }
+
+test('Invite shares the signed-in public profile without navigating, with copy/error/cancel feedback', async () => {
+  for (const inviteResult of ['shared', 'copied', 'dismissed']) {
+    const h = home({ profile: { username: 'admin-account' }, inviteResult });
+    const button = h.view.find('Button', (p) => p.label === '친구 초대 링크');
+    await button.onPress();
+    deepEq(h.calls.invites, [{ username: 'admin-account', pickCount: 0 }]);
+    deepEq(h.calls.routes, [], 'The sender stays on Home, including admin accounts');
+    h.view.render();
+    assert.equal(h.text().includes('링크를 복사했어요'), inviteResult === 'copied');
+  }
+  const failed = home({ inviteError: true });
+  await failed.view.find('Button', (p) => p.label === '친구 초대 링크').onPress();
+  failed.view.render();
+  assert.match(failed.text(), /초대 링크를 공유하지 못했어요/);
+  deepEq(failed.calls.routes, []);
+  for (const profile of [null, { username: '' }, { id: 'someone-else', username: 'other' }]) {
+    const h = home({ profile });
+    await h.view.find('Button', (p) => p.label === '친구 초대 링크').onPress();
+    assert.equal(h.calls.invites, undefined, 'Never share a missing or stale account profile');
+    deepEq(h.calls.routes, []);
+  }
+  const twice = home();
+  const button = twice.view.find('Button', (p) => p.label === '친구 초대 링크');
+  await Promise.all([button.onPress(), button.onPress()]);
+  assert.equal(twice.calls.invites.length, 1, 'Rapid presses open only one share dialog');
+});
 
 test('Section switch renders at 0·29 (chips) and 30·31 (많이 고른 메뉴)', () => {
   for (const total of [0, 29]) {
@@ -707,7 +735,8 @@ test('Signed-out Home: no reply/invite, question still asks, login handled by re
   const member = home();
   assert.ok(member.view.find('HomeInviteRow') === undefined, 'Invite row is the real component, not a stub');
   assert.match(member.text(), /친구 초대 링크/);
-  assert.equal(member.press('친구 초대 링크 공유하러 가기'), '/profile', 'Invite reuses the existing profile share path');
+  assert.equal(member.press('친구 초대 링크 공유하러 가기'), undefined, 'Invite shares directly without navigating');
+  assert.equal(member.calls.invites.length, 1);
   assert.doesNotMatch(member.text(), /의견을 보내요/, 'No public feedback address → no feedback action (never a made-up mailbox)');
 });
 
