@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { collectReplyBanner } from '@/lib/home/earlyHome';
 import { notificationService, type NotificationCursor } from '@/services/notificationService';
 
 export const notificationKeys = {
   user: (userId?: string) => ['notifications', userId ?? 'signed-out'] as const,
   count: (userId?: string) => [...notificationKeys.user(userId), 'count'] as const,
   list: (userId?: string) => [...notificationKeys.user(userId), 'list'] as const,
+  homeReplies: (userId?: string) => [...notificationKeys.user(userId), 'home-replies'] as const,
   preferences: (userId?: string) => [...notificationKeys.user(userId), 'preferences'] as const,
 };
 
@@ -46,6 +48,25 @@ export function useNotifications(userId?: string, enabled = true) {
   });
 }
 
+/**
+ * Home's "내 원픽에 새 답글" banner: a complete unread-reply count read on its own (see
+ * collectReplyBanner), so it never depends on the inbox tab's loaded pages. Lives under the
+ * user's notification key, so marking a group read refreshes it like the inbox.
+ */
+export function useHomeReplyBanner(userId?: string, enabled = true) {
+  const active = useAppActive();
+  return useQuery({
+    queryKey: notificationKeys.homeReplies(userId),
+    enabled: Boolean(userId) && enabled && active,
+    queryFn: () => collectReplyBanner<NotificationCursor>({
+      unreadCount: () => notificationService.unreadCount(userId!),
+      page: (cursor) => notificationService.page(userId!, cursor),
+    }),
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
 export function useReadNotificationGroup(userId?: string) {
   const client = useQueryClient();
   return useMutation({
@@ -80,3 +101,4 @@ export function useSetFolloweePickChange(userId?: string) {
     },
   });
 }
+

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { profileDisplayName, profileNickname } from '@/lib/profile/profileName';
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { ReportAction } from '@/components/report-action';
 import { DIALOG_CLOSE_LABEL } from '@/components/ui/dialog-labels';
@@ -19,6 +20,7 @@ import { useDeleteComment } from '@/hooks/useDeleteComment';
 import { usePickComments } from '@/hooks/usePickComments';
 import { OnePick } from '@/constants/onepick';
 import type { CommentReadItem, ReadCursor } from '@/repositories/interfaces/readRepository';
+import { homeScopeQuery } from '@/lib/home/publicFoodScope';
 
 function getCommentErrorMessage(error: unknown) {
   if (error instanceof AppError) {
@@ -38,8 +40,10 @@ function getCommentErrorMessage(error: unknown) {
  * and the composer stays behind a small "댓글 쓰기" until the reader asks for it.
  * `canWrite` is the viewer-scoped item_review_page.can_comment permission.
  */
-export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded }: {
+export function PickReplies({ pickId, compact = false, canWrite = true, focusCommentId, initialCursor = null, onFocusLoaded, routeScope }: {
   pickId: string;
+  /** The Pick screen's route scope; `home` is kept on profile returns (#762). */
+  routeScope?: string;
   compact?: boolean;
   canWrite?: boolean;
   focusCommentId?: string;
@@ -49,12 +53,13 @@ export function PickReplies({ pickId, compact = false, canWrite = true, focusCom
   const auth = useAuthSession();
   // Drafts, pending requests and mutation errors belong to one account/thread.
   return <RepliesContent key={`${auth.user?.id ?? 'anonymous'}:${pickId}:${focusCommentId ?? ''}`} auth={auth} pickId={pickId}
-    compact={compact} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} />;
+    compact={compact} canWrite={canWrite} focusCommentId={focusCommentId} initialCursor={initialCursor} onFocusLoaded={onFocusLoaded} routeScope={routeScope} />;
 }
 
-function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded }: {
+function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initialCursor, onFocusLoaded, routeScope }: {
   auth: ReturnType<typeof useAuthSession>;
   pickId: string;
+  routeScope?: string;
   compact: boolean;
   canWrite: boolean;
   focusCommentId?: string;
@@ -127,7 +132,9 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
     const { comment, author } = entry;
     const deleted = Boolean(comment.isDeleted);
     const canDelete = Boolean(comment.canDelete ?? (user && comment.userId === user.id));
-    const username = author?.username ?? '사용자';
+    // #804: nickname when set, otherwise @username; routes keep the username.
+    const username = author ? profileDisplayName(author) : '사용자';
+    const authorLabel = author ? profileNickname(author) ?? `@${author.username}` : '사용자';
 
     return <View key={comment.id} style={[
       styles.commentRow,
@@ -139,10 +146,10 @@ function RepliesContent({ auth, pickId, compact, canWrite, focusCommentId, initi
       </View>
       <View style={styles.commentCopy}>
         {deleted ? <Text style={styles.commentAuthor}>삭제된 댓글</Text> : author ? <View style={styles.commentAuthorRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`@${author.username} 공개 프로필 보기`}
-            onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username, returnTo: `/pick/${pickId}` } })}
+          <Pressable accessibilityRole="button" accessibilityLabel={`${authorLabel} 공개 프로필 보기`}
+            onPress={() => router.push({ pathname: '/u/[username]', params: { username: author.username, returnTo: `/pick/${pickId}` + homeScopeQuery(routeScope) } })}
             style={({ pressed }) => [styles.commentAuthorLink, pressed && styles.pressed]}>
-            <Text style={styles.commentAuthor}>@{author.username} ›</Text>
+            <Text style={styles.commentAuthor}>{authorLabel} ›</Text>
           </Pressable>
           {comment.authorCurrentPickMatchesItem ? <CurrentPickFlag mine={author.id === user?.id} /> : null}
         </View> : <Text style={styles.commentAuthor}>사용자</Text>}

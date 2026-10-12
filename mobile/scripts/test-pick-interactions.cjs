@@ -19,6 +19,7 @@ function loadSource(relativePath, imports = {}) {
       if (name in imports) return imports[name];
       // Pure channel helpers load as-is.
       if (name === '@/lib/items/pickChannel') return loadSource('lib/items/pickChannel.ts');
+      if (name === '@/lib/home/publicFoodScope') return require('./public-food-scope.cjs');
       if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       throw new Error('Unexpected runtime dependency: ' + name);
@@ -80,7 +81,7 @@ async function main() {
     '@/components/item-review-card': { ItemReviewCard: () => null },
     '@/components/item-pick-count': { ItemPickCount: () => null }, '@/components/item-channel-links': { ItemChannelLinks: () => null }, '@/components/youtube-video-link': { YouTubeVideoLink: () => null },
     '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     'expo-router': { useRouter: () => ({ push: (route) => { destination = route; }, replace: (route) => { destination = route; }, back() {} }), useLocalSearchParams: () => params },
     'react-native': native,
     'react-native-safe-area-context': { SafeAreaView: nativeComponent('section') },
@@ -194,7 +195,7 @@ async function main() {
     react: { ...React, useState: (initial) => initial === '' ? [draft, (value) => { draft = value; }] : React.useState(initial) },
     '@/components/pick-share-actions': { PickShareActions: () => null },
     '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null }, '@/components/pick-photo-step': { PickPhotoStep: () => null } }),
     '@/components/pick-management': { PickManagement: () => null, PickManagementActions: () => null },
     '@/components/report-action': { ReportAction: () => null },
     '@/hooks/usePickDetail': { usePickDetail: () => ({ data: { pick, item, category, profile: { username: 'owner' }, isCurrent: true } }) },
@@ -262,7 +263,7 @@ async function main() {
   const { default: Explore } = loadSource('app/(tabs)/explore.tsx', {
     ...base, 'react-native': { ...native, useWindowDimensions: () => ({ width: 390 }) },
     react: { ...React, useState: () => ['root', () => {}] },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': base['@/components/pick-photo'] }),
     '@/lib/categories/categoryTree': { browseCategoryGroups, categoryLabel },
     '@/lib/categories/browseScope': { browseScope: () => ({ showChips: true, leafIds: null }) },
     '@/components/item-search': { ItemSearch: () => null }, '@/components/explore-search-results': { ExploreSearchResults: () => null },

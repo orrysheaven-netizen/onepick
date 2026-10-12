@@ -14,6 +14,7 @@ function load(relativePath, imports = {}) {
     exports,
     require: (name) => {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
+      if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
       if (name in imports) return imports[name];
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
       assert.fail(`Unexpected runtime dependency: ${name}`);
@@ -76,7 +77,7 @@ const { ItemReviewCard } = load('components/item-review-card.tsx', {
     PickManagement: ({ mode }) => React.createElement('i', null, `panel:${mode}`),
     PickManagementActions: () => React.createElement('i', null, '수정 · 해제'),
   },  '@/components/pick-share-actions': { PickShareActions: ({ pickId }) => React.createElement('i', null, `share:${pickId}`) },
-  '@/components/ui': { Avatar: () => null },
+  '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': { Avatar: () => null },
   '@/hooks/useAuthSession': { useAuthSession: () => session },
 });
 const card = (pick, profile) => renderToStaticMarkup(React.createElement(ItemReviewCard, {
@@ -136,7 +137,7 @@ assert.doesNotMatch(currentFlagSource, /✓ 이 집 원픽|✓ 원픽/, 'Shared 
 const reviewCardSource = source('components/item-review-card.tsx');
 assert.doesNotMatch(reviewCardSource, /PickReplies/, 'Item review cards never mount comment threads inline');
 assert.match(reviewCardSource, /pathname: '\/pick\/\[pickId\]'/, 'Review body and count use the dedicated conversation route');
-assert.match(reviewCardSource, /params: \{ pickId: pick\.id, itemId \}/, 'Conversation route carries item identity for ended reviews');
+assert.match(reviewCardSource, /params: \{ pickId: pick\.id, itemId, \.\.\.homeScopeParams\(routeScope\) \}/, 'Conversation route carries item identity for ended reviews');
 assert.match(reviewCardSource, /pick\.commentCount \?\? 0/, 'Review cards show the server-provided comment count');
 assert.match(reviewCardSource, /<CurrentPickFlag mine=\{isMine\} \/>/, 'Review rows use the shared Figma flag');
 

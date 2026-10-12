@@ -9,49 +9,26 @@ import { OnePick, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/o
 import { useExploreCategories } from '@/hooks/useExploreData';
 import { useItemSearch } from '@/hooks/useItemSearch';
 
-// Figma 30-1 icons (search 656:3466, theme chevron 303:420, input clear 514:2856) now come
-// from the shared OnePick / Icon set: search 24 (md), chevron 16 (sm), clear 16 (sm).
+// Figma 30-1 icons (search 656:3466, input clear 514:2856) come from the shared
+// OnePick / Icon set: search 24 (md), clear 16 (sm).
 
 /**
- * Home header (Figma 30-1): English wordmark, the 맛집 theme button and a search button.
- * 맛집 is the only theme for now; the theme dialog just says so. Search reuses the
- * existing item search and opens a result the same way the old home search did.
+ * Home header (Figma 1203:8496 / 1212:9543): English wordmark and a search button.
+ * No theme selector or theme dialog: removed by user decision (#762, supersedes #747) while
+ * there is only one public theme.
+ * Search reuses the existing item search and opens a result the same way the old home search did.
  */
 export function HomeHeader({ onOpenItem }: { onOpenItem: (itemId: string) => void }) {
-  const [dialog, setDialog] = useState<'theme' | 'search' | null>(null);
+  const [dialog, setDialog] = useState<'search' | null>(null);
   const close = () => setDialog(null);
   return <View style={styles.header}>
     <View style={styles.side}><OnePickBrand /></View>
-    {/* Centered on the screen (Figma 30-1), independent of the logo's width. */}
-    <View pointerEvents="box-none" style={styles.center}>
-      <Pressable accessibilityRole="button" accessibilityLabel="테마 선택, 현재 맛집" onPress={() => setDialog('theme')}
-        style={({ pressed }) => [styles.themeTouch, pressed && styles.pressed]}>
-        <View style={styles.themeButton}>
-          <Text style={styles.themeText}>맛집</Text>
-          <Icon name="chevronDown" size="sm" color={OnePick.textPrimary} />
-        </View>
-      </Pressable>
-    </View>
     <View pointerEvents="box-none" style={[styles.side, styles.sideEnd]}>
       <Pressable accessibilityRole="button" accessibilityLabel="메뉴 검색" onPress={() => setDialog('search')}
         style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
         <Icon name="search" color={OnePick.textPrimary} />
       </Pressable>
     </View>
-
-    <Modal visible={dialog === 'theme'} transparent animationType="fade" onRequestClose={close}>
-      <View style={styles.backdrop}>
-        <Pressable accessibilityRole="button" accessibilityLabel="테마 선택 닫기" onPress={close} style={StyleSheet.absoluteFill} />
-        <View style={styles.dialog}>
-          <Text accessibilityRole="header" style={styles.title}>테마 선택</Text>
-          <Text style={styles.text}>다른 테마는 준비 중이에요.</Text>
-          <View accessibilityRole="radio" accessibilityState={{ selected: true }} style={styles.themeOption}>
-            <Text style={styles.themeOptionText}>맛집 ✓</Text>
-          </View>
-          <CloseButton onPress={close} />
-        </View>
-      </View>
-    </Modal>
 
     {dialog === 'search' ? <HomeSearchDialog onClose={close} onOpenItem={(itemId) => { close(); onOpenItem(itemId); }} /> : null}
   </View>;
@@ -134,13 +111,8 @@ function HomeSearchDialog({ onClose, onOpenItem }: { onClose: () => void; onOpen
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: OnePickSpace.sm, position: 'relative' },
-  center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
   side: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   sideEnd: { alignItems: 'flex-end' },
-  themeTouch: { minHeight: MIN_TOUCH_TARGET, justifyContent: 'center' },
-  // Figma Theme Selector (303:418): Title 20 + 16 chevron (icon/size/sm), 4 apart, padding 12×4, radius 12, bg/muted.
-  themeButton: { flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.xs, paddingHorizontal: OnePickSpace.md, paddingVertical: OnePickSpace.xs, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgMuted },
-  themeText: { ...OnePickType.title, color: OnePick.textPrimary },
   iconButton: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.65 },
   backdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: OnePick.bgOverlay },
@@ -148,8 +120,6 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 420, maxHeight: '90%', alignSelf: 'center', gap: OnePickSpace.lg, paddingHorizontal: 20, paddingVertical: 24, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
   title: { ...OnePickType.title, color: OnePick.textPrimary },
   text: { ...OnePickType.body, color: OnePick.textSecondary },
-  themeOption: { height: 52, justifyContent: 'center', paddingHorizontal: OnePickSpace.lg, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
-  themeOptionText: { ...OnePickType.bodyMedium, color: OnePick.textPrimary },
   // Figma Input (285:261): 52 high, bg/subtle, no border, left 16 / right 4, clear 16 (icon/size/sm) in a 44 target.
   inputRow: { height: 52, flexDirection: 'row', alignItems: 'center', paddingRight: OnePickSpace.xs, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
   input: { ...OnePickType.body, flex: 1, minWidth: 0, height: 52, paddingLeft: OnePickSpace.lg, color: OnePick.textPrimary },

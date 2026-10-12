@@ -17,6 +17,7 @@ function load(file, imports = {}) {
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.fail(`Unexpected import: ${name}`);
   } });
   return exports;

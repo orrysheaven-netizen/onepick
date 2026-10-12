@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { profileNickname } from '@/lib/profile/profileName';
 import { CurrentPickFlag } from '@/components/current-pick-flag';
 import { PickReplies } from '@/components/pick-replies';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickSpace, OnePickType } from '@/constants/onepick';
@@ -11,6 +12,7 @@ import { useItemDetail } from '@/hooks/useItemDetail';
 import { useReadNotificationGroup } from '@/hooks/useNotifications';
 import { usePickDetail } from '@/hooks/usePickDetail';
 import { itemTitle } from '@/lib/items/itemTitle';
+import { homeScopeParams, isPublicFoodChannel, publicFoodChannels } from '@/lib/home/publicFoodScope';
 import { observabilityService } from '@/services';
 import { Icon } from '@/components/ui';
 
@@ -24,6 +26,8 @@ type Params = {
   rootCommentId?: string;
   commentAfterTime?: string;
   commentAfterId?: string;
+  /** `home` when opened from a Home surface (offline + online); see publicFoodScope. */
+  scope?: string;
 };
 
 
@@ -49,7 +53,7 @@ export default function PickDetailScreen() {
   const hiddenFutureChannel = needsPickLookup && Boolean(
     pickQuery.data?.pick.channel
     && !OnePickFeatures.foodChannelPicker
-    && pickQuery.data.pick.channel !== OnePickMvp.publicPickChannel
+    && !isPublicFoodChannel(pickQuery.data.pick.channel, publicFoodChannels(params.scope))
   );
   const publicFoodChannel = OnePickFeatures.foodChannelPicker ? undefined : OnePickMvp.publicPickChannel;
   const itemQuery = useItemDetail(itemId, user?.id, pickId, false, Boolean(itemId) && !hiddenFutureChannel, publicFoodChannel);
@@ -106,7 +110,8 @@ export default function PickDetailScreen() {
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else if (itemId) router.replace({ pathname: '/item/[itemId]', params: { itemId } });
+    // No history: the item fallback keeps Home's scope, or an online Pick read here is closed there.
+    else if (itemId) router.replace({ pathname: '/item/[itemId]', params: { itemId, ...homeScopeParams(params.scope) } });
     else router.replace('/');
   };
 
@@ -146,7 +151,7 @@ export default function PickDetailScreen() {
           <View style={styles.review}>
             <View style={styles.reviewMeta}>
               <Text style={styles.author}>
-                {focused.profile ? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
+                {focused.profile ? profileNickname(focused.profile) ?? '@' + focused.profile.username : focused.pick.userId === user?.id ? '내 한줄평' : '사용자'}
               </Text>
               {focused.pick.isCurrent ? <CurrentPickFlag mine={focused.pick.userId === user?.id} /> : null}
             </View>
@@ -156,6 +161,7 @@ export default function PickDetailScreen() {
           </View>
           <PickReplies
             pickId={focused.pick.id}
+            routeScope={params.scope}
             canWrite={Boolean(focused.pick.canComment)}
             focusCommentId={notificationKind === 'reply' ? rootCommentId : routeFocusCommentId}
             initialCursor={notificationKind === 'reply' ? commentInitialCursor : null}

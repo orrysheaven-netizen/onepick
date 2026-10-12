@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { profileDisplayName } from '@/lib/profile/profileName';
 import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { BlockUserButton } from '@/components/block-user-button';
 import { FollowButton } from '@/components/follow-button';
@@ -31,6 +32,7 @@ import { useSwipeBackHandler } from '@/lib/navigation/swipeBack';
 import { OnePick, OnePickFeatures, OnePickMvp, OnePickRadius, OnePickSpace, OnePickType } from '@/constants/onepick';
 import type { SocialAuthProvider } from '@/types/domain/auth';
 import type { PickReadItem } from '@/repositories/interfaces/readRepository';
+import { HOME_SCOPE_QUERY } from '@/lib/home/publicFoodScope';
 
 const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
   offline: '매장',
@@ -39,11 +41,15 @@ const PUBLIC_CHANNEL_LABELS: Record<string, string> = {
 };
 
 const SAFE_PROFILE_RETURN_PATH = /^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/;
-function profileReturnHref(value: string | string[] | undefined): Href | null {
-  if (typeof value !== 'string' || value.length > 512 || !SAFE_PROFILE_RETURN_PATH.test(value)) return null;
+function profileReturnHref(raw: string | string[] | undefined): Href | null {
+  if (typeof raw !== 'string') return null;
+  // Only Home's exact scope query may ride along (#762: an online Pick opened from Home stays
+  // readable on return). The path before it is validated as before; any other query is rejected.
+  const value = raw.endsWith(HOME_SCOPE_QUERY) ? raw.slice(0, -HOME_SCOPE_QUERY.length) : raw;
+  if (value.length > 512 || !SAFE_PROFILE_RETURN_PATH.test(value)) return null;
   if (value === '/auth' || value.startsWith('/auth/') || value === '/admin' || value.startsWith('/admin/')
     || value === '/u' || value.startsWith('/u/')) return null;
-  return value as Href;
+  return raw as Href;
 }
 
 function PublicProfilePickRow({
@@ -366,9 +372,9 @@ export default function PublicProfileScreen() {
 
           <View style={styles.publicBody}>
             <View style={styles.publicIdentity}>
-              <Avatar name={query.data.profile.username} size={68} tone="subtle" imageUrl={profileAvatarUrl(query.data.profile.profileImageUrl)} />
+              <Avatar name={profileDisplayName(query.data.profile)} size={68} tone="subtle" imageUrl={profileAvatarUrl(query.data.profile.profileImageUrl)} />
               <View style={styles.publicIdentityCopy}>
-                <Text numberOfLines={1} style={styles.publicDisplayName}>{query.data.profile.username}</Text>
+                <Text numberOfLines={1} style={styles.publicDisplayName}>{profileDisplayName(query.data.profile)}</Text>
                 <Text numberOfLines={1} style={styles.publicHandle}>@{query.data.profile.username}</Text>
                 {query.data.profile.bio ? <Text numberOfLines={2} style={styles.publicBio}>{query.data.profile.bio}</Text> : null}
               </View>

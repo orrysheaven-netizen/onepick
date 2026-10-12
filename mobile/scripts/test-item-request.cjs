@@ -197,7 +197,7 @@ async function main() {
   assert.match(done, /등록 요청을 보냈어요/);
   assert.match(done, /승인돼도 원픽으로 자동 등록되거나 승인 알림이 오지 않아요/, 'The user is told approval requires an explicit later Pick');
   press('내 등록 요청 보기');
-  assert.equal(destination, '/(tabs)/profile', 'A pending request leads directly to its status in My Profile');
+  assert.equal(destination, '/(tabs)/(profile)/profile', 'A pending request leads directly to its status in My Profile');
   press('홈으로 돌아가기');
   assert.equal(destination, '/');
 
@@ -328,7 +328,7 @@ async function main() {
   render(); press('등록하기'); await settle();
   assert.match(render(), /AI 추천을 불러오지 못했어요/);
   press('AI 추천 다시 받기'); assert.equal(categorySuggestionRetries, 1);
-  press('카테고리는 나중에 정하기'); assert.equal(destination, '/(tabs)/profile', 'AI failure never blocks the saved product request');
+  press('카테고리는 나중에 정하기'); assert.equal(destination, '/(tabs)/(profile)/profile', 'AI failure never blocks the saved product request');
 
   const hintInput = () => inputs.find((p) => p.accessibilityLabel === '원하는 카테고리');
   assert.equal(hintItemId, 'general-pending', 'The hint targets the staged request');
@@ -350,7 +350,7 @@ async function main() {
   assert.match(hintDone, /카테고리 힌트를 남겼어요/);
   assert.match(hintDone, /텀블러 \/ 보온병/);
   assert.equal(hintItemId, undefined, 'A saved hint stops further classification queries');
-  press('내 등록 요청 보기'); assert.equal(destination, '/(tabs)/profile');
+  press('내 등록 요청 보기'); assert.equal(destination, '/(tabs)/(profile)/profile');
 
   // Applying a category that matches an existing product resolves the request;
   // show that product so the member can choose it explicitly.

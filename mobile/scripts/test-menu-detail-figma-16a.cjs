@@ -17,7 +17,7 @@ assert.match(menu, /maxWidth: 390/);
 assert.match(menu, /minHeight: 720/);
 assert.match(menu, /paddingHorizontal: OnePickSpace\.gutter/);
 assert.match(menu, /paddingTop: OnePickSpace\.sm/);
-assert.match(menu, /fixedChannel=\{OnePickMvp\.publicPickChannel\} variant="menuDetail"/);
+assert.match(menu, /fixedChannel=\{fromHome \? OnePickMvp\.homeFeedChannels : OnePickMvp\.publicPickChannel\}[\s\S]*?variant="menuDetail"/);
 assert.doesNotMatch(menu, /지금 원픽으로 고른 사람들의 한줄평/, 'Figma 16A has no extra intro copy in the primary viewport');
 assert.doesNotMatch(menu, /fontWeight:\s*['"](?:800|900)['"]/, 'menu detail uses Foundations typography only');
 

@@ -13,7 +13,7 @@ function loadSource(relativePath, imports = {}) {
   return exports;
 }
 
-const { HomeService } = loadSource('services/homeService.ts');
+const { HomeService } = loadSource('services/homeService.ts', { '@/lib/home/channelFeedMerge': loadSource('lib/home/channelFeedMerge.ts') });
 const category = (id) => ({ id, name: id, status: 'open', isVisible: true, isPickable: true });
 const categories = [category('picked'), category('review'), category('new')];
 const current = [

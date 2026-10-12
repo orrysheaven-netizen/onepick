@@ -59,6 +59,7 @@ async function main() {
   const sharedImports = {
     '@tanstack/react-query': reactQuery,
     '@/lib/query/invalidatePickData': { invalidatePickData: () => { invalidations++; } },
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
     '@/services': {
       pickService: { choosePick: async () => null },
       registrationService: {},
@@ -101,3 +102,4 @@ async function main() {
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

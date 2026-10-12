@@ -1,3 +1,4 @@
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { PickChannel } from '@/lib/items/pickChannel';
 import type { Category } from '@/types/domain/category';
 import type { Comment } from '@/types/domain/comment';
@@ -63,6 +64,8 @@ export interface HomeFeedPick {
   pickId: string;
   userId: string;
   username: string;
+  /** Public nickname (#804); NULL when unset, so the card shows the username. Routes keep username. */
+  nickname?: string | null;
   profileImageUrl: string | null;
   itemId: string;
   name: string;
@@ -229,9 +232,9 @@ export interface ReadRepository {
    * keeps one top-level category tree (MVP: 'food') and `categoryId` one dish
    * (the 미역국 page); null keeps every Pick.
    */
-  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
+  getHomePicks(cursor?: ReadCursor | null, channel?: PickChannelScope, rootSlug?: string | null, categoryId?: string | null): Promise<HomePickPage>;
   /** Same cards as getHomePicks, limited to people the session user follows. */
-  getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannel | null, rootSlug?: string | null): Promise<HomePickPage>;
+  getFollowingPicks(cursor?: ReadCursor | null, channel?: PickChannelScope, rootSlug?: string | null): Promise<HomePickPage>;
   getHomeShowcase(cursor?: ReadCursor | null): Promise<HomeShowcase>;
   getEditorialHomeItems(limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<EditorialHomeItem[]>;
   getFoodMenuRecentRanking(groupCategoryId?: string | null, channel?: PickChannel | null, limit?: number): Promise<FoodMenuRecentRankingItem[]>;
@@ -239,6 +242,11 @@ export interface ReadRepository {
   getCategoryTopItems(categoryId: string, channel?: PickChannel | null): Promise<CategoryTopItem[]>;
   /** Explore (Figma 31): current public Picks per food menu; menus without a row have none. */
   getFoodMenuPickCounts(channel?: PickChannel | null): Promise<Map<string, number>>;
+  /**
+   * Daily random open food menu chosen by the DB, using the Asia/Seoul calendar.
+   * null when the public food catalog has no eligible menu.
+   */
+  getDailyQuestionCategoryId(): Promise<string | null>;
   /** Public ranking page: the same eligibility as getCategoryTopItems, addressed by slug and longer. */
   getCategoryRanking(slug: string, limit?: number, channel?: PickChannel | null, rootSlug?: string | null): Promise<CategoryTopItem[]>;
   /** Leaf categories that have a public ranking page, in browse order. */
@@ -260,3 +268,4 @@ export interface ReadRepository {
   getCommentsByUser(userId: string, limit?: number, cursor?: ReadCursor | null, scope?: RootCategoryScope | null): Promise<MyCommentReadItem[]>;
   getItemRequestsByUser(userId: string, statuses?: ItemStatus[], limit?: number, cursor?: ReadCursor | null): Promise<ItemRequestReadItem[]>;
 }
+

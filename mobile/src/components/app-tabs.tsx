@@ -1,5 +1,6 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { OnePick } from '@/constants/onepick';
 import { useAuthSession } from '@/hooks/useAuthSession';
 import { useNotificationCount } from '@/hooks/useNotifications';
@@ -8,13 +9,25 @@ import { useNotificationCount } from '@/hooks/useNotifications';
 // iOS/Android keep SF Symbols / Material Symbols drawn by the OS; semantics,
 // labels and active-state roles must stay aligned with the Figma/Web tab set.
 
+// Home asks for the bar to step aside while the viewer scrolls down (#762, 2026-10-12).
+// Same contract as app-tabs.web.tsx: AppTabs is mounted once and its setter is stable.
+let applyHomeTabBarHidden: ((hidden: boolean) => void) | null = null;
+export function setHomeTabBarHidden(hidden: boolean) {
+  applyHomeTabBarHidden?.(hidden);
+}
+
 export default function AppTabs() {
   const router = useRouter();
+  const pathname = usePathname();
+  const [homeTabBarHidden, setHomeTabBarHiddenState] = useState(false);
+  applyHomeTabBarHidden = setHomeTabBarHiddenState;
   const auth = useAuthSession();
   const notificationCount = useNotificationCount(auth.user?.id, !auth.isLoading && !auth.error && Boolean(auth.user));
   const hasUnreadNotifications = !notificationCount.isError && (notificationCount.data ?? 0) > 0;
   return (
     <NativeTabs
+      // Root `hidden` hides the whole OS tab bar (Expo SDK 57); only Home may hide it.
+      hidden={homeTabBarHidden && pathname === '/'}
       backgroundColor={OnePick.bgDefault}
       tintColor={OnePick.actionPrimary}
       indicatorColor={OnePick.bgDefault}

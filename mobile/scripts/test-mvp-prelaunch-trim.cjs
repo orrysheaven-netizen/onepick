@@ -30,15 +30,27 @@ function home(count = 20, followingCount = 0) {
   const followCounts = query({ followingCount, followerCount: 0 });
   const calls = {};
   const view = screen('app/(tabs)/index.tsx', {
-    'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }) },
-    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'),
+    'expo-router': { useRouter: () => ({ push: (route) => { calls.route = route; } }), useFocusEffect: () => {} },
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'),
     '@/hooks/useAuthSession': { useAuthSession: () => auth },
-    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]) },
+    '@/hooks/useHomeData': { useHomeData: (...args) => { calls.home = args; return q; }, useHomeItemRanking: () => query([]), useHomeFoodMenuPickCounts: () => query(new Map()),
+      useDailyQuestionCategory: () => query(null), useHomeParticipantPicks: () => query({ rows: [], complete: true }) },
+    '@/hooks/useNotifications': { useHomeReplyBanner: () => query(undefined), useNotificationCount: () => query(undefined) },
+    '@/components/home-early-sections': names('HomeInviteRow HomePeopleRow HomeQuestionCard HomeReplyBanner HomeUnpickedMenus'),
+    '@/components/home-feedback-button': names('HomeFeedbackButton'),
+    '@/hooks/useMyProfile': { useMyProfile: () => query(undefined) }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
+    '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': tree }),
+    '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+    '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
+    '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
+    '@/lib/share/shareProfile': { shareProfile: async (input) => { return 'shared'; } },
+    '@/lib/share/sharePick': { sharePick: async () => 'shared' },
     '@/hooks/useFollow': {
       useFollowCounts: () => followCounts,
       useFollowingFeed: (...args) => { calls.following = args; return following; },
     },
-    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }) },
+    '@/hooks/useExploreData': { useExploreCategories: () => ({ data: catalog }), useFoodMenuPickCounts: () => query(new Map()) },
     '@/lib/categories/categoryTree': tree,
     '@/lib/profile/profileAvatar': { profileAvatarUrl: () => null }, '@/lib/profile/profilePickGroups': { splitLabPicks: (picks) => ({ main: picks, lab: [] }), filterMainProfileByChannel: (picks) => picks, isLabCategory: () => false }, '@/components/profile-lab-entry': { ProfileLabEntry: () => null }, '@/lib/home/homeChannels': homeChannels,
     '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food', buildHomeCategoryFilters: () => groups, homeMenuRankingGroups: () => [], homeStarterCategories: () => [], filterHomeFeedByCategory: (items, group) => group ? items.filter((p) => group.categoryIds.includes(p.categoryId)) : items },
@@ -56,7 +68,7 @@ function explore({ chips = true } = {}) {
   const view = screen('app/(tabs)/explore.tsx', {
     '@/hooks/useAuthSession': { useAuthSession: () => ({ user: null }) },
     'expo-router': { useRouter: () => ({ push: (r) => { calls.route = r; } }), useLocalSearchParams: () => ({ search: chips ? '1' : undefined }) },
-    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'), '@/components/explore-search-results': names('ExploreSearchResults'),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/components/pick-photo': names('PickPhoto'), '@/components/item-search': names('ItemSearch'), '@/components/explore-search-results': names('ExploreSearchResults'),
     '@/hooks/useExploreData': { useExploreCategories: () => query(catalog), useCategoryTopItems: (id) => { calls.categoryId = id; return q; },
       useRecentPickedItems: (ids, enabled, storesOnly) => { calls.recent = { ids, enabled, storesOnly }; return recent; },
       useFoodMenuPickCounts: (channel, enabled) => { calls.menuCounts = { channel, enabled }; return query(new Map([['ramen', 5]])); } },
@@ -82,7 +94,7 @@ function profile(isPublic = false) {
       useLocalSearchParams: () => ({ username: 'owner' }),
     },
     'expo-linking': { createURL: () => 'onepick://auth/callback' },
-    '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/errors/appError': { AppError: class AppError extends Error {} },
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/constants/onepick': constants, '@/components/ui/dialog-labels': require('./dialog-labels.cjs'), '@/errors/appError': { AppError: class AppError extends Error {} },
     '@/hooks/useAuthSession': { useAuthSession: () => auth }, '@/hooks/useAdmin': { useAdminAccess: () => ({ data: false }) },
     '@/hooks/useSocialSignIn': { useSocialSignIn: () => ({ isPending: false, isError: false, mutateAsync: async () => null }) },
     '@/hooks/useMyProfile': { useMyProfile: () => q }, '@/hooks/usePublicProfile': { usePublicProfile: () => q },
@@ -143,20 +155,21 @@ async function main() {
     q.data.picks = picks(20); view.render(); assert.equal(view.find('FlatList').data.length, 10);
     assert.equal(view.find('Chip', (p) => p.accessibilityLabel === '전체 카테고리 보기').selected, true);
   });
-  await test('MVP Home exposes food + offline only while future channels stay internal', () => {
+  await test('MVP Home exposes food (offline + online) while recipe stays internal', () => {
     const { view, calls } = home(2);
     assert.equal(view.all('Chip').filter(isChannelChip).length, 0, 'No channel switcher is exposed in the initial MVP');
-    assert.equal(calls.home[3], 'offline', 'Public Home is server-filtered to physical-store Picks');
+    assert.equal(JSON.stringify(calls.home[3]), JSON.stringify(['offline', 'online']), 'Public Home is server-filtered to offline + online food Picks (#762)');
     assert.equal(calls.home[4], 'food', 'Public Home stays inside the food root');
     assert.equal(calls.following[1], false, 'Following-feed-off MVP keeps the preserved following query disabled');
-    assert.equal(calls.following[2], 'offline', 'Preserved following query keeps the same offline scope');
+    assert.equal(JSON.stringify(calls.following[2]), JSON.stringify(['offline', 'online']), 'Preserved following query keeps the same channel scope');
     assert.equal(calls.following[3], 'food', 'Preserved following query keeps the same food root');
   });
   await test('MVP hides Home category chips even above the Pick threshold', () => {
     flags.categoryChips = false; thresholds.homeCategoryFilterMinPicks = 0;
     const { view } = home(20); assert.equal(categoryChips(view).length, 0);
-    assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home shows the newest ten');
-    assert.equal(view.find('FlatList').onEndReached, undefined, 'Home never loads more on scroll');
+    assert.equal(view.find('FlatList').data.length, 10, 'Hidden chips never filter the feed; Home starts with the newest ten');
+    assert.equal(view.find('FlatList').onEndReached, undefined, 'Home never auto-loads at the end (2026-10-11)');
+    assert.equal(typeof view.find('FlatList').onScrollEndDrag, 'function', 'Home loads ten more on a swipe up at the end');
   });
   await test('MVP Explore: no chips, search open, food menus are clickable entry points', () => {
     const { view, calls } = explore({ chips: false });
@@ -195,8 +208,10 @@ async function main() {
     q.isFetching = true; view.render(); const retry = view.find('Button', (p) => p.accessibilityLabel === '홈 원픽 새로고침'); assert.equal(retry.disabled, true); retry.onPress(); assert.equal(q.refetches, 2);
     q.isFetching = false; q.data = undefined; view.render(); view.find('StateCard', (p) => p.tone === 'danger').action.onPress(); assert.equal(q.refetches, 3);
     q.data = { picks: picks(2), currentPicks: [] }; q.isFetchNextPageError = true; view.render();
-    assert.equal(view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기'), undefined, 'Home has no next page to retry');
-    assert.equal(q.nextPages, 0);
+    // 이웃 제안 (2026-10-11) pages like the full feed: a failed next page offers the explicit retry.
+    const nextRetry = view.find('StateCard', (p) => p.action?.label === '다음 원픽 다시 불러오기');
+    assert.ok(nextRetry, 'Home offers the existing next-page retry');
+    nextRetry.action.onPress(); assert.equal(q.nextPages, 1);
   });
   await test('Explore hides tied counts, emphasis and accessible rank; keeps detail routes', () => {
     const { view, calls } = explore(); assert.equal(calls.categoryId, 'ramen');
@@ -293,3 +308,4 @@ async function main() {
   console.log(`MVP prelaunch runtime cases passed: ${passed}/${passed}. Host/hook harness; no live network or browser.`);
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

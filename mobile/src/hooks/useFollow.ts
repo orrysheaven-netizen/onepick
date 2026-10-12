@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '@/lib/query/queryKeys';
-import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepository';
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
+import type { ReadCursor } from '@/repositories/interfaces/readRepository';
 import type { FollowConnectionCursor, FollowDirection } from '@/types/domain/safety';
 import { followService } from '@/services/followServiceInstance';
 
@@ -90,7 +91,7 @@ export function useFollowActions(userId: string | undefined, profileId: string) 
 export function useFollowingFeed(
   userId: string | undefined,
   enabled = true,
-  channel: PickChannel | null = null,
+  channel: PickChannelScope = null,
   rootSlug: string | null = null,
 ) {
   return useInfiniteQuery({

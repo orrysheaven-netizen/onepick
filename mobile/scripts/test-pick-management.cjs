@@ -22,6 +22,7 @@ function loadSource(relativePath, imports = {}) {
       if (name === '@/constants/onepick') return require('./design-tokens.cjs');
       if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
       if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+      if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
       assert.ok(name in imports, 'Unexpected runtime dependency: ' + name);
       return imports[name];
     },
@@ -62,6 +63,7 @@ async function main() {
   const hookImports = {
     '@tanstack/react-query': { useMutation: (options) => options, useQueryClient: () => queryClient },
     '@/lib/query/invalidatePickData': { invalidatePickData },
+    '@/lib/home/firstPickNotice': loadSource('lib/home/firstPickNotice.ts'),
     '@/services': { pickService: service, observabilityService: { captureProductEvent: async (event) => { capturedEvents.push(event); } } },
   };
   const { useManagePick } = loadSource('hooks/useManagePick.ts', hookImports);
@@ -125,7 +127,7 @@ async function main() {
     '@/components/pick-replies': { PickReplies: () => null },
     '@/components/pick-share-actions': { PickShareActions: () => null },
     '@/components/pick-photo': { PickPhoto: () => null },
-    '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, '@/components/ui': require('./ui-components.cjs').loadUi({ 'react-native': native, '@/components/pick-photo': { PickPhoto: () => null } }),
     '@/components/pick-management': { PickManagement, PickManagementActions },
     '@/components/report-action': { ReportAction: () => null },
     '@/errors/appError': { AppError },
@@ -158,3 +160,4 @@ async function main() {
   console.log('Pick management checks passed: review validation, mutation routing, cache refresh, viewer isolation and screen visibility.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

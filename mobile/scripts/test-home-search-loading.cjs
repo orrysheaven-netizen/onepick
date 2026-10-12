@@ -40,10 +40,12 @@ const press = (label) => { const props = button(label); assert.ok(props, label);
 
 render();
 assert.equal(categoryReads, 0, 'A closed search dialog makes no category request');
-press('테마 선택, 현재 맛집');
-render();
-assert.equal(categoryReads, 0, 'The theme dialog does not load search categories');
-press('닫기'); render(); press('메뉴 검색');
+// #762: no theme selector button or theme popup in the header; search is the only action.
+assert.equal(button('테마 선택, 현재 맛집'), undefined, 'No theme selector button');
+assert.equal(button('테마 선택 닫기'), undefined, 'No theme popup');
+assert.doesNotMatch(render(), /테마|맛집/, 'No theme text rendered');
+assert.ok(button('메뉴 검색'), 'Search button remains');
+press('메뉴 검색');
 assert.doesNotMatch(render(), /검색하고 있어요|불러오지 못했어요/);
 assert.equal(categoryReads, 1, 'The category query starts when search opens');
 input.onChangeText('  라면  '); render(); press('검색하기');

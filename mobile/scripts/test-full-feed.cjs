@@ -14,6 +14,7 @@ function load(file, imports = {}) {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     if (name in imports) return imports[name];
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(`Unexpected import: ${name}`);
@@ -63,7 +64,7 @@ const { default: FullFeed } = load('app/feed.tsx', {
   '@/components/ui': { ...require('./icon-stub.cjs'), StateCard: ({ title, text }) => React.createElement('aside', null, title, text) },
   '@/constants/onepick': constants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useHomeData': { useFullPickFeed: (...args) => { assert.deepEqual(args.slice(2), ['offline', 'food']); return feed; } },
+  '@/hooks/useHomeData': { useFullPickFeed: (...args) => { assert.equal(JSON.stringify(args.slice(2)), JSON.stringify([['offline', 'online'], 'food'])); return feed; } },
   '@/lib/home/homeCategoryFilters': { HOME_FEED_ROOT_SLUG: 'food' },
 });
 const render = () => { rowProps.length = 0; presses.length = 0; return renderToStaticMarkup(React.createElement(FullFeed)); };

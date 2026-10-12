@@ -14,6 +14,7 @@ function load(relative, imports = {}) {
   });
   assert.equal((compiled.diagnostics ?? []).filter((d) => d.category === ts.DiagnosticCategory.Error).length, 0, relative);
   vm.runInNewContext(compiled.outputText, { exports, require: (name) => {
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.ok(name in imports, `Unexpected import: ${name}`);
     return imports[name];
   } });
@@ -32,6 +33,7 @@ function screen(relative, imports, platform = 'ios') {
       return [states[i], (next) => { states[i] = typeof next === 'function' ? next(states[i]) : next; }];
     },
     useMemo: (fn) => fn(),
+    useCallback: (fn) => fn,
     useRef(initial) {
       const i = refCursor++;
       if (!(i in refs)) refs[i] = { current: initial };
@@ -62,7 +64,7 @@ function screen(relative, imports, platform = 'ios') {
     visit(props.refreshControl);
     if (node.type === 'FlatList') {
       visit(props.ListHeaderComponent);
-      props.data.forEach((item) => visit(props.renderItem({ item })));
+      props.data.forEach((item, index) => visit(props.renderItem({ item, index })));
       if (!props.data.length) visit(props.ListEmptyComponent);
       visit(props.ListFooterComponent);
     }
@@ -76,3 +78,4 @@ function screen(relative, imports, platform = 'ios') {
   };
 }
 module.exports = { load, screen, names };
+

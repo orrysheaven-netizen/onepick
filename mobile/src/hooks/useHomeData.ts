@@ -1,10 +1,10 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/queryKeys';
+import type { PickChannelScope } from '@/lib/home/channelFeedMerge';
 import type { PickChannel, ReadCursor } from '@/repositories/interfaces/readRepository';
 import { homeService } from '@/services/homeServiceInstance';
 
 const HOME_CONTEXT_STALE_TIME = 5 * 60_000;
-const HOME_MAX_PAGES = 3;
 const HOME_MENU_RANKING_CANDIDATE_LIMIT = 20;
 
 export function useHomeMenuRanking(groupCategoryId: string | null = null, channel: PickChannel | null = null, enabled = true) {
@@ -27,10 +27,53 @@ export function useHomeItemRanking(channel: PickChannel | null = null, limit = 2
 }
 
 /**
+ * Home's per-menu Pick counts over its channel scope (offline + online food, #762). Keyed
+ * under explore.menuPickCounts so a new Pick invalidates it with the Explore counts.
+ */
+export function useHomeFoodMenuPickCounts(channel: PickChannelScope = null, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.explore.menuPickCounts(channel),
+    queryFn: () => homeService.getFoodMenuPickCounts(channel),
+    staleTime: 60_000,
+  });
+}
+
+/** Time until the next Korean midnight; refresh when the DB's daily seed changes. */
+export function dailyQuestionRefreshDelay(now = Date.now()) {
+  const day = 24 * 60 * 60_000;
+  const koreaOffset = 9 * 60 * 60_000;
+  return day - ((now + koreaOffset) % day) + 100;
+}
+
+/** The server chooses the daily menu; local time only schedules a fresh read. */
+export function useDailyQuestionCategory(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.dailyQuestion(),
+    queryFn: () => homeService.getDailyQuestionCategoryId(),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+    refetchInterval: () => dailyQuestionRefreshDelay(),
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
+  });
+}
+
+/** Figma 30E "함께하는 사람들": current public Picks read with the viewer's visibility rules. */
+export function useHomeParticipantPicks(userId: string | undefined, enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: queryKeys.home.participants(userId),
+    queryFn: () => homeService.getParticipantPicks(),
+    staleTime: HOME_CONTEXT_STALE_TIME,
+  });
+}
+
+/**
  * Full public feed (Home → 사람들의 원픽 더보기): 20 Picks per server page, all pages kept
  * so the list never drops rows it already showed, each Pick shown once.
  */
-export function useFullPickFeed(userId: string | undefined, enabled: boolean, channel: PickChannel | null = null, rootSlug: string | null = null) {
+export function useFullPickFeed(userId: string | undefined, enabled: boolean, channel: PickChannelScope = null, rootSlug: string | null = null) {
   return useInfiniteQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'full-feed', channel ?? 'all', rootSlug ?? 'every-root'],
@@ -48,7 +91,7 @@ export function useFullPickFeed(userId: string | undefined, enabled: boolean, ch
   });
 }
 
-export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannel | null = null, rootSlug: string | null = null) {
+export function useHomeData(userId?: string, enabled = true, feedEnabled = enabled, channel: PickChannelScope = null, rootSlug: string | null = null) {
   const context = useQuery({
     enabled,
     queryKey: [...queryKeys.home.data(userId), 'context', channel ?? 'all', rootSlug ?? 'every-root'],
@@ -65,7 +108,8 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
     queryFn: ({ pageParam }) => homeService.getHomePicks(pageParam, channel, rootSlug),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     getPreviousPageParam: () => undefined,
-    maxPages: HOME_MAX_PAGES,
+    // No maxPages: Home now reveals more rows as the user scrolls (#762, 2026-10-11), and a
+    // dropped first page would make rows already on screen disappear.
     // Switching tabs keeps Home's header mounted; the screen hides the previous
     // tab's rows while isPlaceholderData is true.
     placeholderData: keepPreviousData,
@@ -94,6 +138,10 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
   return {
     ...feed,
     data,
+    // The viewer's own current Picks, settled independently of the feed pages, so Home can
+    // answer "did I pick today's menu?" while the feed is still loading or failed (#762).
+    contextData: context.data,
+    isContextError: context.isError,
     error: context.error ?? (feedEnabled ? feed.error : null),
     isError: context.isError || (feedEnabled && feed.isError),
     isPending: context.isPending || (feedEnabled && feed.isPending),
@@ -102,3 +150,4 @@ export function useHomeData(userId?: string, enabled = true, feedEnabled = enabl
     refetch,
   };
 }
+

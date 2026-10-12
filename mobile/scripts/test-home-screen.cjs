@@ -12,6 +12,7 @@ function load(file, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, { exports, require: (name) => {
     if (name in imports) return imports[name];
+    if (name === '@/lib/home/publicFoodScope') return require('./public-food-scope.cjs');
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
     assert.fail(name);
   } });
@@ -19,7 +20,7 @@ function load(file, imports = {}) {
 }
 
 const textOf = (node) => typeof node === 'string' ? node : Array.isArray(node) ? node.map(textOf).join('') : node?.props ? textOf(node.props.children) : '';
-let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs, categoriesEnabled;
+let presses = [], destination, sessionRetries = 0, queryRetries = 0, width = 1200, pullToRefresh, endReached, dragBegin, dragEnd, pageCalls = 0, homeHeaderProps, homeDataArgs, followingFeedArgs, itemRankingArgs, categoriesEnabled;
 const component = (tag) => ({ children }) => React.createElement(tag, null, children);
 const auth = { user: { id: 'owner' }, isLoading: false, error: null, retry: () => sessionRetries++ };
 const own = { pick: { id: 'mine', userId: 'owner', itemId: 'ramen', channel: 'offline', oneLineReview: '내 실제 선택 이유', status: 'active' }, item: { name: '신라면' }, category: { name: '라면' }, profile: { username: 'owner' } };
@@ -41,7 +42,7 @@ const query = { isPending: false, isError: false, isFetching: false, isRefetchin
 const native = {
     Text: component('span'), View: component('div'), ActivityIndicator: () => null, RefreshControl: () => null,
     ScrollView: component('nav'),
-    FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item) => React.createElement('div', { key: item.itemId }, props.renderItem({ item }))), props.ListFooterComponent); },
+    FlatList: (props) => { pullToRefresh = props.refreshControl; endReached = props.onEndReached; dragBegin = props.onScrollBeginDrag; dragEnd = props.onScrollEndDrag; return React.createElement('main', null, props.ListHeaderComponent, props.data.map((item, index) => React.createElement('div', { key: item.itemId }, props.renderItem({ item, index }))), props.ListFooterComponent); },
     Pressable: (props) => { presses.push(props); return React.createElement('button', null, props.children); },
     StyleSheet: { create: (styles) => styles }, Platform: { OS: 'web' }, useWindowDimensions: () => ({ width }),
 };
@@ -72,9 +73,27 @@ const followingQuery = {
   hasNextPage: false, isFetchingNextPage: false, isFetchNextPageError: false,
   refetch: async () => {}, fetchNextPage: async () => {},
 };
+// Figma 30E (#762): this suite covers the 30+ total-Pick Home, where "많이 고른 메뉴" is back.
+// Below-30 states live in test-home-early-mvp.cjs.
+const menuCountsQuery = { data: new Map([['ramen', 30]]), isPending: false, isError: false, isFetching: false, refetch: async () => {} };
+const emptyQuery = (data) => ({ data, isPending: false, isError: false, isFetching: false, refetch: async () => {} });
 const { default: Home } = load('app/(tabs)/index.tsx', {
   'expo-image': { Image: component('img') },
-  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }) },
+  'expo-router': { useRouter: () => ({ push: (route) => { destination = route; } }), useFocusEffect: () => {} },
+  '@/components/home-early-sections': load('components/home-early-sections.tsx', {
+    'react-native': native, '@/components/ui': ui, '@/components/ui/touch': load('components/ui/touch.ts'), '@/constants/onepick': onepickConstants,
+    '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
+  }),
+  '@/components/home-feedback-button': { HomeFeedbackButton: () => null },
+  '@/hooks/useMyProfile': { useMyProfile: () => emptyQuery(undefined) }, '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
+  '@/hooks/useNotifications': { useHomeReplyBanner: () => emptyQuery(undefined), useNotificationCount: () => emptyQuery(undefined) },
+  '@/lib/categories/browseScope': load('lib/categories/browseScope.ts', { '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts') }),
+  '@/lib/home/earlyHome': load('lib/home/earlyHome.ts'),
+  '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
+  '@/lib/home/homeTabBarScroll': load('lib/home/homeTabBarScroll.ts'),
+  '@/components/app-tabs': { setHomeTabBarHidden: () => {} },
+  '@/lib/share/shareProfile': { shareProfile: async () => 'shared' },
+  '@/lib/share/sharePick': { sharePick: async () => 'shared' },
   'react-native': native,
   'react-native-safe-area-context': { SafeAreaView: component('section') },
   '@/components/notification-button': { NotificationButton: ({ userId }) => React.createElement('span', { 'data-notification-user': userId }, '알림') },
@@ -88,6 +107,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   }),
   '@/components/home-pick-row': load('components/home-pick-row.tsx', {
     'react-native': native,
+    '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': load('lib/profile/profileName.ts'),
     '@/components/ui': ui,
     '@/components/pick-photo': pickPhoto,
     '@/components/ui/touch': { MIN_TOUCH_TARGET: 44 },
@@ -105,7 +125,7 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
   '@/components/home-header': { HomeHeader: (props) => { homeHeaderProps = props; return null; } },
   '@/constants/onepick': onepickConstants,
   '@/hooks/useAuthSession': { useAuthSession: () => auth },
-  '@/hooks/useExploreData': { useExploreCategories: (enabled) => { categoriesEnabled = enabled; return { data: [
+  '@/hooks/useExploreData': { useFoodMenuPickCounts: () => menuCountsQuery, useExploreCategories: (enabled) => { categoriesEnabled = enabled; return { data: [
     { id: 'food', parentId: null, name: '먹을것', slug: 'food', status: 'open', isVisible: true, isPickable: false, sortOrder: 10 },
     { id: 'noodles', parentId: 'food', name: '면류', slug: 'noodles', status: 'open', isVisible: true, isPickable: false, sortOrder: 1 },
     { id: 'culture', parentId: null, name: '문화', slug: 'culture', status: 'open', isVisible: true, isPickable: false, sortOrder: 20 },
@@ -115,7 +135,9 @@ const { default: Home } = load('app/(tabs)/index.tsx', {
     { id: 'book', parentId: 'culture', name: '책', slug: 'book', status: 'open', isVisible: true, isPickable: true, sortOrder: 5 },
     { id: 'youtube', parentId: 'culture', name: '유튜브', slug: 'youtube', status: 'open', isVisible: true, isPickable: true, sortOrder: 6 },
   ] }; } },
-  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; } },
+  '@/hooks/useHomeData': { useHomeData: (...args) => { homeDataArgs = args; return query; }, useHomeItemRanking: (...args) => { itemRankingArgs = args; return rankingQuery; },
+    useHomeFoodMenuPickCounts: () => menuCountsQuery,
+    useDailyQuestionCategory: () => emptyQuery(null), useHomeParticipantPicks: () => emptyQuery({ rows: [], complete: true }) },
   '@/lib/categories/categoryTree': load('lib/categories/categoryTree.ts'),
   '@/lib/home/homeChannels': load('lib/home/homeChannels.ts'),
   '@/lib/home/homeCategoryFilters': load('lib/home/homeCategoryFilters.ts', {
@@ -139,10 +161,10 @@ assert.match(allFirstPage, />friend</);
 assert.match(allFirstPage, />neighbor</, 'Member Home stays on the public feed while follow is hidden');
 assert.doesNotMatch(allFirstPage, /원픽 더 둘러보기|모아보기/, 'Figma 30-1: no explore/my-picks links under the feed');
 assert.equal(homeDataArgs[2], true, 'Hidden following-feed mode enables the public feed');
-assert.equal(homeDataArgs[3], 'offline', 'MVP Home asks the server for offline Picks only');
+assert.equal(JSON.stringify(homeDataArgs[3]), JSON.stringify(['offline', 'online']), 'Home reads offline restaurants + online food, never recipe (#762)');
 assert.equal(homeDataArgs[4], 'food', 'MVP Home asks the server for food Picks only');
 assert.equal(followingFeedArgs[1], false, 'Hidden following-feed mode never enables the following query');
-assert.equal(followingFeedArgs[2], 'offline', 'Preserved following query keeps the same offline scope');
+assert.equal(JSON.stringify(followingFeedArgs[2]), JSON.stringify(['offline', 'online']), 'Preserved following query keeps the same channel scope');
 assert.equal(followingFeedArgs[3], 'food', 'Preserved following query keeps the same food root');
 assert.equal(presses.find((p) => p.accessibilityLabel === '전체 원픽 보기'), undefined);
 assert.equal(presses.find((p) => p.accessibilityLabel === '팔로잉 원픽 보기'), undefined);
@@ -172,9 +194,9 @@ assert.ok(lowSampleMenu, 'Low-sample menu stays browsable');
 assert.doesNotMatch(textOf(lowSampleMenu.children), /원픽 2/, 'A menu below the 3-person exposure threshold hides its recent count');
 assert.doesNotMatch(allFirstPage, /메뉴별 원픽 보기|먼저 소개하는 원픽/);
 assert.match(allFirstPage, /서울집<\/span> 미역국/, 'Cards show the store (bold) then the menu (10-05)');
-press('인기 메뉴 더보기'); assert.equal(destination, '/popular', 'Popular 더보기 opens the ordered popular screen');
+assert.equal(presses.find((p) => p.accessibilityLabel === '인기 메뉴 더보기'), undefined, 'Unapproved /popular destination stays hidden');
 assert.equal(presses.find((p) => p.accessibilityLabel === '면류 인기 메뉴 보기'), undefined, 'Figma 30-1 (10-04): no ranking group chips');
-assert.equal(itemRankingArgs[0], 'offline', 'MVP Home ranking excludes hidden online/recipe Picks');
+assert.equal(itemRankingArgs[0], 'offline', 'Home ranking stays offline until a multi-channel ranking contract exists (#762)');
 
 // The following-feed implementation remains available behind its separate rollout gate.
 onepickConstants.OnePickFeatures.followingFeed = true;
@@ -192,7 +214,7 @@ render();
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, />friend</); assert.match(page, />다른 사람의 이유</, 'Each card quotes that person’s own reason');
+  assert.match(page, />friend</); assert.match(page, />“다른 사람의 이유”</, 'Each card quotes that person’s own reason in “…” (#762 2026-10-12)');
   assert.match(page, />neighbor</); assert.match(page, /이웃도 신라면/);
   assert.doesNotMatch(page, /✓ 내 원픽/, 'Figma 30 (10-04): no "✓ 내 원픽" text on feed rows');
   assert.doesNotMatch(page, /이미 내 원픽이에요|나도 이게 원픽|♡/, 'Home drops follow-the-Pick CTAs and likes');
@@ -202,8 +224,13 @@ for (width of [390, 800, 1200]) {
   const storePos = page.indexOf('>진라면</span>');
   const menuPos = page.indexOf('>라면</span>');
   const nicknamePos = page.indexOf('>friend</span>');
-  assert.ok(storePos >= 0 && menuPos > storePos && nicknamePos > menuPos, 'Feed v3 orders store, menu and nickname as separate text blocks');
-  assert.doesNotMatch(page, />매장<\//, 'Feed Card v3 has no legacy channel badge');
+  assert.ok(nicknamePos >= 0 && storePos > nicknamePos && menuPos > storePos, 'Home feed (2026-10-11): author row first, then store and menu as separate text blocks');
+  assert.equal(page.split('>friend</span>').length - 1, 1, 'The author row is shown once, not duplicated below');
+  // #553 / #762 (2026-10-12): the shared StoreBadge (mocked as <b>매장</b>) precedes the store name;
+  // the offline/online Channel Badge is still not drawn on Home Feed v3.
+  assert.equal(page.split('<b>매장</b>').length - 1, 1, 'Only the provider-backed card shows the StoreBadge');
+  assert.ok(page.indexOf('<b>매장</b>') < storePos && page.indexOf('<b>매장</b>') > nicknamePos, 'StoreBadge sits right before the store name');
+  assert.doesNotMatch(page, /오프라인|온라인/, 'Feed Card v3 has no offline/online Channel Badge');
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');
@@ -218,7 +245,10 @@ for (width of [390, 800, 1200]) {
   press('진라면 상세 보기'); assert.equal(destination.params.itemId, 'jin');
   press('friend 프로필 보기'); assert.equal(destination.pathname, '/u/[username]'); assert.equal(destination.params.username, 'friend');
   assert.equal(destination.params.returnTo, '/', 'Home profile links preserve Home as their back target');
-  press('사람들의 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
+  press('새로 올라온 원픽 더보기'); assert.equal(destination, '/feed', 'Feed 더보기 opens the full feed');
+  assert.match(page, /새로 올라온 원픽/, '2026-10-11: the newest-first Home feed is titled 새로 올라온 원픽 (formerly 이웃 제안)'); assert.doesNotMatch(page, />이웃 제안</);
+  assert.doesNotMatch(page, /모두의 원픽/, 'The old section title is gone');
+  assert.doesNotMatch(page, /아직 아무도 안 골랐어요/, 'At 30+ total Picks the unpicked chips give way to 많이 고른 메뉴');
   assert.ok(presses.find((p) => p.accessibilityLabel === '라면집 라면 보기'), 'Signed-in Home keeps the recent-menu ranking grid');
   homeHeaderProps.onOpenItem('jin');
   assert.equal(destination.pathname, '/item/[itemId]', 'A header search result opens the existing item detail');
@@ -239,14 +269,35 @@ render(); assert.equal(presses.find((p) => p.accessibilityLabel === '먹을것 �
 assert.equal(presses.find((p) => p.accessibilityLabel === '문화 카테고리 보기'), undefined, 'MVP Home hides non-food category filters');
 query.data.picks = smallFeed;
 
-// Home (10-04): the newest ten only, no automatic or manual next page; the full feed pages.
+// Home 이웃 제안 (2026-10-11 13:28 KST user decision): the newest ten first, then 함께하는 사람들/초대,
+// and the next ten only when the viewer swipes up again at the bottom (or presses the hint button).
 query.data.picks = Array.from({ length: 20 }, (_, i) => ({ ...smallFeed[0], pickId: `ten-${i}`, itemId: `ten-item-${i}`, username: `user${i}` }));
 const capped = render();
-assert.match(capped, />user9</); assert.doesNotMatch(capped, />user10</, 'Home shows at most ten Picks');
-assert.equal(endReached, undefined, 'Home never loads more on scroll');
+assert.match(capped, />user9</); assert.doesNotMatch(capped, />user10</, 'Home starts with ten Picks');
+assert.equal(endReached, undefined, 'Reaching the bottom never loads by itself');
+const at = (y) => ({ nativeEvent: { contentOffset: { y }, layoutMeasurement: { height: 600 }, contentSize: { height: 2000 } } });
+const swipeUpAtEnd = () => { dragBegin(at(1400)); dragEnd(at(1400)); };
+assert.equal(typeof dragBegin, 'function'); assert.equal(typeof dragEnd, 'function');
+dragBegin(at(800)); dragEnd(at(1400)); assert.doesNotMatch(render(), />user10</, 'A drag that only reaches the end does not load');
+dragBegin(at(1400)); dragEnd(at(900)); assert.doesNotMatch(render(), />user10</, 'Scrolling back up from the end does not load');
+assert.match(capped, /위로 밀면 다음 원픽이 나와요/, 'The bottom says how to see more');
+swipeUpAtEnd(); assert.equal(pageCalls, 0, 'Already loaded rows are revealed before another server page');
+query.data.picks = query.data.picks.slice(0, 10);
+render(); swipeUpAtEnd(); assert.equal(pageCalls, 1, 'Once loaded rows are all shown, the next keyset page is requested');
+query.isFetching = true; render(); swipeUpAtEnd(); assert.equal(pageCalls, 1, 'No duplicate request while one is in flight');
+query.isFetching = false;
+render(); press('새로 올라온 원픽 다음 원픽 불러오기'); assert.equal(pageCalls, 2, 'The hint button is the same load for web and assistive tech');
 query.isFetchNextPageError = true;
-assert.doesNotMatch(render(), /다음 원픽을 불러오지 못했어요|모두 확인했어요/);
-assert.equal(pageCalls, 0);
+const pageFailed = render();
+assert.match(pageFailed, /다음 원픽을 불러오지 못했어요/, 'A failed next page shows the existing retry card');
+swipeUpAtEnd(); assert.equal(pageCalls, 2, 'A failed page waits for the explicit retry');
+press('다음 원픽 다시 불러오기'); assert.equal(pageCalls, 3, 'Retry asks for the same next page');
+query.isFetchNextPageError = false; query.hasNextPage = false;
+const ended = render();
+assert.match(ended, /지금 볼 수 있는 원픽을 모두 확인했어요/, 'The end of the feed is stated once everything is shown');
+assert.doesNotMatch(ended, /위로 밀면 다음 원픽이 나와요/, 'No more hint at the end');
+swipeUpAtEnd(); assert.equal(pageCalls, 3, 'Stops when the server has no more');
+pageCalls = 0;
 query.isFetchNextPageError = false; query.hasNextPage = false;
 query.data.picks = smallFeed;
 auth.user = null;
@@ -326,4 +377,5 @@ assert.match(render(), /최근 7일 원픽이 아직 없어요/, 'An empty ranki
 query.data = cached; query.isPending = false; rankingQuery.isPending = true;
 assert.match(render(), /진라면/, 'The feed also renders independently of pending ranking');
 console.log('Home screen checks passed: all-first member entry, filter boundary, public-feed cards/actions, routes, empty states, refresh recovery and session privacy.');
+
 

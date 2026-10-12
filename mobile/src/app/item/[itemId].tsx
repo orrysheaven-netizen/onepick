@@ -17,6 +17,8 @@ import { Button, Icon, StateCard } from '@/components/ui';
 import type { PickPhotoDraft } from '@/types/domain/photo';
 import { showPhotoFailure } from '@/lib/photos/photoFailure';
 import { categoryWithChannels, homeChannelLabel } from '@/lib/home/homeChannels';
+import { homeScopeQuery, isPublicFoodChannel, publicFoodChannels } from '@/lib/home/publicFoodScope';
+import type { PickChannel } from '@/lib/items/pickChannel';
 import { itemTitle } from '@/lib/items/itemTitle';
 import { consumePickSavedToast } from '@/lib/items/pickSavedToast';
 import { isNaverMapUrl } from '@/services/storeFirstService';
@@ -68,6 +70,8 @@ type Params = {
   rootCommentId?: string;
   commentAfterTime?: string;
   commentAfterId?: string;
+  /** `home` when opened from a Home card (offline + online); see publicFoodScope. */
+  scope?: string;
 };
 export default function ItemDetailScreen() {
   const auth = useAuthSession();
@@ -297,27 +301,40 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const { category, brand, isRestaurant, myPickStatus, pickChannel, picks: allPicks, canChoose } = query.data;
   const item = savedItem ?? query.data.item;
   const mvpFoodScope = isRestaurant && !OnePickFeatures.foodChannelPicker;
+  // Home shows 오프라인 식당 + 온라인 음식 (#762), so a Home card opens with scope=home and its
+  // online Picks stay visible here. Other entries keep the offline MVP scope.
+  const publicChannels = publicFoodChannels(params.scope);
   // Legacy food items may have no item_channels row, while an explicit Pick
-  // channel is still valid by the DB contract. If a current public offline Pick
+  // channel is still valid by the DB contract. If a current public Pick
   // reached Home/Profile, its item detail must stay reachable too.
   const hasCurrentPick = allPicks.some(({ pick }) =>
     pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review'));
   const hasOwnCurrentPick = Boolean(user && allPicks.some(({ pick }) =>
     pick.userId === user.id
     && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review'))));
-  const hasPublicCurrentPick = allPicks.some(({ pick }) =>
-    pick.channel === OnePickMvp.publicPickChannel
+  const isCurrentIn = (channels: readonly PickChannel[]) => allPicks.some(({ pick }) =>
+    isPublicFoodChannel(pick.channel, channels)
     && (pick.isCurrent ?? (pick.status === 'active' || pick.status === 'needs_review')));
-  const itemSupportsPublicChannel = !mvpFoodScope
-    || item.channels?.includes(OnePickMvp.publicPickChannel)
+  const supports = (channels: readonly PickChannel[]) => !mvpFoodScope
+    || Boolean(item.channels?.some((channel) => channels.includes(channel)))
     || item.externalSource === 'onepick_place'
-    || hasPublicCurrentPick;
+    || isCurrentIn(channels);
+  const itemSupportsPublicChannel = supports(publicChannels);
+  // Registration stays offline-only (OnePickMvp.publicPickChannel). An item reached only
+  // through its online Picks can be read here but not picked as an offline store.
+  const itemSupportsRegistration = supports([OnePickMvp.publicPickChannel]);
+  const canChooseHere = canChoose && itemSupportsRegistration;
   const picks = mvpFoodScope
-    ? allPicks.filter(({ pick }) => pick.channel === OnePickMvp.publicPickChannel
+    ? allPicks.filter(({ pick }) => isPublicFoodChannel(pick.channel, publicChannels)
       || (!pick.channel && itemSupportsPublicChannel))
     : allPicks;
   const focusAvailable = !focusPickId || picks.some(({ pick }) => pick.id === focusPickId);
-  const displayChannels = mvpFoodScope ? [OnePickMvp.publicPickChannel] : item.channels;
+  const shownChannels = publicChannels.filter((channel) => channel === OnePickMvp.publicPickChannel
+    ? itemSupportsRegistration
+    : Boolean(item.channels?.includes(channel)) || picks.some(({ pick }) => pick.channel === channel));
+  const displayChannels = mvpFoodScope
+    ? shownChannels.length ? shownChannels : [OnePickMvp.publicPickChannel]
+    : item.channels;
   if (!itemSupportsPublicChannel) {
     return <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}><View style={styles.centerState}>
       <StateCard title="현재 공개 중인 원픽이 아니에요." text="지금은 매장에서 고른 음식 원픽만 공개하고 있어요." />
@@ -333,7 +350,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
   const openPickAction = () => {
-    if (!canChoose) return;
+    if (!canChooseHere) return;
     router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
 
@@ -375,7 +392,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
           {hasPhoto || !canContribute ? <PickPhoto uri={item.imageUrl ?? item.thumbnailUrl ?? item.imageSourceUrl ?? pendingPhoto?.imageUrl} label={item.name} large={hasPhoto || Boolean(pendingPhoto)} logoUri={brand?.logoUrl} /> : null}
           {pendingPhoto ? <Text accessibilityLiveRegion="polite" style={styles.photoContributionHint}>내가 올린 사진이에요. 관리자 검수 후 같은 걸 고른 사람들에게도 보여요. 지금은 나에게만 보여요.</Text> : null}
           {credit ? <Pressable accessibilityRole="button" accessibilityLabel={`사진 등록자 @${credit.username} 프로필 보기`}
-            onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username, returnTo: `/item/${item.id}` } })} style={styles.creditLink}>
+            onPress={() => router.push({ pathname: '/u/[username]', params: { username: credit.username, returnTo: `/item/${item.id}` + homeScopeQuery(params.scope) } })} style={styles.creditLink}>
             <Text style={styles.creditText}>사진 @{credit.username}</Text>
           </Pressable> : null}
           {photoAcknowledged.current && credit && credit.userId === user?.id ?
@@ -432,7 +449,7 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               <View style={[styles.pickDot, styles.pickDotMine]}><Icon name="check" size="sm" color={OnePick.bgAccent} /></View>
               <Text style={[styles.pickMarkText, styles.pickMarkTextMine]}>원픽</Text>
             </View>
-          ) : canChoose ? (
+          ) : canChooseHere ? (
             <Pressable accessibilityRole="button" onPress={openPickAction}
               accessibilityLabel={myPickStatus.type === 'selected_other' ? '원픽 바꾸기' : '원픽으로 고르기'}
               style={({ pressed }) => [styles.pickMark, pressed && styles.pressed]}>
@@ -455,12 +472,12 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
               }
             }}>
               <ItemReviewCard pick={pick} profile={profile} categoryName={category?.name ?? '이 메뉴'}
-                itemName={item.name} itemId={item.id} highlighted={pick.id === highlightedId}
+                itemName={item.name} itemId={item.id} highlighted={pick.id === highlightedId} routeScope={params.scope}
                 onRemoved={() => { router.setParams({ pickId: undefined }); void query.refetch(); }} />
             </View>
           ))
         ) : (
-          <StateCard title={canChoose ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChoose ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
+          <StateCard title={canChooseHere ? '첫 한줄평을 남겨보세요.' : '아직 한줄평이 없어요.'} text={canChooseHere ? '이 메뉴를 원픽으로 고르면 한줄평을 남길 수 있어요.' : '지금은 새 원픽을 받을 수 없어요.'} />
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>

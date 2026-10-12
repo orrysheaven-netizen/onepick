@@ -36,6 +36,7 @@ async function main() {
   for (const name of ['category', 'comment', 'pick', 'item', 'profile']) {
     imports[`@/repositories/mappers/${name}Mapper`] = load(`repositories/mappers/${name}Mapper.ts`);
   }
+  imports['@/lib/home/channelFeedMerge'] = load('lib/home/channelFeedMerge.ts');
   const { SupabaseReadRepository } = load('repositories/supabase/supabaseReadRepository.ts', imports);
   let picks = [], comments = [], items = [], calls = [], fail = false;
   // Real Supabase/PostgREST query builders, with an in-memory HTTP boundary.

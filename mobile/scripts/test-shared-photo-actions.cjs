@@ -16,6 +16,7 @@ function load(file, imports = {}) {
     if (name === '@/components/ui/dialog-labels') return require('./dialog-labels.cjs');
     if (name in imports) return imports[name];
     if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.fail(`Unexpected dependency ${name}`);
   } });
   return exports;
@@ -158,6 +159,7 @@ async function main() {
   const hooks = load('hooks/useRegisterPick.ts', {
     '@tanstack/react-query': { useMutation: (options) => options, useQuery: () => {}, useQueryClient: () => cache },
     '@/lib/query/invalidatePickData': { invalidatePickData }, '@/services': { registrationService: service },
+    '@/lib/home/firstPickNotice': load('lib/home/firstPickNotice.ts'),
   });
   await hooks.useAttachItemPhoto().onSuccess();
   keys.forEach((key) => assert.equal(cache.getQueryState(key).isInvalidated, true, 'Successful upload refreshes all product surfaces'));
@@ -176,3 +178,4 @@ async function main() {
   console.log('Shared photo actions passed: visibility, source/failure protection, scoped navigation, login return, consent, cancel/retry, double taps, remount isolation, service guards and all-surface cache invalidation.');
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
+

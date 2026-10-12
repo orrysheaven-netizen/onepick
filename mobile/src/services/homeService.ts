@@ -1,11 +1,16 @@
-import type { HomeFeedPick, PickChannel, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+import { channelScopeList, type PickChannelScope } from '@/lib/home/channelFeedMerge';
+import type { HomeFeedPick, PickChannel, PickReadItem, ReadCursor, ReadRepository } from '@/repositories/interfaces/readRepository';
+
+const PARTICIPANT_PAGE_SIZE = 100;
+/** Early-MVP scale guard: 10 pages = 1,000 current Picks. Beyond that a server aggregate is needed. */
+const PARTICIPANT_MAX_PAGES = 10;
 
 export class HomeService {
   constructor(private readonly readRepository: ReadRepository) {}
 
   // Home context changes much less often than feed pages. Keep it outside the
   // infinite query so pagination/refetching never repeats these broad reads.
-  async getHomeContext(userId?: string, _channel: PickChannel | null = null, _rootSlug: string | null = null) {
+  async getHomeContext(userId?: string, _channel: PickChannelScope = null, _rootSlug: string | null = null) {
     const currentPicks = userId
       ? await this.readRepository.getPicks({
           userId,
@@ -21,12 +26,53 @@ export class HomeService {
   // Home is people-first: each card is one person's current Pick with their
   // reason (docs/people-first-home.md). The server excludes the viewer's own
   // Picks and applies block/suspension rules; no minimum pick count applies.
-  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
+  // A multi-channel scope (오프라인 식당 + 온라인 음식, #762) is merged by the repository.
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannelScope = null, rootSlug: string | null = null, categoryId: string | null = null) {
     const feed = await this.readRepository.getHomePicks(cursor, channel, rootSlug, categoryId);
     return {
       picks: feed.items,
       nextCursor: feed.nextCursor,
     };
+  }
+
+  /**
+   * Current Pick count per food menu across a channel scope, summed from one public aggregate
+   * per channel. Each aggregate counts distinct people *within* its channel, so a person with
+   * both an offline and an online Pick on the same menu is counted once per channel.
+   * KNOWN DEFECT #762 M1 (scripts/test-home-menu-count-union.cjs): the exact union needs a
+   * server aggregate over several channels; it is not fixed client-side.
+   */
+  async getFoodMenuPickCounts(channel: PickChannelScope = null) {
+    const maps = await Promise.all(channelScopeList(channel).map((one) => this.readRepository.getFoodMenuPickCounts(one)));
+    if (maps.length === 1) return maps[0];
+    const total = new Map<string, number>();
+    for (const map of maps) for (const [categoryId, count] of map) total.set(categoryId, (total.get(categoryId) ?? 0) + count);
+    return total;
+  }
+
+  /** Date-seeded random food menu chosen by the DB each Korean calendar day. */
+  getDailyQuestionCategoryId() {
+    return this.readRepository.getDailyQuestionCategoryId();
+  }
+
+  /**
+   * Every current public Pick, newest first, for Home's "함께하는 사람들". The read goes through
+   * the viewer's RLS (suspended and blocked members are already excluded). `complete` is false
+   * when the scale guard stopped paging, so the caller can avoid showing partial counts.
+   */
+  async getParticipantPicks(): Promise<{ rows: PickReadItem[]; complete: boolean }> {
+    const rows: PickReadItem[] = [];
+    let cursor: ReadCursor | null = null;
+    for (let page = 0; page < PARTICIPANT_MAX_PAGES; page += 1) {
+      const batch = await this.readRepository.getPicks({
+        statuses: ['active'], orderBy: 'started_at', limit: PARTICIPANT_PAGE_SIZE, cursor,
+      });
+      rows.push(...batch);
+      if (batch.length < PARTICIPANT_PAGE_SIZE) return { rows, complete: true };
+      const last = batch[batch.length - 1].pick;
+      cursor = { timestamp: last.startedAt, id: last.id };
+    }
+    return { rows, complete: false };
   }
 
   getRecentItemRanking(channel: PickChannel | null = null, limit = 20) {
@@ -53,3 +99,4 @@ export class HomeService {
     }] : []);
   }
 }
+

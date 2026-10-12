@@ -19,6 +19,7 @@ function load(file, imports) {
     if (name === '@/lib/home/homeChannels') return load('lib/home/homeChannels.ts');
     if (name === '@/lib/items/pickChannel') return load('lib/items/pickChannel.ts');
     if (name === '@/services/onboardingService') return { onboardingService: { recordAction: async () => {} } };
+    if (name === '@/lib/home/publicFoodScope' && !(name in imports)) return require('./public-food-scope.cjs');
     assert.fail(`Unexpected dependency: ${name}`);
   } });
   return exports;
@@ -119,6 +120,7 @@ function replies() {
     mutateAsync: async (id) => { deletes.push(id); if (removal.fail) { removal.isError = true; throw new Error('offline'); } } };
   mutation.mutateAsync = (payload) => { writes.push(payload); return new Promise((resolve, reject) => pending.push({ resolve, reject })); };
   const view = harness('components/pick-replies.tsx', 'PickReplies', {
+    '@/lib/profile/profileName': { profileDisplayName: (p) => p.nickname?.trim() || p.username, profileNickname: (p) => p.nickname?.trim() || null }, 
     'expo-router': { useRouter: () => ({ push() {} }) }, '@/hooks/useAuthSession': { useAuthSession: () => auth },
     '@/hooks/usePickDetail': { usePickDetail: () => detail },
     '@/hooks/usePickComments': { usePickComments: (...args) => { reads.push(args); return comments; } },

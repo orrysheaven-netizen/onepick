@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { armFirstPickNotice, captureTrustedCurrentPicks } from '@/lib/home/firstPickNotice';
 import { invalidatePickData } from '@/lib/query/invalidatePickData';
 import { observabilityService, registrationService } from '@/services';
 import type { ImmediatePickRegistrationInput, RegisterPickInput, RevisePendingItemInput } from '@/services/registrationService';
@@ -54,8 +55,10 @@ export function useReadCurrentPickSlot() {
 export function useRegisterItemPick() {
   const client = useQueryClient();
   return useMutation({
+    onMutate: (input: ImmediatePickRegistrationInput) => ({ priorPicks: captureTrustedCurrentPicks(client).get(input.userId) ?? null }),
     mutationFn: (input: ImmediatePickRegistrationInput) => registrationService.registerImmediatePick(input),
-    onSuccess: (result, input) => {
+    onSuccess: (result, input, context) => {
+      armFirstPickNotice(input.userId, result.pickId, context?.priorPicks);
       invalidatePickData(client);
       void observabilityService.captureProductEvent({
         eventName: 'pick_created',
@@ -72,10 +75,12 @@ export function useRegisterItemPick() {
 export function useRegisterPick() {
   const client = useQueryClient();
   return useMutation({
+    onMutate: (input: RegisterPickInput) => ({ priorPicks: captureTrustedCurrentPicks(client).get(input.userId) ?? null }),
     mutationFn: (input: RegisterPickInput) => registrationService.register(input),
-    onSuccess: (result) => {
+    onSuccess: (result, _input, context) => {
       invalidatePickData(client);
       if (result.type === 'pick') {
+        armFirstPickNotice(result.pick.userId, result.pick.id, context?.priorPicks);
         void observabilityService.captureProductEvent({
           eventName: 'pick_created',
           pickId: result.pick.id,

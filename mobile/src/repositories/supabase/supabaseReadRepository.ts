@@ -18,6 +18,7 @@ import { mapCommentRow } from '@/repositories/mappers/commentMapper';
 import { mapPickRow } from '@/repositories/mappers/pickMapper';
 import { mapItemRow } from '@/repositories/mappers/itemMapper';
 import { mapProfileRow } from '@/repositories/mappers/profileMapper';
+import { channelScopeList, mergeChannelPages, type PickChannelScope } from '@/lib/home/channelFeedMerge';
 import { fetchItemChannels } from '@/repositories/supabase/itemChannels';
 import { fetchItemProviderIds } from '@/repositories/supabase/itemProviders';
 
@@ -171,16 +172,16 @@ export class SupabaseReadRepository implements ReadRepository {
     return { categoryId: header.category_id, categoryName: header.category_name, channels };
   }
 
-  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
+  async getHomePicks(cursor: ReadCursor | null = null, channel: PickChannelScope = null, rootSlug: string | null = null, categoryId: string | null = null) {
     return this.pickFeedPage('home_pick_feed_page', cursor, channel, rootSlug, categoryId);
   }
 
-  async getFollowingPicks(cursor: ReadCursor | null = null, channel: PickChannel | null = null, rootSlug: string | null = null) {
+  async getFollowingPicks(cursor: ReadCursor | null = null, channel: PickChannelScope = null, rootSlug: string | null = null) {
     return this.pickFeedPage('home_following_feed_page', cursor, channel, rootSlug);
   }
 
-  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null = null, rootSlug: string | null = null, categoryId: string | null = null) {
-    if (cursor) cursorFilter('started_at', cursor, false);
+  /** One server page for one channel (or every channel): up to 20 rows plus whether more exist. */
+  private async pickFeedRows(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannel | null, rootSlug: string | null, categoryId: string | null) {
     // This is viewer-specific content, NOT a global aggregate. Use the session
     // client so caller RLS and the server's auth.uid() exclude self/blocked content.
     const { data, error } = await this.client.rpc(rpc, {
@@ -193,20 +194,43 @@ export class SupabaseReadRepository implements ReadRepository {
     // optional-scope following-feed migration. Never fall back to the old
     // unscoped feed because that would expose hidden online/recipe Picks.
     if (error && rpc === 'home_following_feed_page' && (channel || rootSlug) && missingScopedHomeRpc(error, rpc)) {
-      return { items: [], nextCursor: null };
+      return null;
     }
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
-    const last = data[19];
     const rows = data.slice(0, 20);
+    const last = data[19];
+    return { rows, nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null };
+  }
+
+  private async pickFeedPage(rpc: 'home_pick_feed_page' | 'home_following_feed_page', cursor: ReadCursor | null, channel: PickChannelScope = null, rootSlug: string | null = null, categoryId: string | null = null) {
+    if (cursor) cursorFilter('started_at', cursor, false);
+    // A multi-channel scope (offline + online food, #762) reads each channel and merges the
+    // pages in server order before the shared logo/provider reads, so those run once per page.
+    const channels = channelScopeList(channel);
+    const pages = await Promise.all(channels.map((one) => this.pickFeedRows(rpc, cursor, one, rootSlug, categoryId)));
+    if (pages.some((page) => page === null)) return { items: [], nextCursor: null };
+    const ready = pages as NonNullable<(typeof pages)[number]>[];
+    let rows = ready[0].rows;
+    let nextCursor = ready[0].nextCursor;
+    if (ready.length > 1) {
+      const merged = mergeChannelPages(ready.map((page) => ({
+        items: page.rows.map((row) => ({ pickId: row.pick_id, startedAt: row.started_at, row })),
+        nextCursor: page.nextCursor,
+      })));
+      rows = merged.items.map((item) => item.row);
+      nextCursor = merged.nextCursor;
+    }
     const [logos, providerIds] = await Promise.all([
       this.brandLogoUrls(this.client, rows.map((row) => row.item_id)),
       fetchItemProviderIds(this.client, rows.map((row) => row.item_id)),
     ]);
     return {
-      nextCursor: data.length > 20 && last ? { timestamp: last.started_at, id: last.pick_id } : null,
+      nextCursor,
       items: rows.map((row) => ({
         pickId: row.pick_id, userId: row.user_id, username: row.username,
+        // #804: servers before 20261011053000 (and the following feed) omit nickname → username shows.
+        nickname: feedRowNickname(row),
         profileImageUrl: row.profile_image_url,
         itemId: row.item_id, name: row.item_name,
         categoryId: row.category_id, categoryName: row.category_name,
@@ -329,6 +353,12 @@ export class SupabaseReadRepository implements ReadRepository {
     if (error) throw mapSupabaseError(error);
     if (!Array.isArray(data)) throw new AppError('INTERNAL_ERROR');
     return new Map<string, number>(data.map((row: any) => [String(row.category_id), Number(row.pick_count) || 0]));
+  }
+
+  async getDailyQuestionCategoryId() {
+    const { data, error } = await this.countClient.rpc('home_daily_question');
+    if (error) throw mapSupabaseError(error);
+    return data ?? null;
   }
 
   async getCategoryTopItems(categoryId: string, channel: PickChannel | null = null) {
@@ -732,4 +762,10 @@ export class SupabaseReadRepository implements ReadRepository {
       };
     });
   }
+}
+
+/** #804: home_pick_feed_page returns nickname from 20261011053000; older servers and the following feed omit it. */
+function feedRowNickname(row: object): string | null {
+  const value: unknown = (row as Record<string, unknown>).nickname;
+  return typeof value === 'string' ? value : null;
 }

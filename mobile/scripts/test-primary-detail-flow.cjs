@@ -21,7 +21,7 @@ assert.match(explore, /accessibilityLabel=\{\`\$\{category\.name\} 메뉴 원픽
   'Explore menu discovery must open the same Figma 16A route');
 
 // Figma 16A is the offline-only menu-detail surface and owns people-first drill-downs.
-assert.match(menu, /fixedChannel=\{OnePickMvp\.publicPickChannel\} variant="menuDetail"/,
+assert.match(menu, /fixedChannel=\{fromHome \? OnePickMvp\.homeFeedChannels : OnePickMvp\.publicPickChannel\}[\s\S]*?variant="menuDetail"/,
   'Menu detail must use the production 16A people-Pick variant');
 assert.match(constants, /publicPickChannel: 'offline' as const/,
   'Primary food flow remains offline-only during MVP');
