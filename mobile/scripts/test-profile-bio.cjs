@@ -111,7 +111,7 @@ async function main() {
     return saved;
   } };
   const native = {
-    View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), ActivityIndicator: () => null,
+    View: part('div'), Text: part('span'), ScrollView: part('main'), Modal: part('div'), KeyboardAvoidingView: part('div'), ActivityIndicator: () => null,
     PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
     Platform: { OS: 'ios' },
     StyleSheet: { create: (styles) => styles, absoluteFill: {} },
@@ -156,6 +156,21 @@ async function main() {
   state = []; refs = []; props.bio = 'x'.repeat(250); render(); button('자기소개 수정').onPress(); render();
   assert.equal(input.value.length, 250, 'Pre-existing long bios are not silently truncated');
   assert.equal(button('자기소개 저장').disabled, true);
+  state = []; refs = []; props.variant = 'menu'; props.bio = '현재 소개';
+  assert.equal(render(), '<button><span>편집</span></button>', 'Header menu does not render the redundant bio card');
+  button('프로필 편집').onPress(); render();
+  assert.equal(input.value, '현재 소개', 'One click opens the editor with the current bio');
+  assert.equal(input.autoFocus, true);
+  input.onChangeText('취소할 내용'); render(); button('자기소개 편집 취소').onPress();
+  assert.equal(render(), '<button><span>편집</span></button>');
+  assert.equal(props.bio, '현재 소개');
+  button('프로필 편집').onPress(); render(); assert.equal(input.value, '현재 소개');
+  input.onChangeText('상단에서 수정'); render(); failure = true;
+  button('자기소개 저장').onPress(); await flush(); assert.match(render(), /저장하지 못했어요/);
+  assert.equal(input.value, '상단에서 수정');
+  failure = false; button('자기소개 저장').onPress(); await flush();
+  assert.equal(render(), '<button><span>편집</span></button>', 'Successful save closes the editor');
+  assert.equal(props.bio, '상단에서 수정');
   auth.user = null; assert.equal(render(), '');
   auth.user = { id: 'other' }; assert.equal(render(), '');
   auth.user = { id: 'owner' }; auth.isLoading = true; assert.equal(render(), '');

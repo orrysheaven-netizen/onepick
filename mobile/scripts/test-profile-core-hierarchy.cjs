@@ -24,7 +24,7 @@ assert.ok(primaryIndex > headerIndex, 'Figma 03 primary profile body follows the
 assert.ok(identityIndex > primaryIndex, 'identity and stats belong at the start of the primary profile body');
 assert.ok(picksIndex > identityIndex, 'current Picks follow identity, bio and taste chips');
 assert.ok(managementIndex > picksIndex, 'management utilities stay below the Figma 03 primary profile story');
-assert.ok(bioIndex > managementIndex, 'bio editing is retained in management rather than interrupting the primary profile');
+assert.ok(bioIndex > headerIndex && bioIndex < primaryIndex, 'bio editing is available from the compact header menu');
 assert.ok(tasteIndex > bioIndex, 'gated taste composition remains retained after profile editing');
 assert.ok(aiIndex > tasteIndex, 'gated AI remains retained after taste composition');
 

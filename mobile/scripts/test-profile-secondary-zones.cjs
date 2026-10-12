@@ -27,7 +27,7 @@ assert.doesNotMatch(profile, /ACTIVITY/);
 assert.match(profile, /showRequests \|\| showHistory \? <View style=\{styles\.activitySection\}>/);
 assert.match(profile, /showRequests \? <>/);
 assert.match(profile, /showHistory \? <>/);
-assert.match(profile, /소개를 고치거나 공개 프로필을 확인해요\./);
+assert.match(profile, /공개 프로필을 확인하거나 공유해요\./);
 assert.match(profile, /managementSection: \{[\s\S]*?marginTop: OnePickSpace\.xxxl,[\s\S]*?paddingTop: OnePickSpace\.xxl,[\s\S]*?borderTopWidth: 1/);
 assert.match(profile, /activitySection: \{[\s\S]*?marginTop: OnePickSpace\.xxxl,[\s\S]*?paddingTop: OnePickSpace\.xxl,[\s\S]*?borderTopWidth: 1/);
 assert.match(profile, /activitySectionTitle: \{ \.\.\.OnePickType\.headline, color: OnePick\.textPrimary \}/);
