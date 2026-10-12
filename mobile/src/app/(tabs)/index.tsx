@@ -310,12 +310,12 @@ export default function HomeScreen() {
   };
   const openProfile = (username: string) => router.push({ pathname: '/u/[username]', params: { username, returnTo: '/' } });
   // Both feed scopes render the same current-Pick row (Figma 30-1D): no comments/share on Home.
-  const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id} authorAbove
+  const renderFeedCard = (pick: HomeFeedPick) => <HomePickRow pick={pick} mine={pick.userId === user?.id} authorAbove framed
     onOpenItem={() => openFeedItem(pick.itemId)}
     onOpenProfile={() => openProfile(pick.username)}
     onOpenMenu={menuOpener(pick.categoryId)}
     onOpenProvider={pick.providerId ? () => router.push({ pathname: '/provider/[providerId]', params: { providerId: pick.providerId!, scope: 'provider' } }) : undefined} />;
-  // 2026-10-12 정돈 (Figma 1279:9867): no rule between cards, one 28 gap instead of 24 + 1 + 24.
+  // 2026-10-12 카드 묶음 B (Figma 1284:9021): bordered cards, 20 between cards (sections stay 28).
   const feedGap = () => <View style={styles.feedGap} />;
   // 함께하는 사람들 + 초대 sit right after the first ten cards (or the last card when fewer),
   // before any card the swipe-up load adds.
@@ -515,6 +515,8 @@ export default function HomeScreen() {
 
 // Home-only vertical rhythm from the 2026-10-12 정돈 frame (1279:9867); not a Foundations token.
 const HOME_SECTION_GAP = 28;
+// Home-only (not a Foundations token): the card border separates cards, so 20 is enough between them.
+const HOME_FEED_CARD_GAP = 20;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: OnePick.bgDefault },
@@ -557,7 +559,7 @@ const styles = StyleSheet.create({
   // 28-high header row; hitSlop keeps the 44 touch target.
   moreButton: { height: 28, alignItems: 'flex-end', justifyContent: 'center' },
   moreText: { ...OnePickType.caption, color: OnePick.textSecondary },
-  feedGap: { height: HOME_SECTION_GAP },
+  feedGap: { height: HOME_FEED_CARD_GAP },
   moreHint: { alignItems: 'center', gap: OnePickSpace.xs, paddingVertical: OnePickSpace.xl },
   moreHintText: { ...OnePickType.caption, color: OnePick.textSecondary },
   followingEmpty: { alignItems: 'center', gap: OnePickSpace.xs },

@@ -17,8 +17,14 @@ import type { HomeFeedPick } from '@/repositories/interfaces/readRepository';
  * The read model does not expose branch as a separate field yet, so the current
  * provider/item name stays on the Store Branch role without guessing a split.
  */
-export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, onOpenMenu, authorAbove = false }: {
+export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, onOpenMenu, authorAbove = false, framed = false }: {
   pick: HomeFeedPick;
+  /**
+   * Home feed only (2026-10-12, #762, Figma 1284:9021 카드안 B): one person's Pick sits in a
+   * white card with a 1px border/default line and radius lg, no shadow. The photo runs edge to
+   * edge (the card clips it), and the author row and text area get 16 side padding.
+   */
+  framed?: boolean;
   /**
    * Home feed only (2026-10-11): avatar + nickname above the photo. Other screens that share
    * this card (/feed) keep the nickname-only row below the menu until they are decided separately.
@@ -50,9 +56,9 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
   // Display condition only; the stored text and input policy are unchanged.
   const hasReview = Boolean(pick.oneLineReview?.trim());
 
-  return <View style={styles.card}>
+  return <View style={[styles.card, framed && styles.framedCard]}>
     {/* Shown name follows the #804 rule (nickname, else username); the route keeps the username. */}
-    {authorAbove ? <View style={styles.authorRow}>
+    {authorAbove ? <View style={[styles.authorRow, framed && styles.framedAuthorRow]}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${authorName} 프로필 보기`} onPress={onOpenProfile}
         style={({ pressed }) => [styles.profileAction, pressed && styles.pressed]}>
         <Avatar name={authorName} size={24} tone="subtle" imageUrl={profileAvatarUrl(pick.profileImageUrl)} />
@@ -61,11 +67,11 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
     </View> : null}
 
     <Pressable accessibilityRole="button" accessibilityLabel={`${pick.name} 상세 보기`} onPress={onOpenItem}
-      style={({ pressed }) => [styles.photo, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.photo, framed && styles.framedPhoto, pressed && styles.pressed]}>
       <PickPhoto feedCard uri={pick.thumbnailUrl} label={contentName} itemId={pick.itemId} logoUri={pick.brandLogoUrl} />
     </Pressable>
 
-    <View style={styles.textArea}>
+    <View style={[styles.textArea, framed && styles.framedTextArea]}>
       <View style={styles.itemGroup}>
         {/* Shared StoreBadge before the store name (#553 / #762, 2026-10-12). This is the store
             icon, not the offline/online Channel Badge, which Home Feed v3 still omits. Next to the
@@ -119,6 +125,13 @@ const styles = StyleSheet.create({
   card: { width: '100%', alignItems: 'stretch' },
   photo: { width: '100%', height: 176, borderRadius: OnePickRadius.lg, overflow: 'hidden' },
   textArea: { width: '100%', paddingTop: OnePickSpace.md, gap: OnePickSpace.md },
+  // Card B (1284:9021): border/default 1px, radius lg, white, clipped; no shadow.
+  framedCard: { borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault, overflow: 'hidden' },
+  // 12 above the author row, 10 below it (replaces the 8 margin), 16 at the sides.
+  framedAuthorRow: { height: AUTHOR_ROW_HEIGHT + OnePickSpace.md + 10, marginBottom: 0, paddingTop: OnePickSpace.md, paddingBottom: 10, paddingHorizontal: OnePickSpace.lg },
+  // Edge-to-edge photo: the card's own radius does the rounding.
+  framedPhoto: { borderRadius: 0 },
+  framedTextArea: { paddingHorizontal: OnePickSpace.lg, paddingBottom: OnePickSpace.lg },
   itemGroup: { width: '100%', gap: OnePickSpace.xs },
   personGroup: { width: '100%', gap: OnePickSpace.xs },
   // StoreBadge (28) + store name, 8 apart; the name truncates instead of pushing the badge out.

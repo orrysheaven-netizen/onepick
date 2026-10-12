@@ -130,9 +130,9 @@ const styles = StyleSheet.create({
   // 834:4749: bg/subtle, radius md, 14×13 padding, 10 between text and chevron.
   banner: { minHeight: MIN_TOUCH_TARGET, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 13, borderRadius: OnePickRadius.md, backgroundColor: OnePick.bgSubtle },
   bannerText: { ...OnePickType.bodyMedium, flex: 1, minWidth: 0, color: OnePick.textPrimary },
-  // 1279:9867 (2026-10-12 정돈): white card, 1px border/default, radius lg, padding 20, 8 between rows.
-  // This is the only bordered container on Home now.
-  card: { gap: OnePickSpace.sm, padding: OnePickSpace.xl, borderWidth: 1, borderColor: OnePick.borderDefault, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault },
+  // 1284:9021 (2026-10-12 카드 묶음 B 확정): bg/subtle surface without a border, radius lg,
+  // padding 20, 8 between rows. Feed cards now carry the border, so 오늘의 원픽 stays apart by fill.
+  card: { gap: OnePickSpace.sm, padding: OnePickSpace.xl, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgSubtle },
   // Title follows the shared section-header role (16/24 Bold, text/primary, left) instead of
   // 22 Bold secondary centered, so every Home section title reads the same way.
   cardTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
