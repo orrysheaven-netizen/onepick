@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { profileAvatarUrl } from '@/lib/profile/profileAvatar';
 import { PickPhoto } from '@/components/pick-photo';
+import { StoreBadge } from '@/components/store-badge';
 import { Avatar } from '@/components/ui';
 import { profileDisplayName } from '@/lib/profile/profileName';
 import { MIN_TOUCH_TARGET } from '@/components/ui/touch';
@@ -63,14 +64,17 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
 
     <View style={styles.textArea}>
       <View style={styles.itemGroup}>
-        {storeBranchName
-          ? onOpenProvider
+        {/* Shared StoreBadge before the store name (#553 / #762, 2026-10-12). This is the store
+            icon, not the offline/online Channel Badge, which Home Feed v3 still omits. */}
+        {storeBranchName ? <View style={styles.storeRow}>
+          <StoreBadge />
+          {onOpenProvider
             ? <Pressable accessibilityRole="button" accessibilityLabel={`${storeBranchName} 매장 보기`} onPress={onOpenProvider}
                 style={({ pressed }) => [styles.storeAction, pressed && styles.pressed]}>
                 <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
               </Pressable>
-            : <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeBranch}>{storeBranchName}</Text>
-          : null}
+            : <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.storeBranch, styles.storeText]}>{storeBranchName}</Text>}
+        </View> : null}
         <Pressable accessibilityRole="button"
           accessibilityLabel={openMenu ? `${menuName} 원픽 목록 보기` : `${pick.name} 상세 보기`}
           onPress={openMenu ?? onOpenItem}
@@ -86,11 +90,23 @@ export function HomePickRow({ pick, onOpenItem, onOpenProfile, onOpenProvider, o
         </Pressable>}
         {pick.oneLineReview ? <Pressable accessibilityRole="button" accessibilityLabel={`${contentName} 한줄평 상세 보기`} onPress={onOpenItem}
           style={({ pressed }) => [styles.blockAction, pressed && styles.pressed]}>
-          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{pick.oneLineReview}</Text>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.review}>{quotedReview(pick.oneLineReview)}</Text>
         </Pressable> : null}
       </View> : null}
     </View>
   </View>;
+}
+
+/**
+ * Display-only (2026-10-12, #762): wrap the one-line review in curly quotes “…” so it reads apart
+ * from the store/menu lines. Stored text is untouched; a review the author already wrapped in
+ * outer quotes is shown as written so it is not double-wrapped. Inner quotes are left alone.
+ */
+export function quotedReview(review: string): string {
+  const text = review.trim();
+  if (!text) return review;
+  const wrapped = (text.startsWith('“') && text.endsWith('”')) || (text.length > 1 && text.startsWith('"') && text.endsWith('"'));
+  return wrapped ? text : `“${text}”`;
 }
 
 const AUTHOR_ROW_HEIGHT = 24;
@@ -101,10 +117,14 @@ const styles = StyleSheet.create({
   textArea: { width: '100%', paddingTop: OnePickSpace.md, gap: OnePickSpace.md },
   itemGroup: { width: '100%', gap: OnePickSpace.xs },
   personGroup: { width: '100%', gap: OnePickSpace.xs },
+  // StoreBadge (28) + store name, 8 apart; the name truncates instead of pushing the badge out.
+  storeRow: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: OnePickSpace.sm },
+  storeText: { flexShrink: 1, minWidth: 0 },
   // Keep the 21/20px visual rows in place while their actual web/native targets
   // meet the 44px product contract. This follows the shared Avatar/footer pattern.
   storeAction: {
-    alignSelf: 'flex-start',
+    flexShrink: 1,
+    alignSelf: 'center',
     maxWidth: '100%',
     minWidth: MIN_TOUCH_TARGET,
     minHeight: MIN_TOUCH_TARGET,

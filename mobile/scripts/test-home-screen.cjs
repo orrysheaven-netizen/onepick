@@ -211,7 +211,7 @@ render();
 
 for (width of [390, 800, 1200]) {
   const page = render();
-  assert.match(page, />friend</); assert.match(page, />다른 사람의 이유</, 'Each card quotes that person’s own reason');
+  assert.match(page, />friend</); assert.match(page, />“다른 사람의 이유”</, 'Each card quotes that person’s own reason in “…” (#762 2026-10-12)');
   assert.match(page, />neighbor</); assert.match(page, /이웃도 신라면/);
   assert.doesNotMatch(page, /✓ 내 원픽/, 'Figma 30 (10-04): no "✓ 내 원픽" text on feed rows');
   assert.doesNotMatch(page, /이미 내 원픽이에요|나도 이게 원픽|♡/, 'Home drops follow-the-Pick CTAs and likes');
@@ -223,7 +223,11 @@ for (width of [390, 800, 1200]) {
   const nicknamePos = page.indexOf('>friend</span>');
   assert.ok(nicknamePos >= 0 && storePos > nicknamePos && menuPos > storePos, 'Home feed (2026-10-11): author row first, then store and menu as separate text blocks');
   assert.equal(page.split('>friend</span>').length - 1, 1, 'The author row is shown once, not duplicated below');
-  assert.doesNotMatch(page, />매장<\//, 'Feed Card v3 has no legacy channel badge');
+  // #553 / #762 (2026-10-12): the shared StoreBadge (mocked as <b>매장</b>) precedes the store name;
+  // the offline/online Channel Badge is still not drawn on Home Feed v3.
+  assert.equal(page.split('<b>매장</b>').length - 1, 1, 'Only the provider-backed card shows the StoreBadge');
+  assert.ok(page.indexOf('<b>매장</b>') < storePos && page.indexOf('<b>매장</b>') > nicknamePos, 'StoreBadge sits right before the store name');
+  assert.doesNotMatch(page, /오프라인|온라인/, 'Feed Card v3 has no offline/online Channel Badge');
   assert.doesNotMatch(page, /탭 원픽 보기/, 'Initial MVP exposes no channel switcher');
   assert.ok(page.indexOf('진라면') < page.indexOf('신라면'), 'Home preserves newest-first service order instead of prioritizing the viewer’s picks');
   assert.doesNotMatch(page, /아직 선택하지 않은 카테고리/, 'Signed-in Home no longer lists unselected categories');

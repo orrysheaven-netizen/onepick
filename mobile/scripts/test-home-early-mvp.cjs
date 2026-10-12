@@ -295,17 +295,23 @@ const sections = load('components/home-early-sections.tsx', {
   '@/lib/home/questionTitle': load('lib/home/questionTitle.ts'), '@/lib/profile/profileAvatar': { profileAvatarUrl: (path) => (path ? `https://x/${path}` : null) }, '@/lib/profile/profileName': profileName,
 });
 
-test('Unpicked menus area is the 1203:8588 card; the shared section style stays borderless', () => {
+// 1203:8588 → 1279:9867 (2026-10-12 정돈): the unpicked area lost its border box; the question card
+// is the only bordered container on Home.
+test('Unpicked menus area is a borderless section (1279:9867); only the question card keeps the border box', () => {
   const flat = (style) => Object.assign({}, ...[].concat(style).flat(Infinity).filter(Boolean));
   const tree = sections.HomeUnpickedMenus({ categories: [{ id: 'ramen', name: '라면' }], onPick: () => {} });
   assert.equal(tree.props.testID, 'home-unpicked-card');
   const card = flat(tree.props.style);
-  assert.equal(card.borderWidth, 1, '1px border');
-  assert.equal(card.borderColor, constants.OnePick.borderDefault, 'border/default');
-  assert.equal(card.padding, 20, 'inner padding 20');
-  assert.equal(card.borderRadius, constants.OnePickRadius.lg, 'radius lg');
-  assert.equal(card.backgroundColor, constants.OnePick.bgDefault, 'white card');
+  assert.equal(card.borderWidth, undefined, 'No border box around the unpicked area');
+  assert.equal(card.padding, undefined, 'No inner padding (plain section)');
+  assert.equal(card.backgroundColor, undefined, 'No separate card background');
   assert.equal(card.gap, constants.OnePickSpace.md, 'Title-to-chips gap is unchanged');
+  const question = flat(sections.HomeQuestionCard({ category: { id: 'ramen', name: '라면' }, nickname: null, answerCount: null, answered: false,
+    footer: { kind: 'none' }, onAnswer: () => {}, onBrowseAnswers: () => {}, onOpenMenu: () => {}, onShareFirstPick: () => {} }).props.style);
+  assert.equal(question.borderWidth, 1, 'Question card keeps the 1px border');
+  assert.equal(question.borderColor, constants.OnePick.borderDefault, 'border/default');
+  assert.equal(question.padding, 20, 'Question card padding 20 (was 24)');
+  assert.equal(question.borderRadius, constants.OnePickRadius.lg, 'radius lg');
   const people = flat(sections.HomePeopleRow({ people: [], onOpenProfile: () => {} }).props.style);
   assert.equal(people.borderWidth, undefined, 'People row keeps the borderless section');
   assert.equal(people.padding, undefined, 'People row padding unchanged');
@@ -745,8 +751,8 @@ test('Hidden early-MVP entries stay hidden; feed is the single 새로 올라온 
   assert.doesNotMatch(text(), /랭킹|단골|AI/, 'No ranking/단골모임/AI entry on early Home');
 });
 
-// Feed Card v3 (#810): preserve the current main implementation without legacy badges.
-test('Feed card v3 keeps content and omits legacy channel badges', () => {
+// Feed Card v3 (#810): no legacy flag/channel badge; #553/#762 (2026-10-12) adds the shared StoreBadge before the store name.
+test('Feed card v3 keeps content, omits channel badges and shows StoreBadge before the store name', () => {
   const row = load('components/home-pick-row.tsx', {
     'react/jsx-runtime': jsxRuntime, 'react-native': native, '@/components/ui': ui, '@/components/pick-photo': names('PickPhoto'),
     '@/components/current-pick-flag': names('CurrentPickFlag'), '@/components/store-badge': names('StoreBadge'),
@@ -775,6 +781,16 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
   assert.ok(!named.includes('duck_01'), 'username hidden when a nickname exists');
   const unnamed = authorTexts({ pickId: 'x', userId: 'u', username: 'duck_01', nickname: null, itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview: '이유', thumbnailUrl: 'https://x', channels: ['offline'] });
   assert.ok(unnamed.includes('duck_01'), 'username when unset');
+  // #762 (2026-10-12): the one-line review is shown inside curly quotes “…” (display only).
+  assert.ok(named.includes('“이유”') && !named.includes('이유'), 'review wrapped in “…”');
+  assert.ok(named.includes('오리') && !named.some((t) => /^“(오리|가게|라면)”$/.test(t)), 'nickname/store/menu not quoted');
+  const reviewTexts = (oneLineReview) => authorTexts({ pickId: 'x', userId: 'u', username: 'duck_01', nickname: '오리', itemId: 'i', name: '가게', categoryId: 'ramen', categoryName: '라면', oneLineReview, thumbnailUrl: 'https://x', channels: ['offline'] });
+  assert.ok(!reviewTexts('').some((t) => /“|”/.test(t)), 'empty review: no empty quotes');
+  assert.ok(reviewTexts('“이미 감쌈”').includes('“이미 감쌈”'), 'already curly-quoted: not double-wrapped');
+  assert.ok(reviewTexts('"직접 감쌈"').includes('"직접 감쌈"'), 'already straight-quoted: not double-wrapped');
+  assert.ok(reviewTexts('그 집 "비법" 소스').includes('“그 집 "비법" 소스”'), 'inner quotes kept as written');
+  assert.equal(row.quotedReview('  이유 '), '“이유”', 'outer whitespace trimmed for display');
+  assert.equal(row.quotedReview('   '), '   ', 'whitespace-only: no empty quotes');
   // #762: the menu line of a provider-backed row opens the menu list (44px+ target); legacy rows keep detail.
   const pressables = (pick, extra) => {
     const nodes = [];
@@ -810,12 +826,25 @@ test('Feed card v3 keeps content and omits legacy channel badges', () => {
   assert.equal(legacy.some((p) => p.accessibilityLabel === '미역국 원픽 목록 보기'), false, 'Legacy row title is the item name, not a menu');
   const noMenu = pressables({ ...base, channels: ['online'] }, {});
   assert.equal(noMenu.find((p) => p.accessibilityLabel === '가게 상세 보기' && JSON.stringify(p.children).includes('미역국')).onPress(), 'item', 'Without a menu link the line keeps item detail');
+  const badgeBeforeStore = (nodes) => {
+    const badge = nodes.findIndex((n) => n.type === 'StoreBadge');
+    const store = nodes.findIndex((n) => n.props?.children === '가게');
+    return badge >= 0 && store > badge;
+  };
   const offline = visitTree(['offline']);
-  assert.equal(offline.some((n) => n.type === 'StoreBadge'), false, 'v3 omits the legacy store badge');
+  assert.equal(offline.filter((n) => n.type === 'StoreBadge').length, 1, 'One StoreBadge per card');
+  assert.ok(badgeBeforeStore(offline), 'StoreBadge precedes the store name');
+  assert.equal(offline.some((n) => n.type === 'CurrentPickFlag'), false, 'v3 still omits the legacy current-Pick flag');
+  assert.doesNotMatch(JSON.stringify(offline), /오프라인|온라인/, 'No offline/online Channel Badge text');
   assert.ok(JSON.stringify(offline).includes('이유'), 'Review content remains visible');
   const online = visitTree(['online']);
-  assert.equal(online.some((n) => n.type === 'StoreBadge'), false, 'Online card never shows the store badge');
+  assert.ok(badgeBeforeStore(online), 'Online provider row also shows StoreBadge before its store name');
   assert.ok(JSON.stringify(online).includes('가게'), 'Provider name remains visible');
+  const noStore = visitTree([]);
+  assert.equal(noStore.some((n) => n.type === 'StoreBadge'), false, 'Rows without a store name have no StoreBadge');
+  // Store and menu stay separate lines and keep their own targets.
+  const storeLink = linked.find((p) => p.accessibilityLabel === '가게 매장 보기');
+  assert.ok(storeLink && !JSON.stringify(storeLink.children).includes('미역국'), 'Store name and menu name stay separate');
 });
 
 Promise.all(asyncTests).then(repositoryChecks).then(() => {
