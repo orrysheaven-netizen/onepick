@@ -23,7 +23,7 @@ export function moveWebSwipeGesture(state: WebSwipeGestureState, x: number, y: n
   if (state.vertical) return { kind: 'vertical', state, dx, dy };
 
   if (!state.claimed) {
-    if (Math.abs(dy) >= SWIPE_MAX_START_DY
+    if ((Math.abs(dy) >= SWIPE_MAX_START_DY && dx <= SWIPE_START_DX)
       || (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > SWIPE_START_DX)) {
       return { kind: 'vertical', state: { ...state, vertical: true }, dx, dy };
     }
