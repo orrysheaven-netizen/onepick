@@ -10,9 +10,9 @@ const source = read('src/lib/navigation/webSwipeGesture.ts');
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const exports = {};
+const moduleExports = {};
 vm.runInNewContext(js, {
-  exports,
+  exports: moduleExports,
   require: (name) => {
     if (name === './swipeBack') return {
       SWIPE_START_DX: 12,
@@ -22,7 +22,7 @@ vm.runInNewContext(js, {
     throw new Error('Unexpected import: ' + name);
   },
 });
-const { beginWebSwipeGesture, moveWebSwipeGesture, endWebSwipeGesture } = exports;
+const { beginWebSwipeGesture, moveWebSwipeGesture, endWebSwipeGesture } = moduleExports;
 
 // The scene follows the finger without waiting for release.
 let state = beginWebSwipeGesture(8, 100);
