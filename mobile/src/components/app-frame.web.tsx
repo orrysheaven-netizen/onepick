@@ -29,6 +29,9 @@ export default function AppFrame({ children }: PropsWithChildren) {
       isFinishing: () => finishing.current,
       drag: (dx) => {
         if (finishing.current) return;
+        // A new gesture supersedes a previous route's delayed reset.
+        if (resetTimer.current !== null) clearTimeout(resetTimer.current);
+        resetTimer.current = null;
         translateX.stopAnimation();
         translateX.setValue(Math.min(sceneWidth.current, Math.max(0, dx)));
       },
@@ -60,6 +63,8 @@ export default function AppFrame({ children }: PropsWithChildren) {
 
   useEffect(() => {
     // Header back, another tab, or route changes must not inherit old progress.
+    if (resetTimer.current !== null) clearTimeout(resetTimer.current);
+    resetTimer.current = null;
     translateX.stopAnimation();
     translateX.setValue(0);
     finishing.current = false;
