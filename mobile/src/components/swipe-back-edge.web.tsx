@@ -136,7 +136,14 @@ export default function SwipeBackEdge() {
     const onTouchStart = (event: TouchEvent) => {
       if (identifier !== null || event.touches.length !== 1 || getSwipeSceneController()?.isFinishing()) return;
       const touch = event.touches.item(0);
-      if (!touch || touch.clientX > IOS_TOUCH_EDGE_WIDTH || isHorizontalControl(event.target)) return;
+      if (!touch || isHorizontalControl(event.target)) return;
+      // On a wide browser/iPad, the app is centered. Use its own left edge
+      // rather than incorrectly reacting to the outer page's left margin.
+      const frame = document.querySelector('[data-testid="app-swipe-viewport"]');
+      const bounds = frame?.getBoundingClientRect();
+      const appX = touch.clientX - (bounds?.left ?? 0);
+      if (appX < 0 || appX > IOS_TOUCH_EDGE_WIDTH
+        || (bounds && (touch.clientY < bounds.top || touch.clientY > bounds.bottom))) return;
       identifier = touch.identifier;
       gesture = beginWebSwipeGesture(touch.clientX, touch.clientY);
       originalTarget = event.target;
