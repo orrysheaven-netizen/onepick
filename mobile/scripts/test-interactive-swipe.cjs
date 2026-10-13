@@ -42,6 +42,16 @@ assert.equal(endWebSwipeGesture(move.state, 98, 103).complete, true);
 state = move.state;
 assert.equal(endWebSwipeGesture(state, 65, 103).complete, false);
 
+// Diagonal movement dominated by horizontal travel is still a back swipe.
+state = beginWebSwipeGesture(8, 100);
+move = moveWebSwipeGesture(state, 83, 127);
+assert.equal(move.kind, 'horizontal');
+
+// A very fast flick can be claimed at touchend, even without earlier move events.
+state = beginWebSwipeGesture(8, 100);
+move = moveWebSwipeGesture(state, 95, 102);
+assert.equal(endWebSwipeGesture(move.state, 95, 102).complete, true);
+
 // A short swipe restores without navigation.
 state = beginWebSwipeGesture(5, 50);
 move = moveWebSwipeGesture(state, 42, 50);
