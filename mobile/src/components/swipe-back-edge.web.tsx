@@ -168,7 +168,9 @@ export default function SwipeBackEdge() {
     const onTouchEnd = (event: TouchEvent) => {
       const touch = tracked(event.changedTouches);
       if (!touch || !gesture) return;
-      const end = endWebSwipeGesture(gesture, touch.clientX, touch.clientY);
+      // A fast flick can deliver its final displacement on touchend.
+      const atRelease = moveWebSwipeGesture(gesture, touch.clientX, touch.clientY);
+      const end = endWebSwipeGesture(atRelease.state, touch.clientX, touch.clientY);
       const tapTarget = originalTarget;
       clear();
       if (!end.complete) {
