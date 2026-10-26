@@ -670,6 +670,7 @@ async function screenTests() {
   currentSlotFails = false;
   press('다음'); await flush(); page = await render();
   assert.equal(stepOf(page), '4', 'successful slot retry restores the review step');
+  assert.equal(draftStore.load('owner').step, 5, 'successful slot retry persists the review step');
   assert.ok(count('currentSlot') > slotsAfterFailure, 'slot retry re-reads current state');
   assert.equal(input('원픽 한줄평').value, '육수가 깔끔해요');
   assert.equal(draftStore.load('owner').photo.base64, 'QUJD');
