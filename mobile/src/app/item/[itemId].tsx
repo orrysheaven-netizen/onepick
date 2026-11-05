@@ -104,11 +104,13 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   const trackedItemId = useRef<string | undefined>(undefined);
   const acknowledgedNotification = useRef<string | undefined>(undefined);
   // Set only by /pick/new right before it replaces itself with this screen.
-  const [pickSavedToast, setPickSavedToast] = useState(() => consumePickSavedToast(focusPickId));
+  const [pickSavedToast, setPickSavedToast] = useState<string | null>(() => consumePickSavedToast(focusPickId));
+  // Figma 61-1: changing a Pick is confirmed before the review is written.
+  const [confirmChange, setConfirmChange] = useState(false);
   const itemLoaded = Boolean(query.data);
   useEffect(() => {
     if (!pickSavedToast || !itemLoaded) return;
-    const timer = setTimeout(() => setPickSavedToast(false), 2600);
+    const timer = setTimeout(() => setPickSavedToast(null), 2600);
     return () => clearTimeout(timer);
   }, [pickSavedToast, itemLoaded]);
 
@@ -332,10 +334,17 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
   }
   const credit = query.photoCredit && query.photoCredit.itemId === item.id && query.photoCredit.imagePath === item.imagePath
     && query.photoCredit.imageSourceUrl === (item.imageSourceUrl ?? null) ? query.photoCredit : null;
-  const openPickAction = () => {
-    if (!canChoose) return;
+  const openChoose = () => {
+    setConfirmChange(false);
     router.push({ pathname: '/pick/choose', params: { itemId: item.id, categoryId: item.categoryId, ...(pickChannel ? { channel: pickChannel } : {}) } });
   };
+  const openPickAction = () => {
+    if (!canChoose) return;
+    if (myPickStatus.type === 'selected_other') setConfirmChange(true);
+    else openChoose();
+  };
+  const changeMenu = category?.name?.trim() || '이 메뉴';
+  const changeTarget = itemTitle(item.name, category?.name, isRestaurant);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -464,7 +473,17 @@ function ItemDetailContent({ auth, params }: { auth: ReturnType<typeof useAuthSe
         )}
       </ScrollView>
       {pickSavedToast ? <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
-        <Text style={styles.toastText}>원픽을 정했어요.</Text>
+        <Text style={styles.toastText}>{pickSavedToast}</Text>
+      </View> : null}
+      {confirmChange ? <View style={styles.dialogBackdrop}>
+        <View accessibilityRole="alert" style={styles.dialog}>
+          <Text style={styles.dialogTitle}>원픽을 바꿀까요?</Text>
+          <Text style={styles.dialogText}>{changeMenu} 원픽이 이미 있어요. 바꾸면 {changeTarget}이 새 원픽이 돼요.</Text>
+          <View style={styles.dialogActions}>
+            <Button variant="secondary" label="취소" onPress={() => setConfirmChange(false)} style={styles.dialogButton} />
+            <Button label="바꾸고 한줄평 쓰기" onPress={openChoose} style={styles.dialogButton} />
+          </View>
+        </View>
       </View> : null}
     </SafeAreaView>
   );
@@ -480,6 +499,12 @@ const styles = StyleSheet.create({
     paddingBottom: OnePickSpace.xxxl + OnePickSpace.lg,
   },
   centered: { alignSelf: 'center' },
+  dialogBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center', padding: OnePickSpace.gutter, backgroundColor: OnePick.bgOverlay },
+  dialog: { width: '100%', maxWidth: 320, borderRadius: OnePickRadius.lg, backgroundColor: OnePick.bgDefault, padding: OnePickSpace.lg, gap: OnePickSpace.sm },
+  dialogTitle: { ...OnePickType.headline, color: OnePick.textPrimary },
+  dialogText: { ...OnePickType.body, color: OnePick.textSecondary },
+  dialogActions: { flexDirection: 'row', gap: OnePickSpace.sm, marginTop: OnePickSpace.sm },
+  dialogButton: { flex: 1 },
   toast: {
     position: 'absolute',
     alignSelf: 'center',

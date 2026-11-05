@@ -274,9 +274,9 @@ async function main() {
   assert.equal(destination.params.pickId, 'pick-1');
   page = render();
   assert.doesNotMatch(page, /원픽을 정했어요|등록 요청|승인 대기/, 'no confirmation dialog is rendered');
-  assert.equal(savedToast.consumePickSavedToast('other-pick'), false, 'the toast is bound to the saved Pick');
-  assert.equal(savedToast.consumePickSavedToast('pick-1'), true);
-  assert.equal(savedToast.consumePickSavedToast('pick-1'), false, 'the toast is shown only once');
+  assert.equal(savedToast.consumePickSavedToast('other-pick'), null, 'the toast is bound to the saved Pick');
+  assert.equal(savedToast.consumePickSavedToast('pick-1'), '원픽을 정했어요.');
+  assert.equal(savedToast.consumePickSavedToast('pick-1'), null, 'the toast is shown only once');
   assert.ok(pressables.find((props) => textOf(props.children) === '원픽 등록하기').disabled, 'a saved flow cannot submit again');
 
   // A branded store pauses inside the menu step until the person chooses
@@ -448,7 +448,7 @@ async function main() {
   await chooseExistingOffline(); render(); input('원픽 한줄평').onChangeText('다시 확인'); render();
   press('원픽 등록하기'); render(); press('원픽 바꾸기'); await flush();
   assert.equal(destination, undefined, 'a failed save stays on the registration screen');
-  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), false);
+  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), null);
   page = render();
   assert.match(page, /다른 기기에서 이 메뉴의 원픽이 바뀌었어요/);
   press('변경 확인 후 등록하기'); await flush();
@@ -462,7 +462,7 @@ async function main() {
   assert.equal(registrationCalls[0].requestId, registrationCalls[1].requestId);
   assert.equal(registrationCalls[0].requestId, 'request-1');
   assert.equal(destination.params.pickId, 'pick-after-confirm');
-  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), true);
+  assert.equal(savedToast.consumePickSavedToast('pick-after-confirm'), '원픽을 정했어요.');
 
   // Link-first step 1: the Naver title (with 점) matches one catalog row's name + branch.
   reset();
